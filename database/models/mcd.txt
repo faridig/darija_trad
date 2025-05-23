@@ -1,0 +1,10 @@
+Modèle Conceptuel de Données (MCD)
+
+Entité : Traduction
+
+Champs :
+- id : identifiant unique
+- source_lang : langue source (ex: fr, en)
+- source_text : texte original
+- target_lang : langue cible
+- target_text : traduction
