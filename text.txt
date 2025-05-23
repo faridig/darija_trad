@@ -1,0 +1,26 @@
+sft_mixture:
+
+
+Dans un premier temps interroger l'api huggingface pour avoir les stats sous json data\darija_sft_mixture\statistics\dataset_statistics.py
+
+puis télécharger les parquets sur azure data\darija_sft_mixture\parquet_download\parquet_downloader.py et analyse sur data\darija_sft_mixture\parquet_download\analyse_parquet.ipynb
+
+ensuite nettoyage de ces parquets avec data\darija_sft_mixture\nettoyage\nettoyage_csv.py et export en data\darija_sft_mixture\nettoyage\donnees_brutes.csv et format json data\darija_sft_mixture\nettoyage\traductions_processed.json
+
+analyse de csv avec data\darija_sft_mixture\nettoyage\analyse_csv.ipynb
+
+scrapping: 
+
+je génere des questions en et fr avec api openai avec data\darija_scrapping\data_synthetique\generer_questions.py j'ai en export deux xlsx data\darija_scrapping\data_synthetique\questions_en.xlsx
+data\darija_scrapping\data_synthetique\questions_fr.xlsx
+
+puis je les utilise avec script data\darija_scrapping\scrapping.py pour faire le scrapping sur le site et j'ai en export data\darija_scrapping\translations.json
+
+
+
+
+
+
+
+
+

@@ -26,7 +26,14 @@ L'application nécessitera :
 ### E1: Gestion des données [ ]
 - [ ] Initialisation du versionnement Git ⏳
 - [ ] Extraction des données
+  - [ ] Cloner le dataset MBZUAI-Paris/Darija-SFT-Mixture
+  - [ ] Analyser la structure des données
+  - [ ] Identifier les formats de données disponibles
+  - [ ] Extraire les paires de traduction pertinentes
 - [ ] Modélisation de la base de données
+  - [ ] Concevoir le schéma pour stocker les traductions
+  - [ ] Gérer les métadonnées (dialecte, contexte, etc.)
+  - [ ] Optimiser pour les requêtes de traduction
 - [ ] Mise en place API REST
 - [ ] Documentation technique
 
@@ -72,6 +79,7 @@ L'application nécessitera :
 ## 📚 Documentation Consultée
 - [Git Documentation](https://git-scm.com/doc)
 - [GitHub Guides](https://guides.github.com/)
+- [MBZUAI-Paris/Darija-SFT-Mixture Dataset](https://huggingface.co/datasets/MBZUAI-Paris/Darija-SFT-Mixture)
 
 ## 🏗 Structure du Projet
 ```
@@ -90,6 +98,12 @@ darija_app/
   - Permet le suivi des modifications
   - Standard de l'industrie
   - Intégration facile avec les outils CI/CD
+- Choix du dataset MBZUAI-Paris/Darija-SFT-Mixture :
+  - Dataset spécialisé pour le Darija
+  - Données de haute qualité
+  - Inclut des variations dialectales
+  - Format standardisé
+  - Maintenance active
 
 ## 🔒 Conformité RGPD
 - [ ] Registre des traitements

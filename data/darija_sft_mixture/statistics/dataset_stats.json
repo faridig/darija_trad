@@ -1,0 +1,66 @@
+{
+  "dataset": {
+    "nom": "MBZUAI-Paris/Darija-SFT-Mixture",
+    "auteur": "MBZUAI-Paris",
+    "description": "\n\t\n\t\t\n\t\tDataset Card for Darija-SFT-Mixture\n\t\n\nNote the ODC-BY license, indicating that different licenses apply to subsets of the data. This means that some portions of the dataset are non-commercial. We present the mixture as a research artifact.\nDarija-SFT-Mixture is a dataset consisting of 458K instruction samples, by consolidating existing Darija language resources, creating novel datasets both manually and synthetically, and translating English instructions under strict quality control.… See the full description on the dataset page: https://huggingface.co/datasets/MBZUAI-Paris/Darija-SFT-Mixture.",
+    "licence": "odc-by",
+    "mis_à_jour": "2025-05-02T12:38:55.000Z",
+    "accès_restreint": false,
+    "désactivé": false,
+    "popularité": {
+      "téléchargements": 1082,
+      "likes": 16
+    },
+    "tags": [
+      "task_categories:question-answering",
+      "task_categories:text-generation",
+      "license:odc-by",
+      "size_categories:100K<n<1M",
+      "format:parquet",
+      "modality:text",
+      "library:datasets",
+      "library:dask",
+      "library:mlcroissant",
+      "library:polars",
+      "arxiv:2409.17912",
+      "region:us"
+    ],
+    "métriques": []
+  },
+  "contenu": {
+    "tâches": [
+      "question-answering",
+      "conversational",
+      "text-generation"
+    ],
+    "taille": [
+      "100K<n<1M"
+    ],
+    "format": "Parquet",
+    "fichiers": {
+      "nombre": 1,
+      "liste": {
+        "default": {
+          "train": [
+            "https://huggingface.co/api/datasets/MBZUAI-Paris/Darija-SFT-Mixture/parquet/default/train/0.parquet",
+            "https://huggingface.co/api/datasets/MBZUAI-Paris/Darija-SFT-Mixture/parquet/default/train/1.parquet"
+          ]
+        }
+      }
+    },
+    "fichiers_raw": [
+      {
+        "rfilename": ".gitattributes"
+      },
+      {
+        "rfilename": "README.md"
+      },
+      {
+        "rfilename": "data/train-00000-of-00002.parquet"
+      },
+      {
+        "rfilename": "data/train-00001-of-00002.parquet"
+      }
+    ]
+  }
+}
