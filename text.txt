@@ -19,8 +19,35 @@ puis je les utilise avec script data\darija_scrapping\scrapping.py pour faire le
 
 
 
+data\normalise_data.py prend les deux json et les normalisent, supprime les doublons. 
+
+dans database\insert_data.py j'utilise la fonction principal de data\normalise_data.py  puis insert_data sert à envoyer les données propres dans la bdd 
+
+dans database\migrations il y a des fichiers sql pour :
+
+001_create_translations.sql
+C’est la première migration.
+
+Elle sert à créer la table translations.
+
+Elle définit la structure de base : colonnes, types, peut-être clés primaires.
+
+C’est comme poser les fondations d’une maison.
+
+🔹 002_add_index_lang.sql
+Ajoute probablement un index sur une ou plusieurs colonnes (source_lang, target_lang, etc.).
+
+Pourquoi ? Pour accélérer les recherches dans ta base (par exemple : retrouver toutes les traductions en fr → ar rapidement).
+
+C’est une optimisation, pas obligatoire pour que ça marche, mais essentielle pour que ça marche vite.
+
+🔹 003_add_unique_constraint.sql
+Ajoute une contrainte d’unicité sur certaines colonnes (probablement les 4 champs source_lang, source_text, target_lang, target_text).
+
+Empêche l’insertion de doublons.
 
 
+(venv) ➜  database git:(bdd) ✗ sudo -u postgres psql -d darija_db  pour aller dans la bdd
 
-
+database\migrations\run_migrations.py lance database\migrations\001_create_translations.sql puis database\insert_data.py puis database\migrations\002_add_index_lang.sql puis database\migrations\003_add_unique_constraint.sql
 
