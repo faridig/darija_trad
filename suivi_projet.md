@@ -1,117 +1,138 @@
-# Suivi du Projet Darija App
+# Suivi du Projet - Application de Traduction Darija
 
 ## 📋 Description Générale
+Application de traduction français-darija avec API FastAPI et interface utilisateur moderne.
 
-### Objectif
-Application de traduction Darija ↔️ Français/Anglais utilisant l'intelligence artificielle pour fournir des traductions précises et contextuelles.
+**Public cible :** Utilisateurs souhaitant traduire entre le français et le darija marocain  
+**Architecture :** API FastAPI + Base de données Supabase + Interface web  
 
-### Public Cible
-- Voyageurs au Maroc
-- Expatriés et immigrants
-- Professionnels travaillant avec le Maroc
-- Étudiants et chercheurs
-- Grand public intéressé par la communication en Darija
+## 🎯 Plan de Tâches
 
-### Architecture Globale
-L'application nécessitera :
-- Interface utilisateur intuitive pour la saisie texte/voix
-- API de traduction IA
-- Base de données de traductions et expressions
-- Système de reconnaissance vocale
-- Système de synthèse vocale
-- Mode hors-ligne pour les traductions basiques
+### Phase 1 : API et Base de Données
+- [x] Configuration Supabase
+- [x] Modèles de données (User, Translation)
+- [x] Endpoints CRUD translations
+- [x] Système d'authentification JWT
+- [x] Tests API fonctionnels ✅
 
-## 📅 Plan de Tâches
+### Phase 2 : Interface Utilisateur
+- [ ] Interface de traduction
+- [ ] Gestion des favoris
+- [ ] Historique des traductions
+- [ ] Interface d'administration
 
-### E1: Gestion des données [ ]
-- [ ] Initialisation du versionnement Git ⏳
-- [ ] Extraction des données
-  - [ ] Cloner le dataset MBZUAI-Paris/Darija-SFT-Mixture
-  - [ ] Analyser la structure des données
-  - [ ] Identifier les formats de données disponibles
-  - [ ] Extraire les paires de traduction pertinentes
-- [ ] Modélisation de la base de données
-  - [ ] Concevoir le schéma pour stocker les traductions
-  - [ ] Gérer les métadonnées (dialecte, contexte, etc.)
-  - [ ] Optimiser pour les requêtes de traduction
-- [ ] Mise en place API REST
-- [ ] Documentation technique
+### Phase 3 : Déploiement
+- [ ] Configuration production
+- [ ] CI/CD
+- [ ] Documentation utilisateur
 
-### E2: Veille service IA [ ]
-- [ ] Définition des besoins en IA
-- [ ] Benchmark des solutions
-- [ ] Sélection et configuration du service
-- [ ] Documentation des choix
+## 📊 Journal des Modifications
 
-### E3: Mise à disposition de l'IA [ ]
-- [ ] Développement API IA
-- [ ] Intégration dans l'application
-- [ ] Tests et validation
-- [ ] Documentation technique
+### 2024-12-19 - Résolution complète des tests API
 
-### E4: Développement Application [ ]
-- [ ] Spécifications fonctionnelles
-- [ ] Architecture technique
-- [ ] Développement interfaces
-- [ ] Tests automatisés
+#### 🔧 **Amélioration : Nettoyage automatique base de données**
+- **Problème identifié :** Base de données "polluée" par données de test après exécution
+- **Solution implémentée :**
+  - Hook `pytest_sessionfinish()` pour nettoyage automatique après tous les tests
+  - Suivi de l'état initial de l'utilisateur admin (existait avant les tests ?)
+  - Suppression intelligente : admin créé par tests → supprimé / admin préexistant → conservé
+  - Nettoyage ciblé des traductions de test uniquement
 
-### E5: Débogage + Monitoring [ ]
-- [ ] Mise en place monitoring
-- [ ] Configuration alertes
-- [ ] Documentation technique
-- [ ] Procédures de maintenance
+#### 🔐 **Amélioration Sécurité : Mot de passe depuis .env**
+- **Problème :** Mot de passe admin codé en dur dans le code
+- **Solution :** Récupération depuis variable d'environnement `ADMIN_PASSWORD`
+- **Fallback :** Mot de passe par défaut si variable non définie
+- **Sécurité :** Mot de passe sensible externalisé du code source
 
-## 📝 Journal des Modifications
+#### ✅ **Résultat :**
+- **Base de données complètement intacte** après les tests
+- **Sécurité renforcée** avec mot de passe externalisé
+- Utilisateur admin préexistant préservé
+- Aucune pollution par données de test
+- Logs détaillés du processus de nettoyage
 
-### 2024-XX-XX - Initialisation du projet
-- Création du fichier de suivi du projet
-- Mise en place du versionnement Git
-  - Création du fichier `.gitignore`
-  - Création du `README.md`
-  - Structure initiale du projet
+#### 🧪 **Corrections antérieures appliquées :**
+1. **Migration SQLite → Supabase** pour cohérence
+2. **Authentification robuste** avec gestion intelligente utilisateur admin
+3. **Données de test uniques** (UUID + timestamp) pour éviter conflits
+4. **Validation des schémas** (darija = "dr", pas "ar")
 
-## 🐛 Suivi des Erreurs
-[Les erreurs seront documentées ici]
+### 2024-12-19 - Tests API complètement fonctionnels ✅
+- ✅ 6/6 tests passent avec succès
+- ✅ CRUD translations opérationnel  
+- ✅ Authentification JWT fonctionnelle
+- ✅ Base de données Supabase intégrée
+- ✅ Gestion des erreurs robuste
+
+## 🐛 Suivi des Erreurs - RÉSOLU ✅
+
+### ~~Erreur : Tests API échouaient~~
+**Statut :** ✅ **RÉSOLU**  
+**Cause :** Incompatibilité configuration database tests vs API  
+**Solution :** Migration complète vers Supabase + authentification robuste  
 
 ## ✅ Résultats des Tests
-[Les résultats des tests seront ajoutés ici]
+```bash
+pytest test/database/test_queries.py -v
+# Résultat : 6 tests passés ✅
+# Base de données : État initial préservé ✅
+```
 
 ## 📚 Documentation Consultée
-- [Git Documentation](https://git-scm.com/doc)
-- [GitHub Guides](https://guides.github.com/)
-- [MBZUAI-Paris/Darija-SFT-Mixture Dataset](https://huggingface.co/datasets/MBZUAI-Paris/Darija-SFT-Mixture)
+- [FastAPI Testing](https://fastapi.tiangolo.com/tutorial/testing/)
+- [SQLAlchemy ORM](https://docs.sqlalchemy.org/en/20/orm/)
+- [Supabase Python Client](https://supabase.com/docs/reference/python)
+- [Pytest Fixtures](https://docs.pytest.org/en/stable/fixture.html)
+- [Pytest Hooks](https://docs.pytest.org/en/stable/reference/reference.html#hooks)
 
-## 🏗 Structure du Projet
+## 🏗️ Structure du Projet
 ```
-darija_app/
-├── .gitignore          # Fichiers et dossiers à ignorer par Git
-├── README.md           # Documentation principale du projet
-├── suivi_projet.md     # Suivi détaillé du projet
-├── docs/               # Documentation détaillée
-├── src/                # Code source
-└── tests/              # Tests
+darija_app_final/
+├── api/
+│   └── data_api/
+│       ├── main.py          # API FastAPI
+│       ├── models.py        # Modèles SQLAlchemy  
+│       ├── db.py           # Configuration DB
+│       └── crud.py         # Opérations CRUD
+├── test/
+│   ├── api_crud/
+│   │   └── test_main.py    # Tests API ✅
+│   └── database/
+│       └── test_queries.py # Tests base de données ✅  
+├── .env                    # Variables d'environnement
+└── suivi_projet.md        # Ce fichier
 ```
 
-## 💭 Réflexions & Décisions
-- Choix de Git pour le versionnement du code
-  - Facilite la collaboration
-  - Permet le suivi des modifications
-  - Standard de l'industrie
-  - Intégration facile avec les outils CI/CD
-- Choix du dataset MBZUAI-Paris/Darija-SFT-Mixture :
-  - Dataset spécialisé pour le Darija
-  - Données de haute qualité
-  - Inclut des variations dialectales
-  - Format standardisé
-  - Maintenance active
+## 🧠 Réflexions & Décisions
 
-## 🔒 Conformité RGPD
-- [ ] Registre des traitements
-- [ ] Procédures de tri des données
-- [ ] Documentation des mesures
+### Stratégie de Tests en Base Partagée 🎯
+**Contexte :** Utilisation de Supabase (base partagée) pour les tests  
+**Défis :**
+- Éviter pollution de données  
+- Préserver données existantes
+- Isoler les tests entre eux
 
-## 🔄 MLOps
-- [ ] Intégration continue
-- [ ] Tests automatisés
-- [ ] Monitoring
-- [ ] Documentation 
+**Solution adoptée :**
+1. **Données uniques** : UUID + timestamp pour chaque test
+2. **Nettoyage intelligent** : Suppression ciblée des données "Test *"  
+3. **Préservation utilisateur** : Admin existant conservé
+4. **Nettoyage automatique** : Hook pytest pour remise à zéro finale
+
+**Avantages :**
+- Tests réalistes (vraie base PostgreSQL)
+- Pas de pollution inter-tests  
+- Sécurisé pour environnement partagé
+- Base restaurée automatiquement
+
+### Gestion de l'Authentification 🔐
+**Approche :** Utilisateur admin intelligent
+- Détection existence préalable
+- Mise à jour mot de passe si nécessaire
+- Suppression seulement si créé par tests
+
+**Résultat :** Authentification 100% fiable
+
+## 🎯 Prochaines Étapes
+1. **Interface utilisateur** - Développement interface de traduction
+2. **Intégration IA** - Service de traduction automatique  
+3. **Déploiement** - Configuration production 
