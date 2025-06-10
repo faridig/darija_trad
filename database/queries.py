@@ -50,7 +50,7 @@ class TranslationQueries:
     @staticmethod
     def get_all(db, source_lang: Optional[str] = None, target_lang: Optional[str] = None) -> List[Dict]:
         """
-        Récupère jusqu'à 100 traductions, éventuellement filtrées par langue source/cible.
+        Récupère toutes les traductions, éventuellement filtrées par langue source/cible.
         """
         start = time.perf_counter()
         try:
@@ -59,7 +59,6 @@ class TranslationQueries:
                 WHERE (:source_lang IS NULL OR source_lang = :source_lang)
                 AND (:target_lang IS NULL OR target_lang = :target_lang)
                 ORDER BY id DESC
-                LIMIT 100
             """)
             result = db.execute(query, {
                 "source_lang": source_lang,
