@@ -49,5 +49,7 @@ Empêche l’insertion de doublons.
 
 (venv) ➜  database git:(bdd) ✗ sudo -u postgres psql -d darija_db  pour aller dans la bdd
 
+api crud :    uvicorn api.data_api.main:app --reload
+
 database\migrations\run_migrations.py lance database\migrations\001_create_translations.sql puis database\insert_data.py puis database\migrations\002_add_index_lang.sql puis database\migrations\003_add_unique_constraint.sql
 

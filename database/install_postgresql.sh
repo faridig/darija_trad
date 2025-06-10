@@ -127,7 +127,8 @@ echo "✅ Installation terminée avec authentification md5."
 read -p "Exécuter run_migrations.py maintenant ? (y/n) " run_script
 if [[ "$run_script" == "y" ]]; then
   echo "🚀 Lancement des migrations…"
-  python3 database/migrations/run_migrations.py
+  python3 -m database.migrations.run_migrations
+
 else
   echo "ℹ️ Lance plus tard : python3 database/migrations/run_migrations.py"
 fi

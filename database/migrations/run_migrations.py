@@ -2,6 +2,7 @@ import psycopg2
 from dotenv import load_dotenv
 import os
 import sys, os
+from database.insert_admin import insert_admin
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from database.insert_data import insert_translations
@@ -21,6 +22,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Chemin du dossier conte
 
 MIGRATIONS = [
     os.path.join(BASE_DIR, '001_create_translations.sql'),
+    os.path.join(BASE_DIR, '002_create_users_table.sql'),
     os.path.join(BASE_DIR, '003_add_unique_constraint.sql')
 ]
 
@@ -45,6 +47,7 @@ try:
 
     # Insertion des données
     insert_translations()
+    insert_admin()
 
 except Exception as e:
     conn.rollback()

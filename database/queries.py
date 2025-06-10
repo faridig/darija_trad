@@ -13,14 +13,14 @@ logger = logging.getLogger(__name__)
 
 class TranslationQueries:
     """
-    Classe de requêtes pour la gestion des traductions dans la base de données.
+    Classe de requêtes SQL pour la gestion des traductions.
     
-    📊 Structure de la table 'translations' :
-    - id : INTEGER PRIMARY KEY
-    - source_lang : VARCHAR(2)
-    - source_text : TEXT
-    - target_lang : VARCHAR(2)
-    - target_text : TEXT
+    📌 Table `translations` :
+        - id : INTEGER PRIMARY KEY
+        - source_lang : VARCHAR(2)
+        - source_text : TEXT
+        - target_lang : VARCHAR(2)
+        - target_text : TEXT
     """
 
     INDEXES = [
@@ -48,17 +48,25 @@ class TranslationQueries:
         return metrics
 
     @staticmethod
-    def get_all(db) -> List[Dict]:
+    def get_all(db, source_lang: Optional[str] = None, target_lang: Optional[str] = None) -> List[Dict]:
+        """
+        Récupère jusqu'à 100 traductions, éventuellement filtrées par langue source/cible.
+        """
         start = time.perf_counter()
         try:
             query = text("""
-                SELECT * FROM translations 
-                ORDER BY id DESC 
+                SELECT * FROM translations
+                WHERE (:source_lang IS NULL OR source_lang = :source_lang)
+                AND (:target_lang IS NULL OR target_lang = :target_lang)
+                ORDER BY id DESC
                 LIMIT 100
             """)
-            result = db.execute(query).mappings().fetchall()
+            result = db.execute(query, {
+                "source_lang": source_lang,
+                "target_lang": target_lang
+            }).mappings().fetchall()
             TranslationQueries._log_metrics("get_all", start)
-            return result
+            return [dict(row) for row in result]
         except SQLAlchemyError as e:
             TranslationQueries._log_metrics("get_all", start, False, e)
             raise
@@ -67,13 +75,10 @@ class TranslationQueries:
     def get_by_id(db, id: int) -> Optional[Dict]:
         start = time.perf_counter()
         try:
-            query = text("""
-                SELECT * FROM translations 
-                WHERE id = :id
-            """)
+            query = text("SELECT * FROM translations WHERE id = :id")
             result = db.execute(query, {"id": id}).mappings().fetchone()
             TranslationQueries._log_metrics("get_by_id", start)
-            return result
+            return dict(result) if result else None
         except SQLAlchemyError as e:
             TranslationQueries._log_metrics("get_by_id", start, False, e)
             raise
@@ -84,25 +89,24 @@ class TranslationQueries:
         try:
             required_fields = ['source_lang', 'source_text', 'target_lang', 'target_text']
             if not all(field in data for field in required_fields):
-                raise ValueError("Données manquantes")
+                raise ValueError("Données manquantes pour la création.")
 
             query = text("""
                 INSERT INTO translations (
                     source_lang, source_text, 
                     target_lang, target_text
-                )
-                VALUES (
+                ) VALUES (
                     :source_lang, :source_text,
                     :target_lang, :target_text
                 )
                 RETURNING *
             """)
             result = db.execute(query, data).mappings().fetchone()
-            db.commit()  # Commit la transaction
+            db.commit()
             TranslationQueries._log_metrics("create", start)
-            return result
+            return dict(result)
         except SQLAlchemyError as e:
-            db.rollback()  # Rollback en cas d'erreur
+            db.rollback()
             TranslationQueries._log_metrics("create", start, False, e)
             raise
 
@@ -120,11 +124,11 @@ class TranslationQueries:
                 RETURNING *
             """)
             result = db.execute(query, {**data, "id": id}).mappings().fetchone()
-            db.commit()  # Commit la transaction
+            db.commit()
             TranslationQueries._log_metrics("update", start)
-            return result
+            return dict(result) if result else None
         except SQLAlchemyError as e:
-            db.rollback()  # Rollback en cas d'erreur
+            db.rollback()
             TranslationQueries._log_metrics("update", start, False, e)
             raise
 
@@ -132,16 +136,12 @@ class TranslationQueries:
     def delete(db, id: int) -> Optional[Dict]:
         start = time.perf_counter()
         try:
-            query = text("""
-                DELETE FROM translations 
-                WHERE id = :id 
-                RETURNING *
-            """)
+            query = text("DELETE FROM translations WHERE id = :id RETURNING *")
             result = db.execute(query, {"id": id}).mappings().fetchone()
-            db.commit()  # Commit la transaction
+            db.commit()
             TranslationQueries._log_metrics("delete", start)
-            return result
+            return dict(result) if result else None
         except SQLAlchemyError as e:
-            db.rollback()  # Rollback en cas d'erreur
+            db.rollback()
             TranslationQueries._log_metrics("delete", start, False, e)
             raise

@@ -1,0 +1,15 @@
+artifact_uri: file:///projets/darija_app_finetune/llm/mlruns/0/a8b2a8f91b3146858f43ac7e1c87b322/artifacts
+end_time: 1747080695920
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: a8b2a8f91b3146858f43ac7e1c87b322
+run_name: ./nllb-darija-finetuned-lora
+run_uuid: a8b2a8f91b3146858f43ac7e1c87b322
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747065280129
+status: 3
+tags: []
+user_id: farid
