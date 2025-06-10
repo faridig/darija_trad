@@ -13,7 +13,7 @@ COPY api/data_api/ ./api/data_api/
 COPY database/ ./database/
 
 # Copier le fichier .env (s'il est à la racine)
-COPY .env .env
+# COPY .env .env
 
 ENV PYTHONPATH=/app
 
