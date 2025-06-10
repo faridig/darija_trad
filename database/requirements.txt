@@ -1,0 +1,21 @@
+# Base Python packages
+psycopg2-binary
+python-dotenv
+pandas
+
+# Sécurité
+passlib[bcrypt]
+
+# ORM
+SQLAlchemy
+
+# Typage
+typing-extensions
+
+# Logging est natif, donc pas besoin
+
+# (Facultatif) Pour les outils interactifs ou développement
+ipython
+
+fastapi
+uvicorn[standard]

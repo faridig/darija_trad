@@ -51,5 +51,8 @@ Empêche l’insertion de doublons.
 
 api crud :    uvicorn api.data_api.main:app --reload
 
+docker pour build : docker build -f api/data_api/Dockerfile -t my-api .
+
+
 database\migrations\run_migrations.py lance database\migrations\001_create_translations.sql puis database\insert_data.py puis database\migrations\002_add_index_lang.sql puis database\migrations\003_add_unique_constraint.sql
 
