@@ -9,6 +9,9 @@ __pycache__/
 # Testing
 /coverage
 
+# Ajouter dans votre .gitignore
+*:Zone.Identifier
+
 # Production
 /build
 /dist
