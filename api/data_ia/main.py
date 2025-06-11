@@ -3,9 +3,9 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
-from .routers import auth, translations
+
+from .routers import auth, generation
 
 app = FastAPI(
     title="Translation API",
@@ -36,4 +36,4 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 # Importer les routes
 app.include_router(auth.router)
-app.include_router(translations.router)
+app.include_router(generation.router)

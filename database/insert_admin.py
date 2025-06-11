@@ -10,8 +10,8 @@ from sqlalchemy.exc import IntegrityError
 load_dotenv()
 
 # Import du contexte et de la base
-from api.data_api.db import SessionLocal, engine
-from api.data_api.models import Base, User
+from api.core.db import SessionLocal, engine
+from api.core.models import Base, User
 
 # Création des tables si non présentes
 Base.metadata.create_all(bind=engine)

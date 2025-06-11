@@ -9,8 +9,8 @@ import os
 from dotenv import load_dotenv
 
 from api.data_api.main import app, get_db
-from api.data_api.models import User
-from api.data_api.db import Base
+from api.core.models import User
+from api.core.db import Base
 from passlib.context import CryptContext
 
 # Load environment variables
