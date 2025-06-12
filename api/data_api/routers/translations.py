@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from ...core.db import get_db
-from ...core.auth import verify_jwt_token
+from database.core.db import get_db
+from database.core.auth import verify_jwt_token
 from ..schemas import Translation, TranslationCreate, TranslationUpdate
 from database.queries import TranslationQueries
 

@@ -3,30 +3,26 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from api.data_ia.routers import auth, generation, monitoring
 
-
-from .routers import auth, generation
 
 app = FastAPI(
     title="Translation API",
     version="1.0",
     description="""
-🔐 **Authentification avec JWT :**
-
-1. Faites un `POST /login` avec vos identifiants.
-2. Copiez le token retourné.
-3. Cliquez sur 🔐 "Authorize" en haut à droite et collez `Bearer <token>`.
-
-⚠️ Toutes les routes `/translations` nécessitent un token valide.
-"""
+    🔐 Authentification avec JWT
+    """
 )
+
+# Middleware
+app.middleware("http")(monitoring.monitoring_middleware)
 
 # Rate limiting
 limiter = Limiter(key_func=lambda request: request.headers.get("X-Forwarded-For", request.client.host))
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Validation handler
+# Gestion des erreurs
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
@@ -34,6 +30,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"detail": exc.errors(), "body": exc.body}
     )
 
-# Importer les routes
+# Routes
 app.include_router(auth.router)
 app.include_router(generation.router)
+app.include_router(monitoring.router)

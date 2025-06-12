@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ../..  # Remonte pour inclure le Dockerfile et tout le projet
+      dockerfile: api/data_ia/Dockerfile
+    container_name: darija_api
+    ports:
+      - "8001:8001"
+    networks:
+      - monitoring_net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring_net
+    depends_on:
+      - app
+
+networks:
+  monitoring_net:

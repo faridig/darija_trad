@@ -50,6 +50,7 @@ Empêche l’insertion de doublons.
 (venv) ➜  database git:(bdd) ✗ sudo -u postgres psql -d darija_db  pour aller dans la bdd
 
 api crud :    uvicorn api.data_api.main:app --reload
+api model : uvicorn api.data_ia.main:app --reload --port 8001
 
 docker pour build : docker build -f api/data_api/Dockerfile -t my-api .
 
