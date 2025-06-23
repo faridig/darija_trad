@@ -23,6 +23,7 @@ __pycache__/
 .env.test.local
 .env.production.local
 .env
+*.secret
 
 # Logs
 npm-debug.log*

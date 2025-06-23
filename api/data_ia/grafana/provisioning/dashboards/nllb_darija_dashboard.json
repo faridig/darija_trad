@@ -1,0 +1,85 @@
+{
+  "id": null,
+  "uid": "nllb-darija-api",
+  "title": "NLLB-LoRA Darija – Monitoring",
+  "timezone": "browser",
+  "schemaVersion": 27,
+  "version": 0,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "graph",
+      "title": "Requêtes API par endpoint",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(api_requests_total[1m])) by (endpoint)",
+          "legendFormat": "{{endpoint}}",
+          "refId": "A"
+        }
+      ],
+      "yaxes": [
+        { "format": "req/s", "label": "req/s", "min": 0 },
+        { "show": false }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "graph",
+      "title": "Latence moyenne par endpoint",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(api_request_latency_seconds_sum[5m])) by (endpoint) / sum(rate(api_request_latency_seconds_count[5m])) by (endpoint)",
+          "legendFormat": "{{endpoint}} avg",
+          "refId": "A"
+        }
+      ],
+      "yaxes": [
+        { "format": "s", "label": "secondes", "min": 0 },
+        { "show": false }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "graph",
+      "title": "Latence P95 par endpoint",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 6 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(api_request_latency_seconds_bucket[5m])) by (le, endpoint))",
+          "legendFormat": "{{endpoint}} p95",
+          "refId": "A"
+        }
+      ],
+      "yaxes": [
+        { "format": "s", "label": "secondes", "min": 0 },
+        { "show": false }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "heatmap",
+      "title": "Distribution longueur du texte (drift)",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 6 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(data_drift_text_length_bucket[5m])",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showLegend": true,
+        "bucketBound": {
+          "from": "le",
+          "to": null
+        }
+      }
+    }
+  ]
+}
