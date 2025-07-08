@@ -1,0 +1,116 @@
+name: "CI/CD AI Model Pipeline"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: 🧪 Test & Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r api/ia_api/requirements.txt
+          pip install -r database/requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run pytest suite
+        run: |
+          pytest --maxfail=1 --disable-warnings -q
+
+  train:
+    name: 🚀 Entraînement du modèle
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install training dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r llm/requirements.txt
+          pip install -r api/ia_api/requirements.txt
+
+      - name: Launch fine-tuning
+        run: |
+          python llm/finetune_nllb_lora.py
+
+      - name: Upload model checkpoint
+        uses: actions/upload-artifact@v3
+        with:
+          name: model-checkpoint
+          path: nllb-darija-lora-model
+
+  package-model:
+    name: 📦 Packaging & Docker
+    runs-on: ubuntu-latest
+    needs: train
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download checkpoint artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: model-checkpoint
+          path: dist/checkpoint
+
+      - name: Export ONNX model
+        run: |
+          python scripts/export_model.py --format onnx --input dist/checkpoint --output dist/model.onnx
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ secrets.DOCKER_REGISTRY }}/nllb-darija:${{ github.sha }} .
+
+      - name: Login to Docker registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ secrets.DOCKER_REGISTRY }}/nllb-darija:${{ github.sha }}
+
+  deploy:
+    name: 🚀 Déploiement en production
+    runs-on: ubuntu-latest
+    needs: package-model
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 --decode > ~/.kube/config
+
+      - name: Update deployment image
+        run: |
+          kubectl set image deployment/darija-api-deployment darija-api=${{ secrets.DOCKER_REGISTRY }}/nllb-darija:${{ github.sha }} --record
