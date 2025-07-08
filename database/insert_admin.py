@@ -10,14 +10,20 @@ from sqlalchemy.exc import IntegrityError
 load_dotenv()
 
 # Import du contexte et de la base
-from api.core.db import SessionLocal, engine
-from api.core.models import Base, User
+from database.core.db import SessionLocal, engine
+from database.core.models import Base, User
 
-# Création des tables si non présentes
-Base.metadata.create_all(bind=engine)
+
 
 # Contexte de hachage
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def initialize_db():
+    """
+    Crée les tables si elles n'existent pas encore.
+    On ne lève pas d'exception ici, c'est safe.
+    """
+    Base.metadata.create_all(bind=engine)
 
 def insert_admin():
     username = os.getenv("ADMIN_USERNAME", "admin")
@@ -32,7 +38,7 @@ def insert_admin():
             print(f"ℹ️ L'utilisateur '{username}' existe déjà. Aucune action nécessaire.")
             return
 
-        admin = User(username=username, hashed_password=hashed)
+        admin = User(username=username, hashed_password=hashed, is_admin=True)
         db.add(admin)
         db.commit()
         print("✅ Utilisateur admin inséré dans la base.")

@@ -1,7 +1,7 @@
 (venv) ➜  database git:(bdd) ✗ sudo -u postgres psql -d darija_db  pour aller dans la bdd
 
 api crud :    uvicorn api.data_api.main:app --reload
-api model : uvicorn api.data_ia.main:app --reload --port 8001
+api model : uvicorn api.ia_api.main:app --reload --port 8001
 
 docker pour build : docker-compose -f api/data_ia/docker-compose.yml up --build
 
@@ -10,3 +10,6 @@ gpt-context-builder --root .
 
 pour les ports : sudo lsof -i :5432
 sudo kill 1234
+
+locust --host=http://localhost:8001 puis ouvrir http://localhost:8089/
+

@@ -4,7 +4,7 @@ services:
   app:
     build:
       context: ../..  # Le contexte racine du projet
-      dockerfile: api/data_ia/Dockerfile
+      dockerfile: api/ia_api/Dockerfile
     container_name: darija_api
     env_file:
       - ../../.env

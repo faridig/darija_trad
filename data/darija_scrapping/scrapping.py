@@ -170,7 +170,7 @@ def traduire_texte_traductordarija(phrase, url_base="https://www.learnmoroccan.c
         return None
 
 
-def sauvegarder_traduction_json(phrase, traduction_arabe, source_lang="fr", fichier_json="translations.json"):
+def sauvegarder_traduction_json(phrase, traduction_arabe, source_lang="fr", fichier_json="translations2.json"):
     """
     Sauvegarde la traduction dans un fichier JSON structuré.
     
@@ -437,7 +437,7 @@ def traduire_phrases_excel(chemin_fichier_excel, source_lang="fr"):
 
         # Utiliser un seul fichier JSON pour toutes les traductions
         dossier_script = os.path.dirname(os.path.abspath(__file__))
-        fichier_json = os.path.join(dossier_script, "translations.json")
+        fichier_json = os.path.join(dossier_script, "translations2.json")
 
         # Charger les traductions existantes
         traductions_existantes = charger_traductions_existantes(fichier_json)
@@ -486,12 +486,13 @@ if __name__ == "__main__":
     print(f"📂 Répertoire de travail : {os.getcwd()}")
 
     # Définition des chemins des fichiers Excel
-    fichier_excel_fr = "../agregation/data_xlsx/questions_fr.xlsx"
-    fichier_excel_en = "../agregation/data_xlsx/questions_en.xlsx"
+    fichier_excel_fr = "data_synthetique/questions_fr.xlsx"
+    fichier_excel_en = "data_synthetique/questions_en.xlsx"
+    
 
     # Créer un fichier JSON unique pour toutes les traductions
     dossier_script = os.path.dirname(os.path.abspath(__file__))
-    fichier_json = os.path.join(dossier_script, "translations.json")
+    fichier_json = os.path.join(dossier_script, "translations2.json")
     if not os.path.exists(fichier_json):
         with open(fichier_json, 'w', encoding='utf-8') as f:
             json.dump({"translations": []}, f, ensure_ascii=False, indent=2)

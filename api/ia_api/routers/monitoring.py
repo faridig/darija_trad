@@ -1,16 +1,19 @@
+# api/ia_api/routers/monitoring.py
+
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import PlainTextResponse
 from prometheus_client import generate_latest, Counter, Histogram, CONTENT_TYPE_LATEST
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import logging
 from datetime import datetime
-from ..model import LLMDarija
-from database.core.db import get_db
-from database.core.auth import verify_jwt_token
 import json
 import os
 import secrets
 from dotenv import load_dotenv
+
+from ..model import LLMTranslator                # <-- import modifié
+from database.core.db import get_db
+from database.core.auth import verify_jwt_token
 
 # Init router
 router = APIRouter(tags=["Monitoring"])
@@ -47,7 +50,7 @@ DATA_DRIFT_INPUT_LENGTH = Histogram(
 )
 
 # Modèle pour health check
-modele = LLMDarija("Farid59/nllb-darija-lora-model")
+modele = LLMTranslator("Farid59/nllb-darija-lora-model")   # <-- classe renommée
 
 @router.get("/health")
 async def health_check(
@@ -57,7 +60,8 @@ async def health_check(
     """Endpoint de vérification de santé"""
     try:
         test_text = "Test santé"
-        _ = modele.traiter(test_text)
+        # on suppose fra_Latn->ary_Arab par défaut ; on peut préciser si besoin
+        _ = modele.traiter(test_text, src_lang="fra_Latn", tgt_lang="ary_Arab")
         return {
             "status": "healthy",
             "timestamp": datetime.now().isoformat()

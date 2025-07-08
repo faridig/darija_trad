@@ -11,5 +11,6 @@ prometheus-client==0.20.0
 slowapi
 python-jose
 python-multipart
+locust
 
 

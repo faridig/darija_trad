@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copier les fichiers requirements AVANT le code pour optimiser le cache Docker
-COPY api/data_ia/requirements.txt ./requirements-api.txt
+COPY api/ia_api/requirements.txt ./requirements-api.txt
 COPY database/requirements.txt ./requirements-db.txt
 
 # Installer les dépendances en une seule couche
@@ -35,11 +35,11 @@ peft = PeftModel.from_pretrained(model, adapter)\
 "
 
 # Copier le code de l'application
-COPY api/data_ia/ ./api/data_ia/
+COPY api/ia_api/ ./api/ia_api/
 COPY database/ ./database/
 
 # Définir le PYTHONPATH
 ENV PYTHONPATH=/app
 
 # Commande de démarrage
-CMD ["uvicorn", "api.data_ia.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "api.ia_api.main:app", "--host", "0.0.0.0", "--port", "8001"]

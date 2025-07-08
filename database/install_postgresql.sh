@@ -123,15 +123,27 @@ fi
 
 echo "✅ Installation terminée avec authentification md5."
 
+
 # 🚀 Option migrations
 read -p "Exécuter run_migrations.py maintenant ? (y/n) " run_script
 if [[ "$run_script" == "y" ]]; then
-  echo "🚀 Lancement des migrations…"
-  python3 -m database.migrations.run_migrations
+  echo "🚀 Lancement des migrations en LOCAL…"
+
+  ORIGINAL_SUPABASE_URL="$SUPABASE_URL"
+
+  echo "ℹ️ Temporisation de SUPABASE_URL (vide) pour Python…"
+  SUPABASE_URL="" python3 -m database.migrations.run_migrations
+
+  # On remet la vraie valeur pour la suite
+  export SUPABASE_URL="$ORIGINAL_SUPABASE_URL"
+  echo "ℹ️ SUPABASE_URL restauré pour la migration vers Supabase."
 
 else
   echo "ℹ️ Lance plus tard : python3 database/migrations/run_migrations.py"
 fi
+
+
+
 
 # 🚀 Option migration vers Supabase
 read -p "Souhaites-tu maintenant lancer la migration vers Supabase (migrate_to_supabase.sh) ? (y/n) " run_supabase

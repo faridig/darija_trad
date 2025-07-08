@@ -8,3 +8,14 @@ Champs :
 - source_text : texte original
 - target_lang : langue cible
 - target_text : traduction
+
+Entité : User
+
+Champs :
+- id : identifiant unique
+- username : nom d’utilisateur
+- hashed_password : mot de passe (haché)
+- is_admin : flag administrateur (booléen)
+- created_at : date et heure de création du compte
+- last_login : date et heure de la dernière connexion
+

@@ -6209,6 +6209,12 @@
       "source": "Do you prefer eating in restaurants or street food?",
       "target_lang": "darija",
       "target": "هل تفضل الأكل في المطاعم أو الأكل الشعبي/ديال الزنقة؟"
+    },
+    {
+      "source_lang": "en",
+      "source": "Do you know any lesser-known local specialties?",
+      "target_lang": "darija",
+      "target": "واش كتعرف شي شهيوات محلية ماشي معروفة بزاف؟"
     }
   ]
 }
