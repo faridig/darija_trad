@@ -12,5 +12,5 @@ slowapi
 python-jose
 python-multipart
 locust
-
+httpx
 
