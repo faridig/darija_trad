@@ -4,14 +4,14 @@ name: CI/CD - Stack API IA (App + Monitoring)
 # Se déclenche quand le code de l'API IA, de la BDD ou du monitoring change.
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
     paths:
       - 'api/ia_api/**'
       - 'database/**'
       - '.github/workflows/ci-cd-ia-api.yml'
   
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
     paths:
       - 'api/ia_api/**'
       - 'database/**'
@@ -49,28 +49,29 @@ jobs:
           pytest tests/api_ia/
 
   # ===================================================================
-  # JOB 2 : CONSTRUIRE ET DÉPLOYER LES IMAGES DOCKER
-  # Ne s'exécute que si les tests réussissent et sur un push vers 'main'.
+  # JOB 2 : CONSTRUIRE ET DÉPLOYER LES IMAGES DOCKER (avec utilisateur admin ACR)
+  # Ne s'exécute que si les tests réussissent et sur un push vers 'master'.
   # ===================================================================
   build-and-deploy-images:
     name: 2 - Déploiement des images vers ACR
     runs-on: ubuntu-latest
     needs: test-api
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
 
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      - name: Connexion à Azure
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
+      # --- Connexion à ACR avec utilisateur et mot de passe ---
       - name: Connexion à Azure Container Registry (ACR)
-        uses: azure/docker-login@v1
+        uses: docker/login-action@v3
         with:
-          login-server: ${{ secrets.ACR_NAME }}.azurecr.io
+          # L'URL de votre ACR
+          registry: ${{ secrets.ACR_NAME }}.azurecr.io
+          # Le nom d'utilisateur de l'admin ACR
+          username: ${{ secrets.ACR_USERNAME }}
+          # Le mot de passe de l'admin ACR
+          password: ${{ secrets.ACR_PASSWORD }}
           
       # --- Étape 2.1 : Image de l'API IA ---
       - name: Build and Push IA API Image
@@ -87,11 +88,9 @@ jobs:
       - name: Build and Push Prometheus Image
         uses: docker/build-push-action@v5
         with:
-          # Le contexte est le dossier contenant le Dockerfile et les fichiers à copier
           context: api/ia_api/prometheus
           file: api/ia_api/prometheus/Dockerfile
           push: true
-          # Nom du dépôt pour l'image Prometheus sur ACR
           tags: |
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-prometheus:latest
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-prometheus:${{ github.sha }}
@@ -103,11 +102,6 @@ jobs:
           context: api/ia_api/grafana
           file: api/ia_api/grafana/Dockerfile
           push: true
-          # Nom du dépôt pour l'image Grafana sur ACR
           tags: |
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-grafana:latest
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-grafana:${{ github.sha }}
-
-      - name: Déconnexion d'Azure
-        run: az logout
-        if: always()
