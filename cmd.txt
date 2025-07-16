@@ -3,8 +3,9 @@
 api crud :    uvicorn api.data_api.main:app --reload
 api model : uvicorn api.ia_api.main:app --reload --port 8001
 
-docker pour build : docker-compose -f api/data_ia/docker-compose.yml up --build
-
+pour build docker compose de api ia : 
+cd api/ia_api/
+docker-compose up --build
 
 gpt-context-builder --root .
 
@@ -12,4 +13,29 @@ pour les ports : sudo lsof -i :5432
 sudo kill 1234
 
 locust --host=http://localhost:8001 puis ouvrir http://localhost:8089/
+------------------------------------------------------------------------------------------------------------
+pour augmenter le niveau de hadrware de l'api ia : 
+
+# --- Variables ---                                                                                                                     
+RESOURCE_GROUP="RG_FIGOUTI"
+PLAN_NAME="plan-darija-api"
+
+echo "Mise à niveau du plan de service '${PLAN_NAME}' vers P3V2..."
+
+az appservice plan update \
+  --name "$PLAN_NAME" \
+  --resource-group "$RESOURCE_GROUP" \
+  --sku P3V2
+
+echo "✅ Mise à niveau vers P3V2 terminée."
+echo "L'application va maintenant être redémarrée sur une machine plus puissante."
+
+pour le plan moins cher en cas de non utilisation  :
+
+az appservice plan update \
+  --name "plan-darija-api" \
+  --resource-group "RG_FIGOUTI" \
+  --sku B1
+
+----------------------------------------------------------------
 

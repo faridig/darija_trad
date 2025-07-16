@@ -5,4 +5,4 @@ scrape_configs:
       - targets: ["app:8001"]
     basic_auth:
       username: admin
-      password_file: /run/secrets/prometheus_password
+      password_file: /etc/prometheus/prometheus_password.secret

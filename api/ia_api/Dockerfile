@@ -1,29 +1,33 @@
+# 1. Utiliser l'image de base stable et légère
 FROM python:3.11-slim
 
-# Eviter les surprises de timezone et langue
-ENV LANG=C.UTF-8
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Installer pip et dépendances système minimales
+# 2. Installer uniquement les dépendances système nécessaires
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Créer et utiliser le dossier de travail
+# 3. Exposer uniquement le port de l'application
+EXPOSE 8001
+
+# Le reste de votre Dockerfile reste identique
+# ------------------------------------------------
+ENV LANG=C.UTF-8
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
-# Copier les fichiers requirements AVANT le code pour optimiser le cache Docker
+# Copier les requirements
 COPY api/ia_api/requirements.txt ./requirements-api.txt
 COPY database/requirements.txt ./requirements-db.txt
 
-# Installer les dépendances en une seule couche
+# Installer les dépendances Python
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements-api.txt && \
     pip install --no-cache-dir -r requirements-db.txt
 
-# Téléchargement des modèles à build-time pour éviter les erreurs réseau au runtime
+# Télécharger et pré-packager le modèle IA
 RUN python -c "\
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM;\
 from peft import PeftModel;\
@@ -38,8 +42,8 @@ peft = PeftModel.from_pretrained(model, adapter)\
 COPY api/ia_api/ ./api/ia_api/
 COPY database/ ./database/
 
-# Définir le PYTHONPATH
 ENV PYTHONPATH=/app
 
-# Commande de démarrage
+# Utiliser la commande de démarrage directe pour Uvicorn
+# Plus besoin de script entrypoint.sh
 CMD ["uvicorn", "api.ia_api.main:app", "--host", "0.0.0.0", "--port", "8001"]

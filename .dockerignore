@@ -1,0 +1,33 @@
+# Ignorer l'environnement virtuel Python
+venv/
+*.venv
+.env
+
+# Ignorer les fichiers de cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorer les fichiers de configuration des IDE
+.vscode/
+.idea/
+
+# Ignorer les dossiers de build et de test
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+tests/
+
+# Ignorer les dossiers Git et autres fichiers de versionning
+.git/
+.gitignore
+
+# Ignorer les données MLflow et les notebooks
+mlruns/
+*.ipynb
+
+# Ignorer les fichiers temporaires
+*.log
+*.tmp
