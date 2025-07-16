@@ -13,4 +13,5 @@ python-jose
 python-multipart
 locust
 httpx
+requests
 

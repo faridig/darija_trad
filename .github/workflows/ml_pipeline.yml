@@ -8,7 +8,7 @@ on:
   # 1. Déclenchement automatique quand les données, le script d'entraînement ou les tests de données changent.
   push:
     branches:
-      - main
+      - master
     paths:
       - 'llm/**'          # Tous les fichiers dans le dossier llm
       - 'tests/data/**'   # Les tests de qualité des données
@@ -35,6 +35,15 @@ jobs:
       # Nom de l'expérience MLflow
       MLFLOW_EXPERIMENT_NAME: nllb_darija_finetuning
 
+      # Secrets pour l'authentification à l'API de data_api, utilisés par export_dataset.py
+      # Assurez-vous d'avoir ces secrets dans GitHub !
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      # Si votre API data_api est déployée et accessible via une URL publique/interne
+      API_DATA_API_URL: ${{ secrets.DATA_API_BASE_URL }} # Ex: https://darija-trad.onrender.com
+
+
+
     steps:
       # Étape 1 : Récupérer le code
       - name: Checkout du code
@@ -53,6 +62,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r api/ia_api/requirements.txt # Contient torch, transformers, peft, mlflow, etc.
           pip install pytest
+
+      # --- AJOUTER CETTE ÉTAPE POUR RÉCUPÉRER LES DERNIÈRES DONNÉES ---
+      - name: Récupérer les dernières données d'entraînement via l'API
+        # Lancer le script qui se connecte à l'API et génère all_translations_dataset.json
+        run: |
+          export PYTHONPATH=$(pwd) # Pour que les imports dans llm/export_dataset.py fonctionnent
+          python llm/export_dataset.py
+        env: # Ces variables d'env sont lues par llm/export_dataset.py
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          BASE_URL: ${{ secrets.DATA_API_BASE_URL }} # C'est le nom de la variable d'env que export_dataset.py lit pour l'URL
 
       # Étape 4 : Valider la qualité des données en amont
       - name: Lancer les tests de qualité des données

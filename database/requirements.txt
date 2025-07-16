@@ -19,3 +19,5 @@ ipython
 
 fastapi
 uvicorn[standard]
+
+requests
