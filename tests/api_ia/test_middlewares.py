@@ -1,13 +1,14 @@
-import base64
-from fastapi.testclient import TestClient
-from api.ia_api.main import app
+# tests/api_ia/test_middlewares.py
 
-client = TestClient(app)
+# Supprimez ces lignes :
+# from fastapi.testclient import TestClient
+# from api.ia_api.main import app
+# client = TestClient(app)
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Middleware 1 : Headers de sécurité HTTP
 # ────────────────────────────────────────────────────────────────────────────────
-def test_security_headers_on_api_routes():
+def test_security_headers_on_api_routes(client): # <--- Ajoutez "client" ici
     response = client.get("/health", headers={"Authorization": "Bearer fake-jwt-token"})
     assert response.status_code == 200
     headers = response.headers
@@ -17,7 +18,7 @@ def test_security_headers_on_api_routes():
     assert "Content-Security-Policy" in headers
     assert headers["X-Frame-Options"] == "DENY"
 
-def test_swagger_headers_dev_friendly():
+def test_swagger_headers_dev_friendly(client): # <--- Ajoutez "client" ici
     response = client.get("/docs")
     headers = response.headers
     assert "Content-Security-Policy" in headers
@@ -27,7 +28,7 @@ def test_swagger_headers_dev_friendly():
 # ────────────────────────────────────────────────────────────────────────────────
 # Middleware 2 : Limitation de taille du body
 # ────────────────────────────────────────────────────────────────────────────────
-def test_limit_body_size_rejects_large_payload():
+def test_limit_body_size_rejects_large_payload(client): # <--- Ajoutez "client" ici
     texte = "mot " * 3000  # 15KB environ
     payload = {
         "texte": texte,
@@ -47,7 +48,7 @@ def test_limit_body_size_rejects_large_payload():
 # ────────────────────────────────────────────────────────────────────────────────
 # Middleware 3 : Monitoring Prometheus
 # ────────────────────────────────────────────────────────────────────────────────
-def test_monitoring_middleware_success_metrics_update():
+def test_monitoring_middleware_success_metrics_update(client): # <--- Ajoutez "client" ici
     payload = {
         "texte": "bonjour",
         "src_lang": "fra_Latn",
@@ -61,11 +62,13 @@ def test_monitoring_middleware_success_metrics_update():
     assert response.status_code == 200
     assert response.json()["reponse"] == "translated:bonjour"
 
+# Vous pouvez garder cette fonction d'aide locale ou la déplacer dans utils.py
 def basic_auth_header(user: str, pwd: str) -> dict:
+    import base64
     token = base64.b64encode(f"{user}:{pwd}".encode()).decode()
     return {"Authorization": f"Basic {token}"}
 
-def test_metrics_basic_auth_success(client):
+def test_metrics_basic_auth_success(client): # <--- Ajoutez "client" ici
     client.post(
         "/generer",
         json={"texte": "test"},
