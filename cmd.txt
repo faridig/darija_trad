@@ -14,28 +14,19 @@ sudo kill 1234
 
 locust --host=http://localhost:8001 puis ouvrir http://localhost:8089/
 ------------------------------------------------------------------------------------------------------------
-pour augmenter le niveau de hadrware de l'api ia : 
+pour voir les metric 
+aller dossier llm:
 
-# --- Variables ---                                                                                                                     
-RESOURCE_GROUP="RG_FIGOUTI"
-PLAN_NAME="plan-darija-api"
-
-echo "Mise à niveau du plan de service '${PLAN_NAME}' vers P3V2..."
-
-az appservice plan update \
-  --name "$PLAN_NAME" \
-  --resource-group "$RESOURCE_GROUP" \
-  --sku P3V2
-
-echo "✅ Mise à niveau vers P3V2 terminée."
-echo "L'application va maintenant être redémarrée sur une machine plus puissante."
-
-pour le plan moins cher en cas de non utilisation  :
-
-az appservice plan update \
-  --name "plan-darija-api" \
-  --resource-group "RG_FIGOUTI" \
-  --sku B1
+mlflow ui 
 
 ----------------------------------------------------------------
 
+Pour déclancher pipeline d'entrainement :
+
+# Exemple de commande de lancement
+mlflow server --host 127.0.0.1 --port 5001 --backend-store-uri ./mlflow-backend-store --default-artifact-root ./mlflow-artifacts
+Runner GitHub Actions
+# Allez dans le dossier du runner
+cd /path/to/your/actions-runner
+# Lancez-le
+./run.sh

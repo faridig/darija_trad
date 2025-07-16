@@ -94,6 +94,9 @@ jobs:
           tags: |
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-prometheus:latest
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-prometheus:${{ github.sha }}
+          
+          secrets: | 
+            prometheus_password=${{ secrets.ADMIN_PASSWORD }} # L'ID 'prometheus_password' doit correspondre à celui du Dockerfile
 
       # --- Étape 2.3 : Image de Grafana ---
       - name: Build and Push Grafana Image

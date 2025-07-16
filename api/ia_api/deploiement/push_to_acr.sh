@@ -20,8 +20,8 @@ COMPOSE_PROJECT_NAME="ia_api"
 declare -A SERVICE_MAP
 SERVICE_MAP=(
   ["app"]="darija-api"
-#   ["prometheus"]="darija-api-prometheus"
-#   ["grafana"]="darija-api-grafana"
+  ["prometheus"]="darija-api-prometheus"
+  ["grafana"]="darija-api-grafana"
 )
 # --- FIN DE LA CONFIGURATION ---
 
