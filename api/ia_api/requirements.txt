@@ -14,4 +14,6 @@ python-multipart
 locust
 httpx
 requests
+evaluate          
+sacrebleu
 
