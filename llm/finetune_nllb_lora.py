@@ -136,6 +136,7 @@ training_args = Seq2SeqTrainingArguments(
     metric_for_best_model="bleu",
     greater_is_better=True,
     report_to=["mlflow"],
+    remove_unused_columns=False,
 )
 print("✅ Arguments d'entraînement configurés.")
 
