@@ -5,3 +5,4 @@ torch
 python-jose
 passlib[bcrypt]
 slowapi 
+python-multipart
