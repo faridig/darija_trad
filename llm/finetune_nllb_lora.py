@@ -58,33 +58,21 @@ print(f"✅ Jeu de données chargé : {len(train_dataset)} pour l'entraînement,
 # ==============================================================================
 # 3. PRÉTRAITEMENT DYNAMIQUE (sans augmentation)
 # ==============================================================================
-def preprocess_dynamic(example, idx): # Ajout de 'idx' pour le débogage
-    # --- DÉBOGAGE : AFFICHER LA STRUCTURE DU PREMIER EXEMPLE ---
-    if idx == 0:
-        print("--- DEBUG: Structure du premier exemple ---")
-        print(example)
-        print("-----------------------------------------")
+def preprocess_dynamic(example):
+    translation_dict = example.get("translation", {})
 
-    # On s'assure que 'translation' est bien la clé principale
-    if "translation" not in example or not isinstance(example["translation"], dict):
-        # Si la structure est inattendue, on l'ignore
-        return {}
-        
-    translation_pair = example["translation"]
-    langs = list(translation_pair.keys())
-    
-    # Vérifie qu'on a bien une paire de langues
-    if len(langs) != 2:
-        return {}
+    # 1. Filtrer les clés dont la valeur est None ou une chaîne vide
+    valid_pairs = {lang: text for lang, text in translation_dict.items() if text}
 
+    # 2. On doit avoir exactement une paire de langues valides
+    if len(valid_pairs) != 2:
+        return None # On ne retourne rien pour que .filter() supprime la ligne
+
+    # 3. Extraire la paire source/cible
+    langs = list(valid_pairs.keys())
     src_lang, tgt_lang = langs[0], langs[1]
-    
-    src_text = translation_pair.get(src_lang)
-    tgt_text = translation_pair.get(tgt_lang)
-
-    # Vérifie que les textes sont des chaînes de caractères non vides
-    if not (src_text and isinstance(src_text, str) and tgt_text and isinstance(tgt_text, str)):
-        return {}
+    src_text = valid_pairs[src_lang]
+    tgt_text = valid_pairs[tgt_lang]
 
     # Définit les langues pour le tokenizer pour cet exemple spécifique
     tokenizer.src_lang = src_lang
@@ -100,15 +88,23 @@ def preprocess_dynamic(example, idx): # Ajout de 'idx' pour le débogage
     return model_inputs
 
 print("🧹 Prétraitement dynamique des datasets...")
-# On passe with_indices=True pour pouvoir utiliser l'index 'idx' dans la fonction
-tokenized_train_dataset = train_dataset.map(preprocess_dynamic, with_indices=True, remove_columns=train_dataset.column_names)
-tokenized_eval_dataset = eval_dataset.map(preprocess_dynamic, with_indices=True, remove_columns=eval_dataset.column_names)
 
-# --- VÉRIFICATION APRÈS MAP ---
-print(f"✅ Prétraitement terminé. Taille du jeu d'entraînement après map : {len(tokenized_train_dataset)}")
+# --- MODIFICATION DE LA LOGIQUE DE NETTOYAGE ---
+# Étape 1 : Filtrer les lignes qui n'ont pas exactement 2 traductions valides
+cleaned_train_dataset = train_dataset.filter(lambda x: len([text for text in x['translation'].values() if text]) == 2)
+cleaned_eval_dataset = eval_dataset.filter(lambda x: len([text for text in x['translation'].values() if text]) == 2)
+
+print(f"Taille du jeu d'entraînement après nettoyage : {len(cleaned_train_dataset)}")
+
+# Étape 2 : Appliquer la tokenisation sur le jeu de données nettoyé
+tokenized_train_dataset = cleaned_train_dataset.map(preprocess_dynamic, remove_columns=cleaned_train_dataset.column_names)
+tokenized_eval_dataset = cleaned_eval_dataset.map(preprocess_dynamic, remove_columns=cleaned_eval_dataset.column_names)
+
+
+# --- VÉRIFICATION FINALE ---
+print(f"✅ Prétraitement terminé. Taille du jeu d'entraînement tokenisé : {len(tokenized_train_dataset)}")
 if len(tokenized_train_dataset) == 0:
-    raise ValueError("Le jeu de données d'entraînement est vide après le prétraitement. Veuillez vérifier la structure des données et la fonction de prétraitement.")
-
+    raise ValueError("Le jeu de données d'entraînement est vide après le prétraitement. Problème persistant.")
 
 print("📏 Chargement de la métrique BLEU (sacrebleu)...")
 bleu_metric = load("sacrebleu")
