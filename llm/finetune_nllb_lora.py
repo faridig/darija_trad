@@ -58,22 +58,32 @@ print(f"✅ Jeu de données chargé : {len(train_dataset)} pour l'entraînement,
 # ==============================================================================
 # 3. PRÉTRAITEMENT DYNAMIQUE (sans augmentation)
 # ==============================================================================
-def preprocess_dynamic(example):
+def preprocess_dynamic(example, idx): # Ajout de 'idx' pour le débogage
+    # --- DÉBOGAGE : AFFICHER LA STRUCTURE DU PREMIER EXEMPLE ---
+    if idx == 0:
+        print("--- DEBUG: Structure du premier exemple ---")
+        print(example)
+        print("-----------------------------------------")
+
+    # On s'assure que 'translation' est bien la clé principale
+    if "translation" not in example or not isinstance(example["translation"], dict):
+        # Si la structure est inattendue, on l'ignore
+        return {}
+        
     translation_pair = example["translation"]
     langs = list(translation_pair.keys())
     
-    # Vérifie qu'on a bien une paire
+    # Vérifie qu'on a bien une paire de langues
     if len(langs) != 2:
-        return {} # Ignore les exemples mal formés
+        return {}
 
-    # L'ordre des clés dans le JSON détermine la direction.
-    # On prend la première clé comme source et la seconde comme cible.
     src_lang, tgt_lang = langs[0], langs[1]
     
     src_text = translation_pair.get(src_lang)
     tgt_text = translation_pair.get(tgt_lang)
 
-    if not src_text or not tgt_text:
+    # Vérifie que les textes sont des chaînes de caractères non vides
+    if not (src_text and isinstance(src_text, str) and tgt_text and isinstance(tgt_text, str)):
         return {}
 
     # Définit les langues pour le tokenizer pour cet exemple spécifique
@@ -90,9 +100,14 @@ def preprocess_dynamic(example):
     return model_inputs
 
 print("🧹 Prétraitement dynamique des datasets...")
-tokenized_train_dataset = train_dataset.map(preprocess_dynamic, remove_columns=train_dataset.column_names)
-tokenized_eval_dataset = eval_dataset.map(preprocess_dynamic, remove_columns=eval_dataset.column_names)
-print("✅ Prétraitement terminé.")
+# On passe with_indices=True pour pouvoir utiliser l'index 'idx' dans la fonction
+tokenized_train_dataset = train_dataset.map(preprocess_dynamic, with_indices=True, remove_columns=train_dataset.column_names)
+tokenized_eval_dataset = eval_dataset.map(preprocess_dynamic, with_indices=True, remove_columns=eval_dataset.column_names)
+
+# --- VÉRIFICATION APRÈS MAP ---
+print(f"✅ Prétraitement terminé. Taille du jeu d'entraînement après map : {len(tokenized_train_dataset)}")
+if len(tokenized_train_dataset) == 0:
+    raise ValueError("Le jeu de données d'entraînement est vide après le prétraitement. Veuillez vérifier la structure des données et la fonction de prétraitement.")
 
 
 print("📏 Chargement de la métrique BLEU (sacrebleu)...")
