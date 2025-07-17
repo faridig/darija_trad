@@ -83,8 +83,8 @@ def preprocess_dynamic(example):
         labels = tokenizer(tgt_text, max_length=128, padding="max_length", truncation=True)
     
     model_inputs["labels"] = labels["input_ids"]
-    model.config.forced_bos_token_id = tokenizer.lang_code_to_id[tgt_lang]
-    
+    # Ligne corrigée
+    model.config.forced_bos_token_id = model.config.lang_code_to_id[tgt_lang]    
     return model_inputs
 
 print("🧹 Prétraitement dynamique des datasets...")
