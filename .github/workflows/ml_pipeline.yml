@@ -2,128 +2,97 @@
 
 name: MLOps - Entraînement et Déploiement du Modèle
 
-# --- DÉCLENCHEURS ---
-# Ce workflow est spécifique au cycle de vie du modèle.
 on:
-  # 1. Déclenchement automatique quand les données, le script d'entraînement ou les tests de données changent.
   push:
     branches:
       - master
     paths:
-      - 'llm/**'          # Tous les fichiers dans le dossier llm
-      - 'tests/data/**'   # Les tests de qualité des données
+      - 'llm/**'
+      - 'tests/data/**'
       - '.github/workflows/ml_pipeline.yml'
-
-  # 2. Déclenchement manuel pour lancer un entraînement à la demande.
   workflow_dispatch:
 
-# --- JOBS DU WORKFLOW ---
 jobs:
-  # ===================================================================
-  # JOB 1 : Valider les données et entraîner une nouvelle version du modèle
-  # ===================================================================
   train-and-validate:
     name: 1 - Entraînement & Validation du Modèle
-    # S'exécute sur votre runner local qui a accès au GPU
     runs-on: [self-hosted, linux, x64, gpu]
-
-    # Définir des variables d'environnement pour MLflow
     environment: training
+
+    # --- ENVIRONNEMENT CENTRALISÉ POUR TOUT LE JOB ---
     env:
-      # L'URI de votre serveur MLflow (probablement local sur le runner)
+      # Pour MLflow
       MLFLOW_TRACKING_URI: http://127.0.0.1:5001 
-      # Nom de l'expérience MLflow
       MLFLOW_EXPERIMENT_NAME: nllb_darija_finetuning
 
-      # Secrets pour l'authentification à l'API de data_api, utilisés par export_dataset.py
-      # Assurez-vous d'avoir ces secrets dans GitHub !
+      # Pour le script export_dataset.py
+      # Assurez-vous que les secrets GitHub existent et sont corrects.
       ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-      # Si votre API data_api est déployée et accessible via une URL publique/interne
-      API_DATA_API_URL: ${{ secrets.DATA_API_BASE_URL }} # Ex: https://darija-trad.onrender.com
-
-
+      # On nomme cette variable BASE_URL pour qu'elle corresponde à ce que le script attend.
+      BASE_URL: ${{ secrets.DATA_API_BASE_URL }}
 
     steps:
-      # Étape 1 : Récupérer le code
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      # Étape 2 : Configurer Python 3.11
-      - name: Setup Python
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       
-      # Étape 3 : Installer les dépendances
-      # On installe les requirements spécifiques à l'IA et pytest
       - name: Installer les dépendances
         run: |
           python -m pip install --upgrade pip
-          pip install -r api/ia_api/requirements.txt # Contient torch, transformers, peft, mlflow, etc.
+          pip install -r api/ia_api/requirements.txt
           pip install pytest
+          # Ajout de requests car utilisé par export_dataset.py
+          pip install requests
           pip install -r requirements.txt
 
-      # --- AJOUTER CETTE ÉTAPE POUR RÉCUPÉRER LES DERNIÈRES DONNÉES ---
+      # --- ÉTAPE SIMPLIFIÉE ---
+      # Le script lira les variables d'environnement définies au niveau du job.
       - name: Récupérer les dernières données d'entraînement via l'API
-        # Lancer le script qui se connecte à l'API et génère all_translations_dataset.json
         run: |
-          export PYTHONPATH=$(pwd) # Pour que les imports dans llm/export_dataset.py fonctionnent
+          export PYTHONPATH=$(pwd)
           python llm/export_dataset.py
-        env: # Ces variables d'env sont lues par llm/export_dataset.py
-          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-          BASE_URL: ${{ secrets.DATA_API_BASE_URL }} # C'est le nom de la variable d'env que export_dataset.py lit pour l'URL
 
-      # Étape 4 : Valider la qualité des données en amont
       - name: Lancer les tests de qualité des données
         run: |
-          export PYTHONPATH=$(pwd) # Assure que les imports fonctionnent
+          export PYTHONPATH=$(pwd)
           pytest tests/data/test_data_quality.py
 
-      # Étape 5 : Lancer le Fine-Tuning du modèle
-      # Le script `finetune_nllb_lora.py` va automatiquement logger les métriques sur MLflow
       - name: Lancer le Fine-Tuning du modèle avec MLflow
         run: python llm/finetune_nllb_lora.py
 
-      # Étape 6 : Sauvegarder l'artefact du modèle pour le job suivant
       - name: Sauvegarder l'artefact du modèle LoRA
         uses: actions/upload-artifact@v4
         with:
           name: nllb-lora-model-artifact
           path: ./nllb-darija-lora-model/
 
-  # ===================================================================
-  # JOB 2 : Publier le nouveau modèle sur Hugging Face Hub
-  # Ce job ne se lance que si l'entraînement a réussi.
-  # ===================================================================
+  # ... Le reste du fichier (job deploy-model-to-hub) est correct et reste inchangé ...
   deploy-model-to-hub:
     name: 2 - Déploiement du Modèle sur Hugging Face
-    runs-on: ubuntu-latest # Pas besoin de GPU pour cette étape
-    needs: train-and-validate # Dépend du succès du job précédent
+    runs-on: ubuntu-latest
+    needs: train-and-validate
 
     steps:
-      # Étape 1 : Récupérer le code
       - name: Checkout du code
         uses: actions/checkout@v4
       
-      # Étape 2 : Installer les outils nécessaires (git-lfs et client Hugging Face)
       - name: Installer Git LFS et Hugging Face Hub CLI
         run: |
           sudo apt-get update && sudo apt-get install git-lfs -y
           pip install huggingface_hub
 
-      # Étape 3 : Télécharger l'artefact du modèle entraîné
       - name: Télécharger l'artefact du modèle
         uses: actions/download-artifact@v4
         with:
           name: nllb-lora-model-artifact
           path: ./nllb-darija-lora-model/
 
-      # Étape 4 : Pousser le modèle vers Hugging Face Hub
       - name: Push vers Hugging Face Hub
         env:
-          # Le token est stocké dans les secrets GitHub pour la sécurité
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           huggingface-cli login --token $HF_TOKEN
