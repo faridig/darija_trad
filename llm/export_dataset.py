@@ -10,16 +10,16 @@ load_dotenv()
 
 USERNAME = os.getenv("ADMIN_USERNAME")
 PASSWORD = os.getenv("ADMIN_PASSWORD")
+BASE_URL = os.getenv("BASE_URL")
 
-if not USERNAME or not PASSWORD:
-    print("❌ ADMIN_USERNAME ou ADMIN_PASSWORD manquant dans .env")
+if not USERNAME or not PASSWORD or not BASE_URL:
+    print("❌ ADMIN_USERNAME ou ADMIN_PASSWORD ou BASE_URL manquant dans .env")
     exit()
 
 # -------------------
 # 2. CONFIG
 # -------------------
 
-BASE_URL = "https://darija-trad.onrender.com"
 LOGIN_URL = f"{BASE_URL}/login"
 TRANSLATIONS_URL = f"{BASE_URL}/translations"
 
