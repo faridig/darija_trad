@@ -1,7 +1,7 @@
 # llm/finetune_nllb_lora.py
 
 # ==============================================================================
-# 1. IMPORTS ET CONFIGURATION MLFLOW
+# 1. IMPORTS ET CONFIGURATION MLFLOW (inchangé)
 # ==============================================================================
 import os
 import mlflow
@@ -25,7 +25,7 @@ EXPERIMENT_NAME = "nllb_darija_finetuning"
 mlflow.set_experiment(EXPERIMENT_NAME)
 
 # ==============================================================================
-# 2. CHARGEMENT DU MODÈLE ET DES DONNÉES
+# 2. CHARGEMENT DU MODÈLE ET DES DONNÉES (inchangé)
 # ==============================================================================
 print("🚀 Chargement du modèle et du tokenizer...")
 model_name = "facebook/nllb-200-distilled-600M"
@@ -56,27 +56,19 @@ eval_dataset = dataset["test"].select(range(min(1000, len(dataset["test"]))))
 print(f"✅ Jeu de données chargé : {len(train_dataset)} pour l'entraînement, {len(eval_dataset)} pour l'évaluation.")
 
 # ==============================================================================
-# 3. PRÉTRAITEMENT DYNAMIQUE ET MÉTRIQUES
+# 3. PRÉTRAITEMENT DYNAMIQUE (sans augmentation)
 # ==============================================================================
 def preprocess_dynamic(example):
-    # Extrait la traduction, qui est un dictionnaire
     translation_pair = example["translation"]
-    
-    # Récupère les deux codes de langue présents dans l'exemple
     langs = list(translation_pair.keys())
     
-    # Vérifie qu'on a bien une paire, sinon ignore l'exemple
+    # Vérifie qu'on a bien une paire
     if len(langs) != 2:
-        return {}
+        return {} # Ignore les exemples mal formés
 
-    # Détermine dynamiquement la langue source et cible
-    # Si 'ary_Arab' est présent, il devient la cible, sinon l'ordre est arbitraire
-    if "ary_Arab" in langs and langs[0] != "ary_Arab":
-        src_lang, tgt_lang = langs[0], langs[1]
-    elif "ary_Arab" in langs and langs[1] != "ary_Arab":
-        src_lang, tgt_lang = langs[1], langs[0]
-    else: # Cas où 'ary_Arab' n'est pas là (ex: fr-en) ou les deux sont arabes (peu probable)
-        src_lang, tgt_lang = langs[0], langs[1]
+    # L'ordre des clés dans le JSON détermine la direction.
+    # On prend la première clé comme source et la seconde comme cible.
+    src_lang, tgt_lang = langs[0], langs[1]
     
     src_text = translation_pair.get(src_lang)
     tgt_text = translation_pair.get(tgt_lang)
@@ -122,7 +114,7 @@ def compute_metrics(eval_preds):
     return {"bleu": result["score"]}
 
 # ==============================================================================
-# 4. CONFIGURATION DE L'ENTRAÎNEMENT
+# 4. CONFIGURATION DE L'ENTRAÎNEMENT (inchangé)
 # ==============================================================================
 print("⚙️ Configuration des arguments d'entraînement...")
 training_args = Seq2SeqTrainingArguments(
@@ -148,7 +140,7 @@ training_args = Seq2SeqTrainingArguments(
 print("✅ Arguments d'entraînement configurés.")
 
 # ==============================================================================
-# 5. EXÉCUTION DE L'ENTRAÎNEMENT DANS UNE SESSION MLFLOW
+# 5. EXÉCUTION DE L'ENTRAÎNEMENT (inchangé)
 # ==============================================================================
 print("🚀 Démarrage de la session MLflow...")
 with mlflow.start_run() as run:
