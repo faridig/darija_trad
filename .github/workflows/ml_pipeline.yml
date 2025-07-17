@@ -1,5 +1,3 @@
-# .github/workflows/ml_pipeline.yml
-
 name: MLOps - Entraînement et Déploiement du Modèle
 
 on:
@@ -18,22 +16,23 @@ jobs:
     runs-on: [self-hosted, linux, x64, gpu]
     environment: training
 
-    # --- ENVIRONNEMENT CENTRALISÉ POUR TOUT LE JOB ---
     env:
-      # Pour MLflow
       MLFLOW_TRACKING_URI: http://127.0.0.1:5001 
       MLFLOW_EXPERIMENT_NAME: nllb_darija_finetuning
-
-      # Pour le script export_dataset.py
-      # Assurez-vous que les secrets GitHub existent et sont corrects.
       ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-      # On nomme cette variable BASE_URL pour qu'elle corresponde à ce que le script attend.
       BASE_URL: ${{ secrets.DATA_API_BASE_URL }}
 
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
+
+      - name: Restaurer les checkpoints depuis le cache
+        id: cache-checkpoints-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ./nllb-darija-finetuned-lora-checkpoints
+          key: checkpoints-${{ github.ref_name }}
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
@@ -45,12 +44,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r api/ia_api/requirements.txt
           pip install pytest
-          # Ajout de requests car utilisé par export_dataset.py
           pip install requests
           pip install -r requirements.txt
 
-      # --- ÉTAPE SIMPLIFIÉE ---
-      # Le script lira les variables d'environnement définies au niveau du job.
       - name: Récupérer les dernières données d'entraînement via l'API
         run: |
           export PYTHONPATH=$(pwd)
@@ -64,13 +60,32 @@ jobs:
       - name: Lancer le Fine-Tuning du modèle avec MLflow
         run: python llm/finetune_nllb_lora.py
 
-      - name: Sauvegarder l'artefact du modèle LoRA
+      - name: Sauvegarder les checkpoints dans le cache
+        # S'exécute toujours pour sauvegarder la progression en cas d'annulation ou d'échec
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ./nllb-darija-finetuned-lora-checkpoints
+          # La clé est basée sur celle utilisée à la restauration pour une mise à jour efficace
+          key: ${{ steps.cache-checkpoints-restore.outputs.cache-primary-key || 'checkpoints-${{ github.ref_name }}' }}
+          
+      - name: Sauvegarder l'artefact du modèle LoRA pour le job suivant
         uses: actions/upload-artifact@v4
         with:
           name: nllb-lora-model-artifact
           path: ./nllb-darija-lora-model/
 
-  # ... Le reste du fichier (job deploy-model-to-hub) est correct et reste inchangé ...
+      - name: Nettoyer le cache des checkpoints après succès
+        # Ne s'exécute que si toutes les étapes précédentes ont réussi
+        if: success()
+        run: |
+          echo "L'entraînement a réussi. Suppression du cache des checkpoints pour le prochain run."
+          # Tente de supprimer le cache. L'échec n'est pas bloquant.
+          gh cache delete checkpoints-${{ github.ref_name }} --repo ${{ github.repository }} --confirm || echo "Cache non trouvé ou échec de la suppression."
+        env:
+          # Le token est nécessaire pour que la CLI GitHub puisse s'authentifier auprès de l'API
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   deploy-model-to-hub:
     name: 2 - Déploiement du Modèle sur Hugging Face
     runs-on: ubuntu-latest
