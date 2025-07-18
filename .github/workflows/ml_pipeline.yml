@@ -27,6 +27,7 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v4
 
+      # Étape 1 : Tenter de restaurer le cache.
       - name: Restaurer les checkpoints depuis le cache
         id: cache-checkpoints-restore
         uses: actions/cache/restore@v4
@@ -60,12 +61,16 @@ jobs:
       - name: Lancer le Fine-Tuning du modèle avec MLflow
         run: python llm/finetune_nllb_lora.py
 
-      - name: Sauvegarder les checkpoints dans le cache (si pas de hit)
-        # Ne s'exécute que si le cache n'a PAS été trouvé à l'étape de restauration.
-        if: steps.cache-checkpoints-restore.outputs.cache-hit != 'true' && always()
+      # <<< MODIFICATION DÉBUT >>>
+      # Étape 2 : Sauvegarder systématiquement la progression.
+      # S'exécute toujours (succès, échec, annulation) pour que le cache soit à jour.
+      # L'action `save` est conçue pour écraser le cache si la clé est la même.
+      - name: Sauvegarder les checkpoints dans le cache
+        if: always()
         uses: actions/cache/save@v4
         with:
           path: ./nllb-darija-finetuned-lora-checkpoints
+          # La clé est identique à celle de la restauration pour permettre la mise à jour.
           key: ${{ steps.cache-checkpoints-restore.outputs.cache-primary-key || 'checkpoints-${{ github.ref_name }}' }}
           
       - name: Sauvegarder l'artefact du modèle LoRA pour le job suivant
@@ -74,16 +79,19 @@ jobs:
           name: nllb-lora-model-artifact
           path: ./nllb-darija-lora-model/
 
-      - name: Nettoyer le cache des checkpoints après succès
-        # Ne s'exécute que si toutes les étapes précédentes ont réussi
+      # Étape 3 : Nettoyer le cache UNIQUEMENT si l'entraînement a réussi.
+      # Ceci prépare le terrain pour le prochain run qui doit démarrer de zéro.
+      # Si le job échoue, cette étape est sautée, et le cache est préservé pour la reprise.
+      - name: Nettoyer le cache des checkpoints après succès complet
         if: success()
         run: |
-          echo "L'entraînement a réussi. Suppression du cache des checkpoints pour le prochain run."
+          echo "L'entraînement a réussi. Le cache est supprimé pour le prochain run."
           # Tente de supprimer le cache. L'échec n'est pas bloquant.
           gh cache delete checkpoints-${{ github.ref_name }} --repo ${{ github.repository }} --confirm || echo "Cache non trouvé ou échec de la suppression."
         env:
           # Le token est nécessaire pour que la CLI GitHub puisse s'authentifier auprès de l'API
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # <<< MODIFICATION FIN >>>
 
   deploy-model-to-hub:
     name: 2 - Déploiement du Modèle sur Hugging Face
