@@ -48,12 +48,12 @@ model.print_trainable_parameters()
 print("✅ LoRA appliqué avec succès.")
 
 # Chargement et division du dataset
-print("📂 Chargement du dataset JSON...")
-dataset = load_dataset("json", data_files="all_translations_dataset.json", split="train")
-dataset = dataset.train_test_split(test_size=0.1, seed=42)
-train_dataset = dataset["train"]
-eval_dataset = dataset["test"].select(range(min(1000, len(dataset["test"]))))
-print(f"✅ Jeu de données chargé : {len(train_dataset)} pour l'entraînement, {len(eval_dataset)} pour l'évaluation.")
+print("📂 Chargement des datasets pré-divisés...")
+# MODIFICATION : Charger les fichiers spécifiques
+train_dataset = load_dataset("json", data_files="train_dataset.json", split="train")
+eval_dataset = load_dataset("json", data_files="validation_dataset.json", split="train")
+
+print(f"✅ Jeu de données chargé : {len(train_dataset)} pour l'entraînement, {len(eval_dataset)} pour la validation.")
 
 # ==============================================================================
 # 3. PRÉTRAITEMENT DYNAMIQUE (sans augmentation)
