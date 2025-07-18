@@ -60,13 +60,12 @@ jobs:
       - name: Lancer le Fine-Tuning du modèle avec MLflow
         run: python llm/finetune_nllb_lora.py
 
-      - name: Sauvegarder les checkpoints dans le cache
-        # S'exécute toujours pour sauvegarder la progression en cas d'annulation ou d'échec
-        if: always()
+      - name: Sauvegarder les checkpoints dans le cache (si pas de hit)
+        # Ne s'exécute que si le cache n'a PAS été trouvé à l'étape de restauration.
+        if: steps.cache-checkpoints-restore.outputs.cache-hit != 'true' && always()
         uses: actions/cache/save@v4
         with:
           path: ./nllb-darija-finetuned-lora-checkpoints
-          # La clé est basée sur celle utilisée à la restauration pour une mise à jour efficace
           key: ${{ steps.cache-checkpoints-restore.outputs.cache-primary-key || 'checkpoints-${{ github.ref_name }}' }}
           
       - name: Sauvegarder l'artefact du modèle LoRA pour le job suivant

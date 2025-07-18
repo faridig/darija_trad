@@ -179,9 +179,17 @@ with mlflow.start_run() as run:
 
     print(f"🧠 Lancement de l'entraînement pour le Run ID: {run_id}...")
     try:
-        trainer.train(resume_from_checkpoint=True)
-    except (ValueError, FileNotFoundError):
-        print("Aucun checkpoint trouvé, démarrage d'un nouvel entraînement.")
+        # Vérifier si un checkpoint existe avant d'essayer de reprendre
+        checkpoint_dir = training_args.output_dir
+        if any(d.startswith("checkpoint-") for d in os.listdir(checkpoint_dir)):
+            print(f"✅ Checkpoints trouvés dans '{checkpoint_dir}'. Tentative de reprise...")
+            trainer.train(resume_from_checkpoint=True)
+        else:
+            print("ℹ️ Aucun checkpoint trouvé, démarrage d'un nouvel entraînement.")
+            trainer.train()
+    except Exception as e:
+        print(f"‼️ AVERTISSEMENT : La reprise depuis un checkpoint a échoué. L'erreur est : {type(e).__name__} - {e}")
+        print("‼️ Démarrage d'un nouvel entraînement depuis le début.")
         trainer.train()
     
     print("🏁 Entraînement terminé.")

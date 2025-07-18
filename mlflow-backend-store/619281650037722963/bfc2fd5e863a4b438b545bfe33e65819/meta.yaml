@@ -1,8 +1,9 @@
 artifact_uri: /projets/darija_app_final/mlflow-artifacts/619281650037722963/bfc2fd5e863a4b438b545bfe33e65819/artifacts
+deleted_time: 1752834908881
 end_time: null
 entry_point_name: ''
 experiment_id: '619281650037722963'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: bfc2fd5e863a4b438b545bfe33e65819
 run_name: kindly-bat-855
 run_uuid: bfc2fd5e863a4b438b545bfe33e65819

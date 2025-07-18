@@ -1,8 +1,9 @@
 artifact_uri: /projets/darija_app_final/mlflow-artifacts/619281650037722963/89b13680cef545909a4e9c11f218e622/artifacts
+deleted_time: 1752834908874
 end_time: 1752744198031
 entry_point_name: ''
 experiment_id: '619281650037722963'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 89b13680cef545909a4e9c11f218e622
 run_name: rebellious-snake-115
 run_uuid: 89b13680cef545909a4e9c11f218e622
