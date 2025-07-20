@@ -1,8 +1,9 @@
 artifact_uri: /projets/darija_app_final/mlflow-artifacts/619281650037722963/6659fd02da56471d8a6802c1049b831e/artifacts
+deleted_time: 1752938663527
 end_time: null
 entry_point_name: ''
 experiment_id: '619281650037722963'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 6659fd02da56471d8a6802c1049b831e
 run_name: smiling-wasp-994
 run_uuid: 6659fd02da56471d8a6802c1049b831e

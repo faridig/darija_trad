@@ -1,8 +1,9 @@
 artifact_uri: /projets/darija_app_final/mlflow-artifacts/619281650037722963/90eeb3a6fd074edb81a9eb575dc87c75/artifacts
+deleted_time: 1752938663529
 end_time: null
 entry_point_name: ''
 experiment_id: '619281650037722963'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 90eeb3a6fd074edb81a9eb575dc87c75
 run_name: bouncy-fowl-14
 run_uuid: 90eeb3a6fd074edb81a9eb575dc87c75

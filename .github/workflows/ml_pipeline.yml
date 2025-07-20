@@ -35,7 +35,11 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ./nllb-darija-finetuned-lora-checkpoints
-          key: checkpoints-${{ github.ref_name }}
+          # La clé principale est unique à chaque exécution pour éviter les conflits
+          key: checkpoints-${{ github.run_id }}
+          # Plan B : S'il n'y a pas de cache pour ce run, chercher le plus récent
+          restore-keys: |
+            checkpoints-
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
@@ -59,12 +63,22 @@ jobs:
       - name: Lancer le Fine-Tuning du modèle avec MLflow
         run: python llm/finetune_nllb_lora.py
 
-      - name: Sauvegarder les checkpoints dans le cache (reprise sur erreur)
-        if: always()
+      - name: Vérifier l'existence de checkpoints avant sauvegarde
+        id: check_checkpoints
+        if: always() # Toujours vérifier, même si le job a réussi
+        run: |
+          if [ -d "./nllb-darija-finetuned-lora-checkpoints" ] && [ "$(ls -A ./nllb-darija-finetuned-lora-checkpoints)" ]; then
+            echo "checkpoints_exist=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "checkpoints_exist=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sauvegarder les checkpoints dans le cache (uniquement en cas d'échec et si non vide)
+        if: failure() && steps.check_checkpoints.outputs.checkpoints_exist == 'true'
         uses: actions/cache/save@v4
         with:
           path: ./nllb-darija-finetuned-lora-checkpoints
-          key: ${{ steps.cache-checkpoints-restore.outputs.cache-primary-key || 'checkpoints-${{ github.ref_name }}' }}
+          key: checkpoints-${{ github.run_id }}
           
       - name: Sauvegarder l'artefact du modèle LoRA pour le job suivant
         uses: actions/upload-artifact@v4
@@ -78,11 +92,16 @@ jobs:
           name: test-dataset-artifact
           path: test_dataset.json
 
-      - name: Nettoyer le cache des checkpoints après succès complet
+      - name: Nettoyer les anciens caches après un succès complet
         if: success()
         run: |
-          echo "L'entraînement a réussi. Le cache est supprimé pour le prochain run."
-          gh cache delete checkpoints-${{ github.ref_name }} --repo ${{ github.repository }} --confirm || echo "Cache non trouvé ou échec de la suppression."
+          echo "L'entraînement a réussi. Nettoyage des anciens caches de checkpoints..."
+          gh cache list --repo ${{ github.repository }} | \
+          grep 'checkpoints-' | \
+          awk '{print $1}' | \
+          while read cacheKey; do
+            gh cache delete "$cacheKey" --repo ${{ github.repository }} --confirm || echo "Avertissement : impossible de supprimer le cache $cacheKey"
+          done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

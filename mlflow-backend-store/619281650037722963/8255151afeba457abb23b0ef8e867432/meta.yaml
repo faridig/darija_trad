@@ -1,8 +1,9 @@
 artifact_uri: /projets/darija_app_final/mlflow-artifacts/619281650037722963/8255151afeba457abb23b0ef8e867432/artifacts
+deleted_time: 1752938663529
 end_time: null
 entry_point_name: ''
 experiment_id: '619281650037722963'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 8255151afeba457abb23b0ef8e867432
 run_name: orderly-bear-937
 run_uuid: 8255151afeba457abb23b0ef8e867432
