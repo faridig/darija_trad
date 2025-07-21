@@ -11,6 +11,8 @@ from transformers import (
     AutoModelForSeq2SeqLM,
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
+    # MODIFICATION : Importation du callback pour l'arrêt précoce
+    EarlyStoppingCallback,
 )
 # MODIFICATION : Importer la fonction de prétraitement depuis le fichier partagé
 from llm.utils import preprocess_dynamic
@@ -103,7 +105,8 @@ def main():
         output_dir="./nllb-darija-finetuned-lora-checkpoints",
         per_device_train_batch_size=8,
         learning_rate=5e-4,
-        num_train_epochs=3,
+        # MODIFICATION : Augmentation du nombre d'époques à 5
+        num_train_epochs=5,
         fp16=True,
         logging_dir="./logs",
         save_strategy="steps",
@@ -146,12 +149,16 @@ def main():
             eval_dataset=tokenized_eval_dataset,
             tokenizer=tokenizer,
             compute_metrics=compute_metrics,
+            # MODIFICATION : Ajout du callback pour l'arrêt précoce.
+            # L'entraînement s'arrêtera si le score BLEU ne s'améliore pas
+            # pendant 3 évaluations consécutives.
+            callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
         )
 
         print(f"🧠 Lancement de l'entraînement pour le Run ID: {run_id}...")
         try:
             checkpoint_dir = training_args.output_dir
-            if any(d.startswith("checkpoint-") for d in os.listdir(checkpoint_dir)):
+            if os.path.isdir(checkpoint_dir) and any(d.startswith("checkpoint-") for d in os.listdir(checkpoint_dir)):
                 print(f"✅ Checkpoints trouvés dans '{checkpoint_dir}'. Tentative de reprise...")
                 trainer.train(resume_from_checkpoint=True)
             else:
