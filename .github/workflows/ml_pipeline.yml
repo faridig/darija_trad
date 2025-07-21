@@ -218,13 +218,83 @@ jobs:
   # ===================================================================
   # JOB 1 : ENTRAÎNEMENT DU MODÈLE (TEMPORAIREMENT DÉSACTIVÉ)
   # ===================================================================
-  # Pour réactiver, décommentez ce bloc et restaurez 'needs: train-and-validate'
-  # dans le job 'validate-and-compare'.
+  # Pour réactiver, décommentez ce bloc en entier et restaurez
+  # 'needs: train-and-validate' dans le job suivant.
   #
   # train-and-validate:
   #   name: 1 - Entraînement & Validation du Modèle
   #   runs-on: [self-hosted, linux, x64, gpu]
-  #   ... (le reste du job est commenté)
+  #   environment: training
+  #   env:
+  #     MLFLOW_TRACKING_URI: http://122.0.0.1:5001 
+  #     MLFLOW_EXPERIMENT_NAME: nllb_darija_finetuning
+  #     ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+  #     ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+  #     BASE_URL: ${{ secrets.DATA_API_BASE_URL }}
+  #   steps:
+  #     - name: Checkout du code
+  #       uses: actions/checkout@v4
+  #     - name: Restaurer les checkpoints depuis le cache
+  #       id: cache-checkpoints-restore
+  #       uses: actions/cache/restore@v4
+  #       with:
+  #         path: ./nllb-darija-finetuned-lora-checkpoints
+  #         key: checkpoints-${{ github.run_id }}
+  #         restore-keys: |
+  #           checkpoints-
+  #     - name: Setup Python 3.11
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: '3.11'
+  #     - name: Installer les dépendances
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install -r requirements.txt
+  #     - name: Récupérer le corpus de données complet via l'API
+  #       run: python llm/export_dataset.py
+  #     - name: Préparer et diviser les datasets (train/validation/test)
+  #       run: python llm/prepare_datasets.py
+  #     - name: Lancer les tests de qualité sur les données
+  #       run: pytest tests/data/test_data_quality.py
+  #     - name: Lancer le Fine-Tuning du modèle avec MLflow
+  #       run: python llm/finetune_nllb_lora.py
+  #     - name: Vérifier l'existence de checkpoints avant sauvegarde
+  #       id: check_checkpoints
+  #       if: always()
+  #       run: |
+  #         if [ -d "./nllb-darija-finetuned-lora-checkpoints" ] && [ "$(ls -A ./nllb-darija-finetuned-lora-checkpoints)" ]; then
+  #           echo "checkpoints_exist=true" >> "$GITHUB_OUTPUT"
+  #         else
+  #           echo "checkpoints_exist=false" >> "$GITHUB_OUTPUT"
+  #         fi
+  #     - name: Sauvegarder les checkpoints dans le cache (uniquement en cas d'échec et si non vide)
+  #       if: failure() && steps.check_checkpoints.outputs.checkpoints_exist == 'true'
+  #       uses: actions/cache/save@v4
+  #       with:
+  #         path: ./nllb-darija-finetuned-lora-checkpoints
+  #         key: checkpoints-${{ github.run_id }}
+  #     - name: Sauvegarder l'artefact du modèle LoRA pour le job suivant
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: nllb-lora-model-artifact
+  #         path: ./nllb-darija-lora-model/
+  #     - name: Sauvegarder l'artefact du jeu de test pour le job de validation
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: test-dataset-artifact
+  #         path: test_dataset.json
+  #     - name: Nettoyer les anciens caches après un succès complet
+  #       if: success()
+  #       run: |
+  #         echo "L'entraînement a réussi. Nettoyage des anciens caches de checkpoints..."
+  #         gh cache list --repo ${{ github.repository }} | \
+  #         grep 'checkpoints-' | \
+  #         awk '{print $1}' | \
+  #         while read cacheKey; do
+  #           gh cache delete "$cacheKey" --repo ${{ github.repository }} --confirm || echo "Avertissement : impossible de supprimer le cache $cacheKey"
+  #         done
+  #       env:
+  #         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ===================================================================
   # JOB 2 : VALIDATION COMPARATIVE (MODIFIÉ POUR ÊTRE INDÉPENDANT)
@@ -232,8 +302,8 @@ jobs:
   validate-and-compare:
     name: 2 - Validation et Comparaison des Modèles
     runs-on: ubuntu-latest
-    # MODIFIÉ : Le job ne dépend plus de 'train-and-validate' pour cette exécution
-    # needs: train-and-validate
+    # MODIFIÉ : Pas de dépendance pour cette exécution
+    # needs: train-and-validate 
     outputs:
       is_better: ${{ steps.compare.outputs.is_better }}
       new_bleu_score: ${{ steps.evaluate_new.outputs.bleu_score }}
@@ -245,22 +315,25 @@ jobs:
       - name: Checkout du code (avec la dernière version corrigée)
         uses: actions/checkout@v4
 
-      # NOUVELLE ÉTAPE : Télécharger les artefacts du run précédent
-      - name: Télécharger les artefacts de l'entraînement réussi
+      # MODIFIÉ : Télécharger les artefacts du run précédent en les nommant
+      - name: Télécharger les artefacts de l'entraînement précédent
         uses: dawidd6/action-download-artifact@v6
         with:
-          # ----- IMPORTANT : REMPLACEZ CET ID PAR LE VÔTRE -----
-          run_id: VOTRE_RUN_ID_ICI
+          run_id: 16400767051 # Mettez ici l'ID du run qui a les artefacts
           repo: ${{ github.repository }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # On spécifie les noms des deux artefacts à télécharger
+          name: |
+            nllb-lora-model-artifact
+            test-dataset-artifact
 
       - name: Préparer les artefacts pour l'évaluation
         run: |
           echo "Vérification des artefacts téléchargés..."
           ls -R
-          # Déplacer le modèle dans le dossier attendu par le script d'évaluation
+          # L'action crée un dossier pour chaque artefact. On les déplace.
           mv nllb-lora-model-artifact ./new-model-to-evaluate
-          # Le dataset de test est téléchargé à la racine, ce qui est correct
+          mv test-dataset-artifact/test_dataset.json .
 
       - name: Setup Python 3.11 et dépendances
         uses: actions/setup-python@v5
@@ -324,17 +397,14 @@ jobs:
     if: needs.validate-and-compare.outputs.is_better == 'true'
 
     steps:
-      # NOUVELLE ÉTAPE : Télécharger l'artefact du run précédent
-      - name: Télécharger l'artefact du modèle de l'entraînement réussi
+      # MODIFIÉ : Télécharger l'artefact du run précédent
+      - name: Télécharger l'artefact du modèle de l'entraînement précédent
         uses: dawidd6/action-download-artifact@v6
         with:
-          # ----- IMPORTANT : REMPLACEZ CET ID PAR LE VÔTRE -----
-          run_id: VOTRE_RUN_ID_ICI
+          run_id: 16400767051 # Mettez le même ID de run ici
           repo: ${{ github.repository }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # On ne télécharge que l'artefact du modèle
           name: nllb-lora-model-artifact
-          # On le place directement dans le bon dossier
           path: ./nllb-darija-lora-model/
 
       - name: Créer le fichier d'évaluation pour le nouveau modèle
