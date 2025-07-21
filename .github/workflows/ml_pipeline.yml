@@ -274,6 +274,8 @@ jobs:
       - name: Évaluer le NOUVEAU modèle sur le jeu de test
         id: evaluate_new
         run: |
+          # MODIFIÉ : Définir PYTHONPATH pour que les imports fonctionnent
+          export PYTHONPATH=$(pwd)
           SCORE=$(python llm/evaluate_model.py ./new-model-to-evaluate/ | grep 'SCORE_BLEU=' | cut -d'=' -f2)
           echo "Nouveau score BLEU : $SCORE"
           echo "bleu_score=$SCORE" >> "$GITHUB_OUTPUT"
