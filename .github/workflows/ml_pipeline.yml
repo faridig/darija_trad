@@ -35,9 +35,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ./nllb-darija-finetuned-lora-checkpoints
-          # La clé principale est unique à chaque exécution pour éviter les conflits
           key: checkpoints-${{ github.run_id }}
-          # Plan B : S'il n'y a pas de cache pour ce run, chercher le plus récent
           restore-keys: |
             checkpoints-
 
@@ -65,7 +63,7 @@ jobs:
 
       - name: Vérifier l'existence de checkpoints avant sauvegarde
         id: check_checkpoints
-        if: always() # Toujours vérifier, même si le job a réussi
+        if: always()
         run: |
           if [ -d "./nllb-darija-finetuned-lora-checkpoints" ] && [ "$(ls -A ./nllb-darija-finetuned-lora-checkpoints)" ]; then
             echo "checkpoints_exist=true" >> "$GITHUB_OUTPUT"
@@ -119,6 +117,16 @@ jobs:
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
+
+      # --- ÉTAPE DE DÉBOGAGE TEMPORAIRE ---
+      - name: Vérifier la structure des fichiers llm
+        run: |
+          echo "Contenu du dossier llm/ :"
+          ls -l llm/
+          echo "---"
+          echo "Contenu de llm/evaluate_model.py :"
+          cat llm/evaluate_model.py
+      # --- FIN DE L'ÉTAPE DE DÉBOGAGE ---
       
       - name: Setup Python 3.11 et dépendances
         uses: actions/setup-python@v5
@@ -153,7 +161,7 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          huggingface-cli download Farid59/nllb-darija-lora-model evaluation.json --local-dir . --repo-type model --token $HF_TOKEN || echo "evaluation.json non trouvé, score de prod mis à 0."
+          huggingface-cli download Farid59/nllb-darija-lora-model evaluation.json --local-dir . --repo-type model --token ${{ secrets.HF_TOKEN }} || echo "evaluation.json non trouvé, score de prod mis à 0."
           if [ -f "evaluation.json" ]; then
             SCORE=$(jq .bleu_score evaluation.json)
           else
@@ -169,49 +177,17 @@ jobs:
           PROD_SCORE=${{ steps.get_prod_score.outputs.bleu_score }}
           echo "Comparaison : Nouveau ($NEW_SCORE) vs. Production ($PROD_SCORE)"
           
+          # Vérifier si NEW_SCORE est vide avant la comparaison
+          if [ -z "$NEW_SCORE" ]; then
+            echo "Le nouveau score BLEU est vide. Échec de la comparaison."
+            echo "is_better=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
           IS_BETTER=$(python -c "print(float('${NEW_SCORE}') > float('${PROD_SCORE}'))")
 
           if [ "$IS_BETTER" == "True" ]; then
             echo "Le nouveau modèle est meilleur. Déploiement autorisé."
             echo "is_better=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Le nouveau modèle n'est pas meilleur que celui en production. Déploiement annulé."
-            echo "is_better=false" >> "$GITHUB_OUTPUT"
-          fi
-
-  # ===================================================================
-  # JOB 3 : DÉPLOIEMENT CONDITIONNEL DU MODÈLE
-  # ===================================================================
-  deploy-model-to-hub:
-    name: 3 - Déploiement du Modèle sur Hugging Face
-    runs-on: ubuntu-latest
-    needs: validate-and-compare
-    if: needs.validate-and-compare.outputs.is_better == 'true'
-
-    steps:
-      - name: Télécharger l'artefact du modèle
-        uses: actions/download-artifact@v4
-        with:
-          name: nllb-lora-model-artifact
-          path: ./nllb-darija-lora-model/
-
-      - name: Créer le fichier d'évaluation pour le nouveau modèle
-        run: |
-          echo '{"bleu_score": ${{ needs.validate-and-compare.outputs.new_bleu_score }} }' > ./nllb-darija-lora-model/evaluation.json
-          echo "Fichier evaluation.json créé avec le score : ${{ needs.validate-and-compare.outputs.new_bleu_score }}"
-
-      - name: Installer Git LFS et Hugging Face Hub CLI
-        run: |
-          sudo apt-get update && sudo apt-get install git-lfs -y
-          pip install huggingface_hub
-
-      - name: Push vers Hugging Face Hub (Modèle + Score)
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          huggingface-cli login --token $HF_TOKEN
-          huggingface-cli upload \
-            --repo-type model \
-            Farid59/nllb-darija-lora-model \
-            ./nllb-darija-lora-model/ \
-            .
+            echo "Le nouveau modèle n'est pas meilleur que celui en production. Déploiement annul
