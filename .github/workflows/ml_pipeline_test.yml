@@ -114,14 +114,8 @@ on:
           id: evaluate_new
           run: |
             echo "Simulation de l'évaluation du nouveau modèle..."
-            # OPTION 1 : Simulation pure (plus rapide)
             # On force un score élevé pour s'assurer que le job de déploiement se lance.
             SCORE="99.9"
-            
-            # OPTION 2 : Vraie évaluation sur un extrait (si vous voulez tester le script evaluate_model.py)
-            # Assurez-vous que votre script accepte un argument pour limiter le nombre d'échantillons
-            # SCORE=$(python llm/evaluate_model.py ./new-model-to-evaluate/ --max_samples=4 | grep 'SCORE_BLEU=' | cut -d'=' -f2)
-            
             echo "Nouveau score BLEU (simulé) : $SCORE"
             echo "bleu_score=$SCORE" >> "$GITHUB_OUTPUT"
   
@@ -186,8 +180,6 @@ on:
             huggingface-cli login --token $HF_TOKEN
             
             # Commande pour pousser UN SEUL FICHIER
-            # Cela valide l'authentification, les permissions et la connexion au repo
-            # sans envoyer les gros fichiers du modèle.
             huggingface-cli upload \
               --repo-type model \
               --commit-message "[CI TEST] Mise à jour du score d'évaluation" \
