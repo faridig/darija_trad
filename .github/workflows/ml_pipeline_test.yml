@@ -195,4 +195,4 @@ on:
               ./nllb-darija-lora-model/evaluation.json \
               evaluation.json
               
-            echo "✅ Test de push réussi. Le fichier evaluation.json a été poussé sur le Hub."
+            echo "✅ Test de push réussi ! Le fichier evaluation.json a été poussé sur le Hub."
