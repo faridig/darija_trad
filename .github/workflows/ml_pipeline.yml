@@ -1,3 +1,207 @@
+# name: MLOps - Entraînement, Validation et Déploiement du Modèle
+
+# on:
+#   push:
+#     branches:
+#       - master
+#     paths:
+#       - 'llm/**'
+#       - 'tests/data/**'
+#       - '.github/workflows/ml_pipeline.yml'
+#   workflow_dispatch:
+
+# jobs:
+#   # ===================================================================
+#   # JOB 1 : ENTRAÎNEMENT DU MODÈLE
+#   # ===================================================================
+#   train-and-validate:
+#     name: 1 - Entraînement & Validation du Modèle
+#     runs-on: [self-hosted, linux, x64, gpu]
+#     environment: training
+
+#     env:
+#       MLFLOW_TRACKING_URI: http://127.0.0.1:5001 
+#       MLFLOW_EXPERIMENT_NAME: nllb_darija_finetuning
+#       ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+#       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+#       BASE_URL: ${{ secrets.DATA_API_BASE_URL }}
+
+#     steps:
+#       - name: Checkout du code
+#         uses: actions/checkout@v4
+
+#       - name: Restaurer les checkpoints depuis le cache
+#         id: cache-checkpoints-restore
+#         uses: actions/cache/restore@v4
+#         with:
+#           path: ./nllb-darija-finetuned-lora-checkpoints
+#           key: checkpoints-${{ github.run_id }}
+#           restore-keys: |
+#             checkpoints-
+
+#       - name: Setup Python 3.11
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.11'
+      
+#       - name: Installer les dépendances
+#         run: |
+#           python -m pip install --upgrade pip
+#           pip install -r requirements.txt
+
+#       - name: Récupérer le corpus de données complet via l'API
+#         run: python llm/export_dataset.py
+
+#       - name: Préparer et diviser les datasets (train/validation/test)
+#         run: python llm/prepare_datasets.py
+      
+#       - name: Lancer les tests de qualité sur les données
+#         run: pytest tests/data/test_data_quality.py
+
+#       - name: Lancer le Fine-Tuning du modèle avec MLflow
+#         run: python llm/finetune_nllb_lora.py
+
+#       - name: Vérifier l'existence de checkpoints avant sauvegarde
+#         id: check_checkpoints
+#         if: always()
+#         run: |
+#           if [ -d "./nllb-darija-finetuned-lora-checkpoints" ] && [ "$(ls -A ./nllb-darija-finetuned-lora-checkpoints)" ]; then
+#             echo "checkpoints_exist=true" >> "$GITHUB_OUTPUT"
+#           else
+#             echo "checkpoints_exist=false" >> "$GITHUB_OUTPUT"
+#           fi
+
+#       - name: Sauvegarder les checkpoints dans le cache (uniquement en cas d'échec et si non vide)
+#         if: failure() && steps.check_checkpoints.outputs.checkpoints_exist == 'true'
+#         uses: actions/cache/save@v4
+#         with:
+#           path: ./nllb-darija-finetuned-lora-checkpoints
+#           key: checkpoints-${{ github.run_id }}
+          
+#       - name: Sauvegarder l'artefact du modèle LoRA pour le job suivant
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: nllb-lora-model-artifact
+#           path: ./nllb-darija-lora-model/
+      
+#       - name: Sauvegarder l'artefact du jeu de test pour le job de validation
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: test-dataset-artifact
+#           path: test_dataset.json
+
+#       - name: Nettoyer les anciens caches après un succès complet
+#         if: success()
+#         run: |
+#           echo "L'entraînement a réussi. Nettoyage des anciens caches de checkpoints..."
+#           gh cache list --repo ${{ github.repository }} | \
+#           grep 'checkpoints-' | \
+#           awk '{print $1}' | \
+#           while read cacheKey; do
+#             gh cache delete "$cacheKey" --repo ${{ github.repository }} --confirm || echo "Avertissement : impossible de supprimer le cache $cacheKey"
+#           done
+#         env:
+#           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+#   # ===================================================================
+#   # JOB 2 : VALIDATION COMPARATIVE (Validation Gate)
+#   # ===================================================================
+#   validate-and-compare:
+#     name: 2 - Validation et Comparaison des Modèles
+#     runs-on: ubuntu-latest
+#     needs: train-and-validate
+#     outputs:
+#       is_better: ${{ steps.compare.outputs.is_better }}
+#       new_bleu_score: ${{ steps.evaluate_new.outputs.bleu_score }}
+
+#     # MODIFIÉ : Ajout d'une variable d'environnement pour MLflow
+#     # Cela indique à la bibliothèque MLflow de ne pas chercher de serveur réseau,
+#     # mais d'écrire dans un répertoire local qui sera supprimé à la fin du job.
+#     # C'est ce qui résout l'erreur "Connection refused".
+#     env:
+#       MLFLOW_TRACKING_URI: "file:./mlruns-temp-eval"
+
+#     steps:
+#       - name: Checkout du code
+#         uses: actions/checkout@v4
+
+#       # --- ÉTAPE DE DÉBOGAGE TEMPORAIRE (Vous pouvez la garder pour vérifier) ---
+#       - name: Vérifier la structure des fichiers llm
+#         run: |
+#           echo "Contenu du dossier llm/ :"
+#           ls -l llm/
+#           echo "---"
+#           echo "Contenu de llm/evaluate_model.py :"
+#           cat llm/evaluate_model.py
+#       # --- FIN DE L'ÉTAPE DE DÉBOGAGE ---
+      
+#       - name: Setup Python 3.11 et dépendances
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.11'
+#       - run: |
+#           # On garde un seul requirements.txt pour la simplicité
+#           pip install -r requirements.txt
+#           # Les autres installations spécifiques à l'évaluation restent
+#           pip install huggingface_hub datasets evaluate sacrebleu jq
+#           pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+#       - name: Télécharger l'artefact du nouveau modèle
+#         uses: actions/download-artifact@v4
+#         with:
+#           name: nllb-lora-model-artifact
+#           path: ./new-model-to-evaluate/
+      
+#       - name: Télécharger l'artefact du jeu de test
+#         uses: actions/download-artifact@v4
+#         with:
+#           name: test-dataset-artifact
+#           path: .
+
+#       - name: Évaluer le NOUVEAU modèle sur le jeu de test
+#         id: evaluate_new
+#         run: |
+#           SCORE=$(python llm/evaluate_model.py ./new-model-to-evaluate/ | grep 'SCORE_BLEU=' | cut -d'=' -f2)
+#           echo "Nouveau score BLEU : $SCORE"
+#           echo "bleu_score=$SCORE" >> "$GITHUB_OUTPUT"
+
+#       - name: Récupérer le score du modèle en PRODUCTION
+#         id: get_prod_score
+#         env:
+#           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+#         run: |
+#           huggingface-cli download Farid59/nllb-darija-lora-model evaluation.json --local-dir . --repo-type model --token ${{ secrets.HF_TOKEN }} || echo "evaluation.json non trouvé, score de prod mis à 0."
+#           if [ -f "evaluation.json" ]; then
+#             SCORE=$(jq .bleu_score evaluation.json)
+#           else
+#             SCORE=0
+#           fi
+#           echo "Score de production : $SCORE"
+#           echo "bleu_score=$SCORE" >> "$GITHUB_OUTPUT"
+
+#       - name: Comparer les scores
+#         id: compare
+#         run: |
+#           NEW_SCORE=${{ steps.evaluate_new.outputs.bleu_score }}
+#           PROD_SCORE=${{ steps.get_prod_score.outputs.bleu_score }}
+#           echo "Comparaison : Nouveau ($NEW_SCORE) vs. Production ($PROD_SCORE)"
+          
+#           if [ -z "$NEW_SCORE" ]; then
+#             echo "::error::Le nouveau score BLEU est vide. Échec de l'évaluation."
+#             exit 1
+#           fi
+
+#           IS_BETTER=$(python -c "print(float('${NEW_SCORE}') > float('${PROD_SCORE}'))")
+
+#           if [ "$IS_BETTER" == "True" ]; then
+#             echo "Le nouveau modèle est meilleur. Déploiement autorisé."
+#             echo "is_better=true" >> "$GITHUB_OUTPUT"
+#           else
+#             echo "Le nouveau modèle n'est pas meilleur que celui en production. Déploiement annulé."
+#             echo "is_better=false" >> "$GITHUB_OUTPUT"
+#           fi
+
+
 name: MLOps - Entraînement, Validation et Déploiement du Modèle
 
 on:
@@ -12,151 +216,60 @@ on:
 
 jobs:
   # ===================================================================
-  # JOB 1 : ENTRAÎNEMENT DU MODÈLE
+  # JOB 1 : ENTRAÎNEMENT DU MODÈLE (TEMPORAIREMENT DÉSACTIVÉ)
   # ===================================================================
-  train-and-validate:
-    name: 1 - Entraînement & Validation du Modèle
-    runs-on: [self-hosted, linux, x64, gpu]
-    environment: training
-
-    env:
-      MLFLOW_TRACKING_URI: http://127.0.0.1:5001 
-      MLFLOW_EXPERIMENT_NAME: nllb_darija_finetuning
-      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
-      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-      BASE_URL: ${{ secrets.DATA_API_BASE_URL }}
-
-    steps:
-      - name: Checkout du code
-        uses: actions/checkout@v4
-
-      - name: Restaurer les checkpoints depuis le cache
-        id: cache-checkpoints-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: ./nllb-darija-finetuned-lora-checkpoints
-          key: checkpoints-${{ github.run_id }}
-          restore-keys: |
-            checkpoints-
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      
-      - name: Installer les dépendances
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Récupérer le corpus de données complet via l'API
-        run: python llm/export_dataset.py
-
-      - name: Préparer et diviser les datasets (train/validation/test)
-        run: python llm/prepare_datasets.py
-      
-      - name: Lancer les tests de qualité sur les données
-        run: pytest tests/data/test_data_quality.py
-
-      - name: Lancer le Fine-Tuning du modèle avec MLflow
-        run: python llm/finetune_nllb_lora.py
-
-      - name: Vérifier l'existence de checkpoints avant sauvegarde
-        id: check_checkpoints
-        if: always()
-        run: |
-          if [ -d "./nllb-darija-finetuned-lora-checkpoints" ] && [ "$(ls -A ./nllb-darija-finetuned-lora-checkpoints)" ]; then
-            echo "checkpoints_exist=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "checkpoints_exist=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Sauvegarder les checkpoints dans le cache (uniquement en cas d'échec et si non vide)
-        if: failure() && steps.check_checkpoints.outputs.checkpoints_exist == 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ./nllb-darija-finetuned-lora-checkpoints
-          key: checkpoints-${{ github.run_id }}
-          
-      - name: Sauvegarder l'artefact du modèle LoRA pour le job suivant
-        uses: actions/upload-artifact@v4
-        with:
-          name: nllb-lora-model-artifact
-          path: ./nllb-darija-lora-model/
-      
-      - name: Sauvegarder l'artefact du jeu de test pour le job de validation
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-dataset-artifact
-          path: test_dataset.json
-
-      - name: Nettoyer les anciens caches après un succès complet
-        if: success()
-        run: |
-          echo "L'entraînement a réussi. Nettoyage des anciens caches de checkpoints..."
-          gh cache list --repo ${{ github.repository }} | \
-          grep 'checkpoints-' | \
-          awk '{print $1}' | \
-          while read cacheKey; do
-            gh cache delete "$cacheKey" --repo ${{ github.repository }} --confirm || echo "Avertissement : impossible de supprimer le cache $cacheKey"
-          done
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Pour réactiver, décommentez ce bloc et restaurez 'needs: train-and-validate'
+  # dans le job 'validate-and-compare'.
+  #
+  # train-and-validate:
+  #   name: 1 - Entraînement & Validation du Modèle
+  #   runs-on: [self-hosted, linux, x64, gpu]
+  #   ... (le reste du job est commenté)
 
   # ===================================================================
-  # JOB 2 : VALIDATION COMPARATIVE (Validation Gate)
+  # JOB 2 : VALIDATION COMPARATIVE (MODIFIÉ POUR ÊTRE INDÉPENDANT)
   # ===================================================================
   validate-and-compare:
     name: 2 - Validation et Comparaison des Modèles
     runs-on: ubuntu-latest
-    needs: train-and-validate
+    # MODIFIÉ : Le job ne dépend plus de 'train-and-validate' pour cette exécution
+    # needs: train-and-validate
     outputs:
       is_better: ${{ steps.compare.outputs.is_better }}
       new_bleu_score: ${{ steps.evaluate_new.outputs.bleu_score }}
 
-    # MODIFIÉ : Ajout d'une variable d'environnement pour MLflow
-    # Cela indique à la bibliothèque MLflow de ne pas chercher de serveur réseau,
-    # mais d'écrire dans un répertoire local qui sera supprimé à la fin du job.
-    # C'est ce qui résout l'erreur "Connection refused".
     env:
       MLFLOW_TRACKING_URI: "file:./mlruns-temp-eval"
 
     steps:
-      - name: Checkout du code
+      - name: Checkout du code (avec la dernière version corrigée)
         uses: actions/checkout@v4
 
-      # --- ÉTAPE DE DÉBOGAGE TEMPORAIRE (Vous pouvez la garder pour vérifier) ---
-      - name: Vérifier la structure des fichiers llm
+      # NOUVELLE ÉTAPE : Télécharger les artefacts du run précédent
+      - name: Télécharger les artefacts de l'entraînement réussi
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          # ----- IMPORTANT : REMPLACEZ CET ID PAR LE VÔTRE -----
+          run_id: VOTRE_RUN_ID_ICI
+          repo: ${{ github.repository }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Préparer les artefacts pour l'évaluation
         run: |
-          echo "Contenu du dossier llm/ :"
-          ls -l llm/
-          echo "---"
-          echo "Contenu de llm/evaluate_model.py :"
-          cat llm/evaluate_model.py
-      # --- FIN DE L'ÉTAPE DE DÉBOGAGE ---
-      
+          echo "Vérification des artefacts téléchargés..."
+          ls -R
+          # Déplacer le modèle dans le dossier attendu par le script d'évaluation
+          mv nllb-lora-model-artifact ./new-model-to-evaluate
+          # Le dataset de test est téléchargé à la racine, ce qui est correct
+
       - name: Setup Python 3.11 et dépendances
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - run: |
-          # On garde un seul requirements.txt pour la simplicité
           pip install -r requirements.txt
-          # Les autres installations spécifiques à l'évaluation restent
           pip install huggingface_hub datasets evaluate sacrebleu jq
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-
-      - name: Télécharger l'artefact du nouveau modèle
-        uses: actions/download-artifact@v4
-        with:
-          name: nllb-lora-model-artifact
-          path: ./new-model-to-evaluate/
-      
-      - name: Télécharger l'artefact du jeu de test
-        uses: actions/download-artifact@v4
-        with:
-          name: test-dataset-artifact
-          path: .
 
       - name: Évaluer le NOUVEAU modèle sur le jeu de test
         id: evaluate_new
@@ -200,3 +313,47 @@ jobs:
             echo "Le nouveau modèle n'est pas meilleur que celui en production. Déploiement annulé."
             echo "is_better=false" >> "$GITHUB_OUTPUT"
           fi
+
+  # ===================================================================
+  # JOB 3 : DÉPLOIEMENT CONDITIONNEL DU MODÈLE
+  # ===================================================================
+  deploy-model-to-hub:
+    name: 3 - Déploiement du Modèle sur Hugging Face
+    runs-on: ubuntu-latest
+    needs: validate-and-compare
+    if: needs.validate-and-compare.outputs.is_better == 'true'
+
+    steps:
+      # NOUVELLE ÉTAPE : Télécharger l'artefact du run précédent
+      - name: Télécharger l'artefact du modèle de l'entraînement réussi
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          # ----- IMPORTANT : REMPLACEZ CET ID PAR LE VÔTRE -----
+          run_id: VOTRE_RUN_ID_ICI
+          repo: ${{ github.repository }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # On ne télécharge que l'artefact du modèle
+          name: nllb-lora-model-artifact
+          # On le place directement dans le bon dossier
+          path: ./nllb-darija-lora-model/
+
+      - name: Créer le fichier d'évaluation pour le nouveau modèle
+        run: |
+          echo '{"bleu_score": ${{ needs.validate-and-compare.outputs.new_bleu_score }} }' > ./nllb-darija-lora-model/evaluation.json
+          echo "Fichier evaluation.json créé avec le score : ${{ needs.validate-and-compare.outputs.new_bleu_score }}"
+
+      - name: Installer Git LFS et Hugging Face Hub CLI
+        run: |
+          sudo apt-get update && sudo apt-get install git-lfs -y
+          pip install huggingface_hub
+
+      - name: Push vers Hugging Face Hub (Modèle + Score)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          huggingface-cli login --token $HF_TOKEN
+          huggingface-cli upload \
+            --repo-type model \
+            Farid59/nllb-darija-lora-model \
+            ./nllb-darija-lora-model/ \
+            .
