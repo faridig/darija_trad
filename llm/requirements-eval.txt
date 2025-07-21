@@ -1,0 +1,13 @@
+# requirements-eval.txt
+huggingface_hub
+datasets
+evaluate
+sacrebleu
+jq
+torch --index-url https://download.pytorch.org/whl/cpu
+# Ajoutez ici d'autres dépendances si evaluate_model.py en a besoin,
+# comme numpy, transformers, etc. mais PAS mlflow.
+numpy
+transformers
+peft
+sentencepiece
