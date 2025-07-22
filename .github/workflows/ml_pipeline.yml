@@ -111,7 +111,7 @@ jobs:
   # ===================================================================
   validate-and-compare:
     name: 2 - Validation et Comparaison des Modèles
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, gpu]
     needs: train-and-validate
     outputs:
       is_better: ${{ steps.compare.outputs.is_better }}
@@ -131,11 +131,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: |
+
+      - name: Installer les dépendances
+        run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # jq n'est pas une lib python, il est souvent préinstallé
-          pip install huggingface_hub datasets evaluate sacrebleu
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
 
       - name: Télécharger l'artefact du nouveau modèle
         uses: actions/download-artifact@v4
