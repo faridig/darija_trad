@@ -18,6 +18,7 @@ jobs:
     name: 1 - Entraînement & Validation du Modèle
     runs-on: [self-hosted, linux, x64, gpu]
     environment: training
+    timeout-minutes: 1440 # 60 minutes * 24 heures = 1440
 
     env:
       MLFLOW_TRACKING_URI: http://127.0.0.1:5001 
