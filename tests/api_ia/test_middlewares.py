@@ -1,9 +1,7 @@
 # tests/api_ia/test_middlewares.py
-
-# Supprimez ces lignes :
-# from fastapi.testclient import TestClient
-# from api.ia_api.main import app
-# client = TestClient(app)
+from unittest.mock import patch
+from api.ia_api.model import LLMTranslator
+import pytest
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Middleware 1 : Headers de sécurité HTTP
@@ -80,3 +78,25 @@ def test_metrics_basic_auth_success(client): # <--- Ajoutez "client" ici
     text = r.text
     assert "api_requests_total" in text
     assert "data_drift_text_length" in text
+
+
+def test_monitoring_middleware_on_internal_error(client):
+    """
+    Vérifie que le middleware de monitoring intercepte et logue une exception
+    qui se produit à l'intérieur d'un endpoint.
+    Ce test couvre le bloc 'except' principal dans monitoring_middleware.
+    """
+    error_message = "Erreur interne volontaire pour le test"
+    
+    # On patche la méthode `traiter` pour qu'elle lève une RuntimeError
+    with patch.object(LLMTranslator, 'traiter', side_effect=RuntimeError(error_message)):
+        
+        # On utilise pytest.raises pour s'attendre à ce que l'exception soit
+        # relancée par le middleware après avoir été loguée.
+        with pytest.raises(RuntimeError, match=error_message):
+            # On fait un appel à un endpoint qui utilise le LLMTranslator
+            client.post(
+                "/generer",
+                json={"texte": "ceci est un test"},
+                headers={"Authorization": "Bearer fake-jwt-token"}
+            )
