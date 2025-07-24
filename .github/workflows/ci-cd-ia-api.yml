@@ -41,12 +41,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r api/ia_api/requirements.txt
           pip install -r database/requirements.txt
-          pip install pytest
+          pip install pytest pytest-cov
 
-      - name: Lancer les tests de l'API IA
+      - name: Lancer les tests et vérifier la couverture de l'API IA
         run: |
           export PYTHONPATH=$(pwd)
-          pytest tests/api_ia/
+          pytest --cov=api/ia_api --cov-report=html --cov-report=term-missing --cov-fail-under=85 tests/api_ia/
+
+      - name: Sauvegarder le rapport de couverture en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-couverture-api
+          path: htmlcov/
 
   # ===================================================================
   # JOB 2 : CONSTRUIRE ET DÉPLOYER LES IMAGES DOCKER (avec utilisateur admin ACR)
