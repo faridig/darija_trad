@@ -26,7 +26,7 @@ def test_validation_exception_handler_is_triggered(client):
 def test_all_exception_handler_catches_value_error(client):
     """
     Vérifie le comportement de l'application lorsqu'un ValueError est levé
-    par un endpoint. En raison du middleware, cela résulte en une réponse 500.
+    par un endpoint. Le résultat observé est une réponse 500.
     """
     with patch.object(LLMTranslator, 'traiter', side_effect=ValueError("Erreur de valeur simulée")):
         payload = {"texte": "un texte valide"}
@@ -34,10 +34,9 @@ def test_all_exception_handler_catches_value_error(client):
             "/generer", json=payload, headers={"Authorization": "Bearer fake-jwt-token"}
         )
         
-        # On valide le comportement réel de FastAPI : une erreur interne
-        # levée dans un endpoint et relancée par un middleware
-        # résulte en une réponse 500.
+        # ON VALIDE LE COMPORTEMENT RÉEL OBSERVÉ DANS LES LOGS DE LA CI.
         assert response.status_code == 500
+
 
 
 
