@@ -98,3 +98,5 @@ async def monitoring_middleware(request: Request, call_next):
     logger.info(f"{method} {endpoint} - {response.status_code} - {duration:.3f}s")
 
     return response
+
+

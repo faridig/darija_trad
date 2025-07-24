@@ -6,7 +6,6 @@ from prometheus_client import generate_latest, Counter, Histogram, CONTENT_TYPE_
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import logging
 from datetime import datetime
-import json
 import os
 import secrets
 from dotenv import load_dotenv
@@ -90,33 +89,4 @@ async def metrics(credentials: HTTPBasicCredentials = Depends(security)):
     )
 
 
-async def monitoring_middleware(request: Request, call_next):
-    """Middleware pour le tracking des requêtes"""
-    start_time = datetime.now()
-    endpoint = request.url.path
-    method = request.method
 
-    REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-
-    if method == "POST" and endpoint == "/generer":
-        try:
-            body = await request.body()
-            if body:
-                parsed_body = json.loads(body)
-                texte = parsed_body.get("texte", "")
-                longueur = len(texte.strip().split())
-                DATA_DRIFT_INPUT_LENGTH.observe(longueur)
-        except Exception as e:
-            logger.warning(f"Erreur parsing drift : {e}")
-
-    try:
-        response = await call_next(request)
-    except Exception as e:
-        logger.error(f"Request failed: {method} {endpoint} - {str(e)}")
-        raise
-
-    processing_time = (datetime.now() - start_time).total_seconds()
-    REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(processing_time)
-
-    logger.info(f"{method} {endpoint} - {response.status_code} - {processing_time:.3f}s")
-    return response
