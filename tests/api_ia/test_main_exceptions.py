@@ -26,15 +26,17 @@ def test_validation_exception_handler_is_triggered(client):
 def test_all_exception_handler_catches_value_error(client):
     """
     Vérifie le comportement de l'application lorsqu'un ValueError est levé
-    par un endpoint. Le résultat observé est une réponse 500.
+    par un endpoint. Le résultat observé dans les logs est une réponse 500.
     """
     with patch.object(LLMTranslator, 'traiter', side_effect=ValueError("Erreur de valeur simulée")):
         payload = {"texte": "un texte valide"}
         response = client.post(
             "/generer", json=payload, headers={"Authorization": "Bearer fake-jwt-token"}
         )
-        
-        # ON VALIDE LE COMPORTEMENT RÉEL OBSERVÉ DANS LES LOGS DE LA CI.
+
+        # On valide le comportement réel observé dans les logs de la CI :
+        # une erreur interne, même un ValueError, après passage dans les middlewares,
+        # résulte en une réponse 500.
         assert response.status_code == 500
 
 
