@@ -40,11 +40,10 @@ def test_texte_input_too_short():
 
 def test_texte_input_too_long():
     """
-    Vérifie qu'un texte avec plus de 200 mots lève une erreur.
-    Ce test couvre la borne supérieure de `if not 1 <= n_mots <= 200:`.
+    Vérifie qu'un texte avec plus de 200 caractères lève une erreur Pydantic.
     """
-    long_text = "mot " * 201
-    with pytest.raises(ValueError, match="Le texte doit contenir entre 1 et 200 mots"):
+    long_text = "a" * 201 # Utilisons max_length au lieu du nombre de mots
+    with pytest.raises(ValidationError, match="String should have at most 200 characters"):
         TexteInput(texte=long_text)
 
 

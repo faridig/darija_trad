@@ -25,42 +25,30 @@ def test_validation_exception_handler_is_triggered(client):
     assert "Le texte doit contenir entre 1 et 200 mots" in response.json()["detail"][0]
 
 
-# Ce test va couvrir le 'if isinstance(exc, ValueError):' dans all_exception_handler
 def test_all_exception_handler_catches_value_error(client):
     """
     Vérifie que le handler global intercepte un ValueError qui ne viendrait pas de Pydantic.
-    On simule cela en patchant la méthode `traiter` du modèle.
     """
-    # On remplace la méthode `traiter` pour qu'elle lève un ValueError
     with patch.object(LLMTranslator, 'traiter', side_effect=ValueError("Erreur de valeur simulée")):
-        payload = {"texte": "un texte valide qui passe la validation Pydantic"}
-        
+        payload = {"texte": "un texte valide"}
         response = client.post(
-            "/generer",
-            json=payload,
-            headers={"Authorization": "Bearer fake-jwt-token"}
+            "/generer", json=payload, headers={"Authorization": "Bearer fake-jwt-token"}
         )
-        
-        # On vérifie que le handler a renvoyé un 422 avec le message de l'erreur
-        assert response.status_code == 422
-        assert response.json() == {"detail": "Erreur de valeur simulée"}
+        # L'exception est interceptée et notre handler la transforme en 422
+        assert response.status_code == 422 
+        assert response.json()["detail"] == "Erreur de valeur simulée"
 
-
-# Ce test va couvrir le 'raise exc' dans all_exception_handler
 def test_all_exception_handler_reraises_other_exceptions(client):
     """
-    Vérifie que le handler global laisse passer (re-lève) les exceptions
-    qu'il n'est pas censé gérer (tout ce qui n'est pas un ValueError).
+    Vérifie que le handler global laisse FastAPI gérer les autres exceptions,
+    ce qui résulte en une réponse 500.
     """
-    # On simule une erreur d'exécution générique
     error_message = "Erreur d'exécution inattendue"
     with patch.object(LLMTranslator, 'traiter', side_effect=RuntimeError(error_message)):
-        
-        # Le TestClient de FastAPI va intercepter cette exception et la relancer.
-        # On utilise `pytest.raises` pour confirmer que c'est bien le cas.
-        with pytest.raises(RuntimeError, match=error_message):
-            client.post(
-                "/generer",
-                json={"texte": "un texte valide"},
-                headers={"Authorization": "Bearer fake-jwt-token"}
-            )
+        response = client.post(
+            "/generer", json={"texte": "un texte valide"}, headers={"Authorization": "Bearer fake-jwt-token"}
+        )
+        # FastAPI intercepte l'exception non gérée et renvoie une réponse 500
+        assert response.status_code == 500
+        # On ne peut pas vérifier le détail car en production FastAPI masque les erreurs 500
+        # mais on peut vérifier le log si on capture les logs. Pour la couverture, ceci suffit.

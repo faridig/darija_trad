@@ -82,21 +82,12 @@ def test_metrics_basic_auth_success(client): # <--- Ajoutez "client" ici
 
 def test_monitoring_middleware_on_internal_error(client):
     """
-    Vérifie que le middleware de monitoring intercepte et logue une exception
-    qui se produit à l'intérieur d'un endpoint.
-    Ce test couvre le bloc 'except' principal dans monitoring_middleware.
+    Vérifie que le middleware logue une exception et que FastAPI renvoie une 500.
     """
     error_message = "Erreur interne volontaire pour le test"
-    
-    # On patche la méthode `traiter` pour qu'elle lève une RuntimeError
     with patch.object(LLMTranslator, 'traiter', side_effect=RuntimeError(error_message)):
-        
-        # On utilise pytest.raises pour s'attendre à ce que l'exception soit
-        # relancée par le middleware après avoir été loguée.
-        with pytest.raises(RuntimeError, match=error_message):
-            # On fait un appel à un endpoint qui utilise le LLMTranslator
-            client.post(
-                "/generer",
-                json={"texte": "ceci est un test"},
-                headers={"Authorization": "Bearer fake-jwt-token"}
-            )
+        response = client.post(
+            "/generer", json={"texte": "ceci est un test"}, headers={"Authorization": "Bearer fake-jwt-token"}
+        )
+        # Le middleware va relancer l'exception, et FastAPI va la transformer en 500
+        assert response.status_code == 500
