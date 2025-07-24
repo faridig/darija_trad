@@ -16,32 +16,6 @@ Les objectifs clés de notre chaîne CI/CD/MLOps sont :
 *   **Validation Continue du Modèle** : Mettre en place une "validation gate" pour s'assurer que seules les versions de modèle performantes sont déployées.
 *   **Monitoring en Production** : Surveiller le comportement de l'API et du modèle pour détecter les anomalies et informer les décisions de réentraînement.
 
-### Architecture Simplifiée
-
-```mermaid
-graph TD
-    A[Modification Code (API / ML) ou Data] --> B{GitHub Push/PR}
-    B -- ml_pipeline.yml --> C[Job: Entraînement Modèle (GPU Self-Hosted)]
-    C -- Sauvegarde Modèle (Artifact) --> D[Job: Validation & Comparaison Modèle (GPU Self-Hosted)]
-    D -- Score Amélioré? --> E{Oui}
-    E -- Déploiement vers HF Hub --> F[Modèle NLLB-LoRA en Production (Hugging Face Hub)]
-    D -- Score Non Amélioré? --> G{Non}
-    G -- Annulation Déploiement --> H[Notifications]
-
-    B -- ci-cd-ia-api.yml --> I[Job: Test API (Ubuntu Latest)]
-    I -- Tests OK? --> J{Oui}
-    J -- Build & Push Images Docker vers ACR --> K[Images Docker (API, Prometheus, Grafana) en ACR]
-    J -- Tests Échec? --> L{Non}
-    L -- Notifications --> H
-
-    F -- API IA utilise Modèle --> M[API IA (Exposant Modèle)]
-    M -- Métriques Prometheus --> N[Prometheus]
-    N -- Visualisation --> O[Grafana Dashboard]
-    O -- Alertes --> H
-```
-
----
-
 ## 2. Les Pipelines CI/CD
 
 Nous utilisons **GitHub Actions** pour orchestrer nos pipelines d'intégration et de livraison continues. Deux workflows principaux sont définis :
