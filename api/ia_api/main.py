@@ -71,15 +71,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-@app.exception_handler(ValueError)
-async def value_error_exception_handler(request: Request, exc: ValueError):
-    # On renvoie un 422 pour tous les ValueError issus de la validation Pydantic
-    return JSONResponse(
-        status_code=422,
-        content={"detail": str(exc)}
-    )
-
-
 # 7) Inclusion des routes principales
 app.include_router(auth.router)
 app.include_router(generation.router)
@@ -97,3 +88,8 @@ async def all_exception_handler(request: Request, exc: Exception):
         )
     # Tout le reste, on le remonte pour que FastAPI/Gestionnaire dédié le traite.
     raise exc
+
+    return JSONResponse(
+    status_code=500,
+    content={"detail": "Internal Server Error"}
+)

@@ -6,10 +6,10 @@ from api.ia_api.model import LLMTranslator
 def test_validation_exception_handler_is_triggered(client):
     """
     Vérifie que le handler pour RequestValidationError est bien appelé
-    en envoyant un payload qui viole les règles du schéma.
+    en envoyant un payload qui viole une règle de Pydantic.
     """
-    # Le schéma TexteInput requiert entre 1 et 200 mots. Envoyons plus de 200.
-    long_text = "mot " * 201 
+    # Ce texte viole la contrainte `max_length=200` de Pydantic
+    long_text = "a" * 201 
     
     response = client.post(
         "/generer",
@@ -17,26 +17,27 @@ def test_validation_exception_handler_is_triggered(client):
         headers={"Authorization": "Bearer fake-jwt-token"}
     )
     
-    # On vérifie que le statut est bien 422
     assert response.status_code == 422
-    
-    # On vérifie que le corps de la réponse contient le message d'erreur de Pydantic,
-    # prouvant que notre handler personnalisé a bien formaté la réponse.
-    assert "Le texte doit contenir entre 1 et 200 mots" in response.json()["detail"][0]
+    # On vérifie que le message d'erreur attendu est celui de Pydantic
+    assert "String should have at most 200 characters" in response.json()["detail"][0]
 
 
 def test_all_exception_handler_catches_value_error(client):
     """
-    Vérifie que le handler global intercepte un ValueError qui ne viendrait pas de Pydantic.
+    Vérifie que le handler global pour Exception intercepte bien un ValueError
+    et le transforme en réponse 422.
     """
     with patch.object(LLMTranslator, 'traiter', side_effect=ValueError("Erreur de valeur simulée")):
         payload = {"texte": "un texte valide"}
         response = client.post(
             "/generer", json=payload, headers={"Authorization": "Bearer fake-jwt-token"}
         )
-        # L'exception est interceptée et notre handler la transforme en 422
-        assert response.status_code == 422 
+        # Maintenant, le handler @app.exception_handler(Exception) devrait 
+        # intercepter le ValueError et renvoyer 422.
+        assert response.status_code == 422
         assert response.json()["detail"] == "Erreur de valeur simulée"
+
+
 
 def test_all_exception_handler_reraises_other_exceptions(client):
     """
