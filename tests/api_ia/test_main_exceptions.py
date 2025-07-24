@@ -34,13 +34,9 @@ def test_all_exception_handler_catches_value_error(client):
             "/generer", json=payload, headers={"Authorization": "Bearer fake-jwt-token"}
         )
 
-        # On valide le comportement réel observé dans les logs de la CI :
-        # une erreur interne, même un ValueError, après passage dans les middlewares,
-        # résulte en une réponse 500.
+        # CETTE LIGNE EST LA CORRECTION : on attend 500, pas 422.
         assert response.status_code == 500
-
-
-
+ 
 
 def test_all_exception_handler_reraises_other_exceptions(client):
     """
