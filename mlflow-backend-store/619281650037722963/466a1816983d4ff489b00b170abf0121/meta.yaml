@@ -1,0 +1,15 @@
+artifact_uri: /projets/darija_app_final/mlflow-artifacts/619281650037722963/466a1816983d4ff489b00b170abf0121/artifacts
+end_time: 1753228663851
+entry_point_name: ''
+experiment_id: '619281650037722963'
+lifecycle_stage: active
+run_id: 466a1816983d4ff489b00b170abf0121
+run_name: masked-sponge-573
+run_uuid: 466a1816983d4ff489b00b170abf0121
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753212619876
+status: 3
+tags: []
+user_id: farid

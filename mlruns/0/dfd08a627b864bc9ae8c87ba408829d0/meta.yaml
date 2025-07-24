@@ -1,0 +1,15 @@
+artifact_uri: file:///projets/darija_app_final/mlruns/0/dfd08a627b864bc9ae8c87ba408829d0/artifacts
+end_time: 1753277764013
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: dfd08a627b864bc9ae8c87ba408829d0
+run_name: ./temp_base_eval
+run_uuid: dfd08a627b864bc9ae8c87ba408829d0
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753277763981
+status: 3
+tags: []
+user_id: farid
