@@ -81,7 +81,7 @@ def main():
     if len(tokenized_train_dataset) == 0:
         raise ValueError("Le jeu de données d'entraînement est vide après le prétraitement.")
 
-    # ==============================================================================
+# ==============================================================================
     # 4. MÉTRIQUES ET CONFIGURATION DE L'ENTRAÎNEMENT
     # ==============================================================================
     bleu_metric = load("sacrebleu")
@@ -91,7 +91,11 @@ def main():
         if isinstance(preds, tuple):
             preds = preds[0]
         
+        # <<< CORRECTION APPLIQUÉE ICI >>>
+        # Remplacer les valeurs de padding (-100) dans les prédictions et les labels
+        preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
         labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+        
         decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
         decoded_labels = [[label] for label in decoded_labels]

@@ -41,6 +41,9 @@ def evaluate_base_model():
         if isinstance(preds, tuple):
             preds = preds[0]
         
+        # <<< CORRECTION APPLIQUÉE ICI >>>
+        # Remplacer les valeurs de padding (-100) dans les prédictions et les labels
+        preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
         labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
         
         decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
