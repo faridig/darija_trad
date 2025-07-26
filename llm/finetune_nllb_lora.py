@@ -105,28 +105,59 @@ def main():
         return {"bleu": result["score"]}
 
     print("⚙️ Configuration des arguments d'entraînement...")
+    # training_args = Seq2SeqTrainingArguments(
+    #     output_dir="./nllb-darija-finetuned-lora-checkpoints",
+    #     per_device_train_batch_size=8,
+    #     learning_rate=5e-4,
+    #     # MODIFICATION : Augmentation du nombre d'époques à 5
+    #     num_train_epochs=0.2,
+    #     bf16=True,
+    #     logging_dir="./logs",
+    #     save_strategy="steps",
+    #     save_steps=1000,
+    #     save_total_limit=3,
+    #     eval_strategy="steps",
+    #     logging_strategy="steps",
+    #     logging_steps=100,
+    #     eval_steps=1000,
+    #     predict_with_generate=True,
+    #     load_best_model_at_end=True,
+    #     metric_for_best_model="bleu",
+    #     greater_is_better=True,
+    #     report_to=["mlflow"],
+    #     remove_unused_columns=False,
+    # )
+    
     training_args = Seq2SeqTrainingArguments(
-        output_dir="./nllb-darija-finetuned-lora-checkpoints",
-        per_device_train_batch_size=8,
-        learning_rate=5e-4,
-        # MODIFICATION : Augmentation du nombre d'époques à 5
-        num_train_epochs=0.2,
-        bf16=True,
-        logging_dir="./logs",
-        save_strategy="steps",
-        save_steps=1000,
-        save_total_limit=3,
-        eval_strategy="steps",
-        logging_strategy="steps",
-        logging_steps=100,
-        eval_steps=1000,
-        predict_with_generate=True,
-        load_best_model_at_end=True,
-        metric_for_best_model="bleu",
-        greater_is_better=True,
-        report_to=["mlflow"],
-        remove_unused_columns=False,
-    )
+    output_dir="./nllb-darija-finetuned-lora-checkpoints",
+    
+    # --- Modifications pour la vitesse ---
+    per_device_train_batch_size=16,   # Augmenté : Traite plus de données à la fois (si VRAM le permet)
+    num_train_epochs=0.05,            # Très réduit : Fait juste une petite fraction du dataset
+    # max_steps=50,                   # Alternative : Arrête après 50 pas, encore plus rapide
+    
+    gradient_accumulation_steps=2,    # Simule un batch size encore plus grand (16*2=32)
+    
+    logging_steps=50,                 # Moins de logs
+    save_steps=200,                   # Ne sauvegarde presque jamais
+    eval_steps=200,                   # N'évalue presque jamais (l'évaluation est TRES lente)
+    
+    # --- Paramètres importants conservés ---
+    bf16=True,                        # Garder absolument, c'est une accélération majeure
+    predict_with_generate=True,       # Nécessaire pour le calcul du score BLEU
+    load_best_model_at_end=False,     # Désactivé : Pas besoin de charger le meilleur modèle pour un test
+    
+    # --- Arguments restants ---
+    learning_rate=5e-4,
+    save_total_limit=1,               # Pas besoin de garder plusieurs checkpoints pour un test
+    eval_strategy="steps",            # La stratégie reste la même
+    logging_strategy="steps",
+    save_strategy="steps",
+    metric_for_best_model="bleu",
+    greater_is_better=True,
+    report_to=["mlflow"],
+    remove_unused_columns=False,
+)
     print("✅ Arguments d'entraînement configurés.")
 
     # ==============================================================================
