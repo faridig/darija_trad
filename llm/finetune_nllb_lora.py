@@ -106,8 +106,8 @@ def main():
         per_device_train_batch_size=8,
         learning_rate=5e-4,
         # MODIFICATION : Augmentation du nombre d'époques à 5
-        num_train_epochs=0.5,
-        fp16=True,
+        num_train_epochs=0.01,
+        bf16=True,
         logging_dir="./logs",
         save_strategy="steps",
         save_steps=1000,
