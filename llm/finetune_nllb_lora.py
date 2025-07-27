@@ -1,6 +1,7 @@
 # llm/finetune_nllb_lora.py
 
 import os
+import glob # Assurez-vous que glob est importé pour la reprise robuste
 import mlflow
 import numpy as np
 from datasets import load_dataset
@@ -11,10 +12,8 @@ from transformers import (
     AutoModelForSeq2SeqLM,
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
-    # MODIFICATION : Importation du callback pour l'arrêt précoce
     EarlyStoppingCallback,
 )
-# MODIFICATION : Importer la fonction de prétraitement depuis le fichier partagé
 from llm.utils import preprocess_dynamic
 
 def main():
@@ -67,7 +66,6 @@ def main():
     cleaned_eval_dataset = eval_dataset.filter(lambda x: len([text for text in x['translation'].values() if text]) == 2)
     print(f"Taille du jeu d'entraînement après nettoyage : {len(cleaned_train_dataset)}")
 
-    # MODIFICATION : Utilisation de lambda pour passer tokenizer et model
     tokenized_train_dataset = cleaned_train_dataset.map(
         lambda example: preprocess_dynamic(example, tokenizer=tokenizer, model=model),
         remove_columns=cleaned_train_dataset.column_names
@@ -81,7 +79,7 @@ def main():
     if len(tokenized_train_dataset) == 0:
         raise ValueError("Le jeu de données d'entraînement est vide après le prétraitement.")
 
-# ==============================================================================
+    # ==============================================================================
     # 4. MÉTRIQUES ET CONFIGURATION DE L'ENTRAÎNEMENT
     # ==============================================================================
     bleu_metric = load("sacrebleu")
@@ -91,8 +89,6 @@ def main():
         if isinstance(preds, tuple):
             preds = preds[0]
         
-        # <<< CORRECTION APPLIQUÉE ICI >>>
-        # Remplacer les valeurs de padding (-100) dans les prédictions et les labels
         preds = np.where(preds != -100, preds, tokenizer.pad_token_id)
         labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
         
@@ -104,75 +100,46 @@ def main():
         print(f"[📊 Évaluation] Score BLEU : {result['score']:.2f}")
         return {"bleu": result["score"]}
 
+    # --- DEBUT DU BLOC CORRIGÉ ---
     print("⚙️ Configuration des arguments d'entraînement...")
-training_args = Seq2SeqTrainingArguments(
-    output_dir="./nllb-darija-finetuned-lora-checkpoints",
+    training_args = Seq2SeqTrainingArguments(
+        output_dir="./nllb-darija-finetuned-lora-checkpoints",
 
-    # === SECTION APPRENTISSAGE : Stabilité et Performance ===
-    learning_rate=1e-4,              # Plus sûr pour éviter de "casser" le modèle.
-    num_train_epochs=5,              # 5 époques est un excellent point de départ.
-    per_device_train_batch_size=16,  # Doublé pour mieux utiliser le GPU (si votre VRAM le permet).
-    gradient_accumulation_steps=2,   # Résultat : batch size effectif de 32, favorise la stabilité.
-    
-    # === SECTION PLANIFICATION : Éviter l'instabilité ===
-    warmup_ratio=0.1,                # 10% des pas pour "chauffer" le learning rate. C'est excellent.
-    lr_scheduler_type="cosine",      # Décroissance douce du LR, souvent mieux que "linear".
-    
-    # === SECTION ÉVALUATION & SAUVEGARDE : Efficacité et Robustesse ===
-    eval_strategy="steps",
-    save_strategy="steps",
-    # À ajuster selon la taille du dataset. Viser 2-4 évaluations par époque.
-    # Si une époque = 2000 pas, alors 500 est bien. Si une époque = 500 pas, alors 200 est mieux.
-    eval_steps=500,
-    save_steps=500,                  # Doit être identique à eval_steps pour load_best_model_at_end
-    logging_steps=50,                # Logs fréquents pour bien suivre.
-    
-    load_best_model_at_end=True,     # Indispensable pour ne garder que le meilleur modèle.
-    metric_for_best_model="bleu",
-    greater_is_better=True,
-    save_total_limit=2,              # 2 suffisent : le meilleur, le dernier, et le précédent.
-    
-    # === SECTION TECHNIQUE : Vitesse et Compatibilité ===
-    bf16=True,                       # Crucial pour la vitesse sur votre RTX 4060.
-    predict_with_generate=True,      # Nécessaire pour le score BLEU.
-    remove_unused_columns=False,     # Correct, car vous gérez les colonnes vous-même.
-    
-    # === SECTION LOGGING ===
-    logging_dir="./logs",
-    report_to=["mlflow"],            # Parfait pour le suivi d'expériences.
-)
-    
-#     training_args = Seq2SeqTrainingArguments(
-#     output_dir="./nllb-darija-finetuned-lora-checkpoints",
-    
-#     # --- Modifications pour la vitesse ---
-#     per_device_train_batch_size=16,   # Augmenté : Traite plus de données à la fois (si VRAM le permet)
-#     num_train_epochs=0.05,            # Très réduit : Fait juste une petite fraction du dataset
-#     # max_steps=50,                   # Alternative : Arrête après 50 pas, encore plus rapide
-    
-#     gradient_accumulation_steps=2,    # Simule un batch size encore plus grand (16*2=32)
-    
-#     logging_steps=50,                 # Moins de logs
-#     save_steps=200,                   # Ne sauvegarde presque jamais
-#     eval_steps=200,                   # N'évalue presque jamais (l'évaluation est TRES lente)
-    
-#     # --- Paramètres importants conservés ---
-#     bf16=True,                        # Garder absolument, c'est une accélération majeure
-#     predict_with_generate=True,       # Nécessaire pour le calcul du score BLEU
-#     load_best_model_at_end=False,     # Désactivé : Pas besoin de charger le meilleur modèle pour un test
-    
-#     # --- Arguments restants ---
-#     learning_rate=5e-4,
-#     save_total_limit=1,               # Pas besoin de garder plusieurs checkpoints pour un test
-#     eval_strategy="steps",            # La stratégie reste la même
-#     logging_strategy="steps",
-#     save_strategy="steps",
-#     metric_for_best_model="bleu",
-#     greater_is_better=True,
-#     report_to=["mlflow"],
-#     remove_unused_columns=False,
-# )
+        # === SECTION APPRENTISSAGE : Stabilité et Performance ===
+        learning_rate=1e-4,              # Plus sûr pour éviter de "casser" le modèle.
+        num_train_epochs=5,              # 5 époques est un excellent point de départ.
+        per_device_train_batch_size=16,  # Doublé pour mieux utiliser le GPU (si votre VRAM le permet).
+        gradient_accumulation_steps=2,   # Résultat : batch size effectif de 32, favorise la stabilité.
+        
+        # === SECTION PLANIFICATION : Éviter l'instabilité ===
+        warmup_ratio=0.1,                # 10% des pas pour "chauffer" le learning rate. C'est excellent.
+        lr_scheduler_type="cosine",      # Décroissance douce du LR, souvent mieux que "linear".
+        
+        # === SECTION ÉVALUATION & SAUVEGARDE : Efficacité et Robustesse ===
+        eval_strategy="steps",
+        save_strategy="steps",
+        # À ajuster selon la taille du dataset. Viser 2-4 évaluations par époque.
+        # Si une époque = 2000 pas, alors 500 est bien. Si une époque = 500 pas, alors 200 est mieux.
+        eval_steps=500,
+        save_steps=500,                  # Doit être identique à eval_steps pour load_best_model_at_end
+        logging_steps=50,                # Logs fréquents pour bien suivre.
+        
+        load_best_model_at_end=True,     # Indispensable pour ne garder que le meilleur modèle.
+        metric_for_best_model="bleu",
+        greater_is_better=True,
+        save_total_limit=2,              # 2 suffisent : le meilleur, le dernier, et le précédent.
+        
+        # === SECTION TECHNIQUE : Vitesse et Compatibilité ===
+        bf16=True,                       # Crucial pour la vitesse sur votre RTX 4060.
+        predict_with_generate=True,      # Nécessaire pour le score BLEU.
+        remove_unused_columns=False,     # Correct, car vous gérez les colonnes vous-même.
+        
+        # === SECTION LOGGING ===
+        logging_dir="./logs",
+        report_to=["mlflow"],            # Parfait pour le suivi d'expériences.
+    )
     print("✅ Arguments d'entraînement configurés.")
+    # --- FIN DU BLOC CORRIGÉ ---
 
     # ==============================================================================
     # 5. EXÉCUTION DE L'ENTRAÎNEMENT
@@ -189,6 +156,7 @@ training_args = Seq2SeqTrainingArguments(
             "learning_rate": training_args.learning_rate,
             "num_train_epochs": training_args.num_train_epochs,
             "train_batch_size": training_args.per_device_train_batch_size,
+            "gradient_accumulation_steps": training_args.gradient_accumulation_steps,
         })
 
         trainer = Seq2SeqTrainer(
@@ -198,23 +166,25 @@ training_args = Seq2SeqTrainingArguments(
             eval_dataset=tokenized_eval_dataset,
             tokenizer=tokenizer,
             compute_metrics=compute_metrics,
-            # MODIFICATION : Ajout du callback pour l'arrêt précoce.
-            # L'entraînement s'arrêtera si le score BLEU ne s'améliore pas
-            # pendant 3 évaluations consécutives.
             callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
         )
 
         print(f"🧠 Lancement de l'entraînement pour le Run ID: {run_id}...")
+        
+        # Logique de reprise robuste
+        checkpoint_dir = training_args.output_dir
+        latest_checkpoint = None
+        if os.path.isdir(checkpoint_dir):
+            checkpoints = glob.glob(os.path.join(checkpoint_dir, "checkpoint-*"))
+            if checkpoints:
+                latest_checkpoint = max(checkpoints, key=lambda x: int(x.split('-')[-1]))
+                print(f"✅ Checkpoint trouvé : {latest_checkpoint}. Tentative de reprise...")
+
         try:
-            checkpoint_dir = training_args.output_dir
-            if os.path.isdir(checkpoint_dir) and any(d.startswith("checkpoint-") for d in os.listdir(checkpoint_dir)):
-                print(f"✅ Checkpoints trouvés dans '{checkpoint_dir}'. Tentative de reprise...")
-                trainer.train(resume_from_checkpoint=True)
-            else:
-                print("ℹ️ Aucun checkpoint trouvé, démarrage d'un nouvel entraînement.")
-                trainer.train()
+            trainer.train(resume_from_checkpoint=latest_checkpoint)
         except Exception as e:
-            print(f"‼️ AVERTISSEMENT : La reprise a échoué ({e}). Démarrage d'un nouvel entraînement.")
+            print(f"‼️ AVERTISSEMENT : La reprise depuis '{latest_checkpoint}' a échoué ({e}).")
+            print("ℹ️ Démarrage d'un nouvel entraînement.")
             trainer.train()
         
         print("🏁 Entraînement terminé.")
