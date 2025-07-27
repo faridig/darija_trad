@@ -404,7 +404,7 @@ jobs:
           grep 'checkpoints-' | \
           awk '{print $1}' | \
           while read cacheKey; do
-            gh cache delete "$cacheKey" --repo ${{ github.repository }} --confirm || echo "Avertissement : impossible de supprimer le cache $cacheKey"
+            gh cache delete "$cacheKey" --repo ${{ github.repository }} || echo "Avertissement : impossible de supprimer le cache $cacheKey"
           done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

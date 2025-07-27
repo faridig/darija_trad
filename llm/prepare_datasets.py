@@ -15,7 +15,7 @@ def prepare_and_save_datasets():
             os.remove(f)
 
     # Charger le dataset complet
-    full_dataset = load_dataset("json", data_files="all_translations_dataset.json", split="train")
+    full_dataset = load_dataset("json", data_files="all_translations_dataset.jsonl", split="train")
 
     # Première division : 90% pour train+validation, 10% pour le test final
     train_val_dataset = full_dataset.train_test_split(test_size=0.1, seed=42)

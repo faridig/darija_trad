@@ -105,59 +105,73 @@ def main():
         return {"bleu": result["score"]}
 
     print("⚙️ Configuration des arguments d'entraînement...")
-    # training_args = Seq2SeqTrainingArguments(
-    #     output_dir="./nllb-darija-finetuned-lora-checkpoints",
-    #     per_device_train_batch_size=8,
-    #     learning_rate=5e-4,
-    #     # MODIFICATION : Augmentation du nombre d'époques à 5
-    #     num_train_epochs=0.2,
-    #     bf16=True,
-    #     logging_dir="./logs",
-    #     save_strategy="steps",
-    #     save_steps=1000,
-    #     save_total_limit=3,
-    #     eval_strategy="steps",
-    #     logging_strategy="steps",
-    #     logging_steps=100,
-    #     eval_steps=1000,
-    #     predict_with_generate=True,
-    #     load_best_model_at_end=True,
-    #     metric_for_best_model="bleu",
-    #     greater_is_better=True,
-    #     report_to=["mlflow"],
-    #     remove_unused_columns=False,
-    # )
-    
-    training_args = Seq2SeqTrainingArguments(
+training_args = Seq2SeqTrainingArguments(
     output_dir="./nllb-darija-finetuned-lora-checkpoints",
+
+    # === SECTION APPRENTISSAGE : Stabilité et Performance ===
+    learning_rate=1e-4,              # Plus sûr pour éviter de "casser" le modèle.
+    num_train_epochs=5,              # 5 époques est un excellent point de départ.
+    per_device_train_batch_size=16,  # Doublé pour mieux utiliser le GPU (si votre VRAM le permet).
+    gradient_accumulation_steps=2,   # Résultat : batch size effectif de 32, favorise la stabilité.
     
-    # --- Modifications pour la vitesse ---
-    per_device_train_batch_size=16,   # Augmenté : Traite plus de données à la fois (si VRAM le permet)
-    num_train_epochs=0.05,            # Très réduit : Fait juste une petite fraction du dataset
-    # max_steps=50,                   # Alternative : Arrête après 50 pas, encore plus rapide
+    # === SECTION PLANIFICATION : Éviter l'instabilité ===
+    warmup_ratio=0.1,                # 10% des pas pour "chauffer" le learning rate. C'est excellent.
+    lr_scheduler_type="cosine",      # Décroissance douce du LR, souvent mieux que "linear".
     
-    gradient_accumulation_steps=2,    # Simule un batch size encore plus grand (16*2=32)
-    
-    logging_steps=50,                 # Moins de logs
-    save_steps=200,                   # Ne sauvegarde presque jamais
-    eval_steps=200,                   # N'évalue presque jamais (l'évaluation est TRES lente)
-    
-    # --- Paramètres importants conservés ---
-    bf16=True,                        # Garder absolument, c'est une accélération majeure
-    predict_with_generate=True,       # Nécessaire pour le calcul du score BLEU
-    load_best_model_at_end=False,     # Désactivé : Pas besoin de charger le meilleur modèle pour un test
-    
-    # --- Arguments restants ---
-    learning_rate=5e-4,
-    save_total_limit=1,               # Pas besoin de garder plusieurs checkpoints pour un test
-    eval_strategy="steps",            # La stratégie reste la même
-    logging_strategy="steps",
+    # === SECTION ÉVALUATION & SAUVEGARDE : Efficacité et Robustesse ===
+    eval_strategy="steps",
     save_strategy="steps",
+    # À ajuster selon la taille du dataset. Viser 2-4 évaluations par époque.
+    # Si une époque = 2000 pas, alors 500 est bien. Si une époque = 500 pas, alors 200 est mieux.
+    eval_steps=500,
+    save_steps=500,                  # Doit être identique à eval_steps pour load_best_model_at_end
+    logging_steps=50,                # Logs fréquents pour bien suivre.
+    
+    load_best_model_at_end=True,     # Indispensable pour ne garder que le meilleur modèle.
     metric_for_best_model="bleu",
     greater_is_better=True,
-    report_to=["mlflow"],
-    remove_unused_columns=False,
+    save_total_limit=2,              # 2 suffisent : le meilleur, le dernier, et le précédent.
+    
+    # === SECTION TECHNIQUE : Vitesse et Compatibilité ===
+    bf16=True,                       # Crucial pour la vitesse sur votre RTX 4060.
+    predict_with_generate=True,      # Nécessaire pour le score BLEU.
+    remove_unused_columns=False,     # Correct, car vous gérez les colonnes vous-même.
+    
+    # === SECTION LOGGING ===
+    logging_dir="./logs",
+    report_to=["mlflow"],            # Parfait pour le suivi d'expériences.
 )
+    
+#     training_args = Seq2SeqTrainingArguments(
+#     output_dir="./nllb-darija-finetuned-lora-checkpoints",
+    
+#     # --- Modifications pour la vitesse ---
+#     per_device_train_batch_size=16,   # Augmenté : Traite plus de données à la fois (si VRAM le permet)
+#     num_train_epochs=0.05,            # Très réduit : Fait juste une petite fraction du dataset
+#     # max_steps=50,                   # Alternative : Arrête après 50 pas, encore plus rapide
+    
+#     gradient_accumulation_steps=2,    # Simule un batch size encore plus grand (16*2=32)
+    
+#     logging_steps=50,                 # Moins de logs
+#     save_steps=200,                   # Ne sauvegarde presque jamais
+#     eval_steps=200,                   # N'évalue presque jamais (l'évaluation est TRES lente)
+    
+#     # --- Paramètres importants conservés ---
+#     bf16=True,                        # Garder absolument, c'est une accélération majeure
+#     predict_with_generate=True,       # Nécessaire pour le calcul du score BLEU
+#     load_best_model_at_end=False,     # Désactivé : Pas besoin de charger le meilleur modèle pour un test
+    
+#     # --- Arguments restants ---
+#     learning_rate=5e-4,
+#     save_total_limit=1,               # Pas besoin de garder plusieurs checkpoints pour un test
+#     eval_strategy="steps",            # La stratégie reste la même
+#     logging_strategy="steps",
+#     save_strategy="steps",
+#     metric_for_best_model="bleu",
+#     greater_is_better=True,
+#     report_to=["mlflow"],
+#     remove_unused_columns=False,
+# )
     print("✅ Arguments d'entraînement configurés.")
 
     # ==============================================================================

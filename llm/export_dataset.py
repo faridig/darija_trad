@@ -62,7 +62,7 @@ response = requests.get(TRANSLATIONS_URL, headers=headers)
 
 if response.status_code == 200:
     data = response.json()
-    with open("all_translations_dataset.json", "w", encoding="utf-8") as f:
+    with open("all_translations_dataset.jsonl", "w", encoding="utf-8") as f:
         for item in data:
             src_lang = item.get("source_lang")
             tgt_lang = item.get("target_lang")
@@ -78,7 +78,7 @@ if response.status_code == 200:
                 }
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
-    print("✅ Export terminé : all_translations_dataset.json")
+    print("✅ Export terminé : all_translations_dataset.jsonl")
 
 else:
     print(f"❌ Erreur API : {response.status_code} - {response.text}")
