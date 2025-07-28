@@ -1,0 +1,15 @@
+artifact_uri: /projets/darija_app_final/mlflow-artifacts/619281650037722963/5ffe3f8d64784bd19f71d12d4bfdb0ae/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '619281650037722963'
+lifecycle_stage: active
+run_id: 5ffe3f8d64784bd19f71d12d4bfdb0ae
+run_name: persistent-frog-813
+run_uuid: 5ffe3f8d64784bd19f71d12d4bfdb0ae
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753664249187
+status: 1
+tags: []
+user_id: farid

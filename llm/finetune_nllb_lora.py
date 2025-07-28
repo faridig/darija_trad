@@ -1,7 +1,7 @@
 # llm/finetune_nllb_lora.py
 
 import os
-import glob # Assurez-vous que glob est importé pour la reprise robuste
+import glob 
 import mlflow
 import numpy as np
 from datasets import load_dataset
@@ -16,6 +16,8 @@ from transformers import (
     DataCollatorForSeq2Seq,
 )
 from llm.utils import preprocess_dynamic
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 def main():
     """
