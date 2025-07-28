@@ -45,6 +45,10 @@ jobs:
           pip install -r requirements.txt
 
       - name: Lancer les tests et vérifier la couverture de l'API IA
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+
         run: |
           rm -rf ~/.cache/huggingface/hub
           export PYTHONPATH=$(pwd)
