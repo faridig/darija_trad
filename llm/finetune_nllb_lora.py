@@ -53,8 +53,8 @@ def main():
 
     # Chargement du dataset
     print("📂 Chargement des datasets pré-divisés...")
-    train_dataset = load_dataset("json", data_files="train_dataset.json", split="train")
-    eval_dataset = load_dataset("json", data_files="validation_dataset.json", split="train")
+    train_dataset = load_dataset("json", data_files="train_dataset.jsonl", split="train")
+    eval_dataset = load_dataset("json", data_files="validation_dataset.jsonl", split="train")
     print(f"✅ Jeu de données chargé : {len(train_dataset)} pour l'entraînement, {len(eval_dataset)} pour la validation.")
 
     # ==============================================================================
@@ -67,11 +67,13 @@ def main():
     print(f"Taille du jeu d'entraînement après nettoyage : {len(cleaned_train_dataset)}")
 
     tokenized_train_dataset = cleaned_train_dataset.map(
-        lambda example: preprocess_dynamic(example, tokenizer=tokenizer, model=model),
+        lambda examples: preprocess_dynamic(examples, tokenizer=tokenizer),
+        batched=True,  # Très important pour la vitesse et pour que la duplication fonctionne
         remove_columns=cleaned_train_dataset.column_names
     )
     tokenized_eval_dataset = cleaned_eval_dataset.map(
-        lambda example: preprocess_dynamic(example, tokenizer=tokenizer, model=model),
+        lambda examples: preprocess_dynamic(examples, tokenizer=tokenizer),
+        batched=True,
         remove_columns=cleaned_eval_dataset.column_names
     )
     
@@ -105,38 +107,35 @@ def main():
     training_args = Seq2SeqTrainingArguments(
         output_dir="./nllb-darija-finetuned-lora-checkpoints",
 
-        # === SECTION APPRENTISSAGE : Stabilité et Performance ===
-        learning_rate=1e-4,              # Plus sûr pour éviter de "casser" le modèle.
-        num_train_epochs=5,              # 5 époques est un excellent point de départ.
-        per_device_train_batch_size=16,  # Doublé pour mieux utiliser le GPU (si votre VRAM le permet).
-        gradient_accumulation_steps=2,   # Résultat : batch size effectif de 32, favorise la stabilité.
+            # === APPRENTISSAGE ===
+        learning_rate=1e-4,
+        num_train_epochs=3,                  # RÉDUIT : 3 époques suffisent pour commencer.
+        per_device_train_batch_size=32,      # AUGMENTÉ : Maximiser l'utilisation du GPU.
+        gradient_accumulation_steps=1,       # RÉDUIT : Moins d'accumulation = plus rapide.
         
-        # === SECTION PLANIFICATION : Éviter l'instabilité ===
-        warmup_ratio=0.1,                # 10% des pas pour "chauffer" le learning rate. C'est excellent.
-        lr_scheduler_type="cosine",      # Décroissance douce du LR, souvent mieux que "linear".
+        # === PLANIFICATION ===
+        warmup_ratio=0.1,
+        lr_scheduler_type="cosine",
         
-        # === SECTION ÉVALUATION & SAUVEGARDE : Efficacité et Robustesse ===
+        # === ÉVALUATION & SAUVEGARDE ===
         eval_strategy="steps",
         save_strategy="steps",
-        # À ajuster selon la taille du dataset. Viser 2-4 évaluations par époque.
-        # Si une époque = 2000 pas, alors 500 est bien. Si une époque = 500 pas, alors 200 est mieux.
-        eval_steps=500,
-        save_steps=500,                  # Doit être identique à eval_steps pour load_best_model_at_end
-        logging_steps=50,                # Logs fréquents pour bien suivre.
+        eval_steps=1000,                     # AUGMENTÉ : Évaluations moins fréquentes pour gagner du temps.
+        save_steps=1000,                     # Doit être identique à eval_steps.
+        logging_steps=100,                   # On peut logger un peu moins souvent aussi.
         
-        load_best_model_at_end=True,     # Indispensable pour ne garder que le meilleur modèle.
+        load_best_model_at_end=True,
         metric_for_best_model="bleu",
         greater_is_better=True,
-        save_total_limit=2,              # 2 suffisent : le meilleur, le dernier, et le précédent.
+        save_total_limit=2,
         
-        # === SECTION TECHNIQUE : Vitesse et Compatibilité ===
-        bf16=True,                       # Crucial pour la vitesse sur votre RTX 4060.
-        predict_with_generate=True,      # Nécessaire pour le score BLEU.
-        remove_unused_columns=False,     # Correct, car vous gérez les colonnes vous-même.
+        # === TECHNIQUE ===
+        bf16=True,
+        predict_with_generate=True,
         
-        # === SECTION LOGGING ===
+        # === LOGGING ===
         logging_dir="./logs",
-        report_to=["mlflow"],            # Parfait pour le suivi d'expériences.
+        report_to=["mlflow"],
     )
     print("✅ Arguments d'entraînement configurés.")
     # --- FIN DU BLOC CORRIGÉ ---

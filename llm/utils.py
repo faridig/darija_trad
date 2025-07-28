@@ -1,55 +1,61 @@
 # llm/utils.py
-
-# Imports nécessaires pour la fonction
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
-def preprocess_dynamic(example, tokenizer, model):
+def preprocess_dynamic(examples, tokenizer):
     """
-    Prétraite un exemple de traduction pour le fine-tuning.
+    Prétraite un BATCH d'exemples pour l'entraînement BIDIRECTIONNEL.
 
-    Cette fonction prend un dictionnaire `example` contenant des paires de traduction,
-    ainsi que le tokenizer et le modèle, puis retourne les entrées formatées pour
-    l'entraînement.
+    Pour chaque paire (langue1, langue2) dans un exemple, cette fonction
+    génère deux tâches d'entraînement :
+    1. langue1 -> langue2
+    2. langue2 -> langue1
 
     Args:
-        example (dict): Un dictionnaire contenant une clé 'translation' avec les paires de langues.
-                        Ex: {'translation': {'fra_Latn': 'Bonjour', 'ary_Arab': 'سلام'}}
-        tokenizer: L'instance du tokenizer de Hugging Face.
-        model: L'instance du modèle Seq2Seq de Hugging Face.
+        examples (dict): Un batch d'exemples de la bibliothèque `datasets`.
+                         Contient une clé 'translation'.
+        tokenizer: L'instance du tokenizer NLLB.
 
     Returns:
-        dict or None: Un dictionnaire avec 'input_ids', 'attention_mask' et 'labels',
-                      ou None si l'exemple est invalide.
+        dict: Un dictionnaire tokenisé contenant les 'input_ids', 'attention_mask'
+              et 'labels' pour toutes les paires générées.
     """
-    translation_dict = example.get("translation", {})
-
-    # 1. Filtrer les clés dont la valeur est None ou une chaîne vide
-    valid_pairs = {lang: text for lang, text in translation_dict.items() if text}
-
-    # 2. On doit avoir exactement une paire de langues valides
-    if len(valid_pairs) != 2:
-        return None  # On ne retourne rien pour que .filter() supprime la ligne
-
-    # 3. Extraire la paire source/cible
-    langs = list(valid_pairs.keys())
-    # On s'assure que l'ordre est toujours le même pour la reproductibilité
-    langs.sort() 
-    src_lang, tgt_lang = langs[0], langs[1]
-    src_text = valid_pairs[src_lang]
-    tgt_text = valid_pairs[tgt_lang]
-
-    # Définit les langues pour le tokenizer pour cet exemple spécifique
-    tokenizer.src_lang = src_lang
-    model_inputs = tokenizer(src_text, max_length=128, padding="max_length", truncation=True)
+    inputs = []
+    targets = []
     
-    # Prépare les labels (texte cible)
-    tokenizer.tgt_lang = tgt_lang
-    with tokenizer.as_target_tokenizer():
-        labels = tokenizer(tgt_text, max_length=128, padding="max_length", truncation=True)
-    
-    model_inputs["labels"] = labels["input_ids"]
-    
-    # Configure le modèle pour forcer le token de début de la langue cible
-    model.config.forced_bos_token_id = tokenizer.convert_tokens_to_ids(tgt_lang)
+    # On parcourt chaque exemple du batch
+    for translation_dict in examples["translation"]:
+        # 1. Filtrer les paires valides (texte non-nul et non-vide)
+        valid_pairs = {lang: text for lang, text in translation_dict.items() if text}
+
+        # 2. On s'assure qu'on a exactement une paire
+        if len(valid_pairs) == 2:
+            langs = list(valid_pairs.keys())
+            
+            # On extrait les deux langues et textes
+            lang1_code, lang2_code = langs[0], langs[1]
+            text1, text2 = valid_pairs[lang1_code], valid_pairs[lang2_code]
+
+            # 3. CRÉATION DES DEUX TÂCHES D'ENTRAÎNEMENT
+            
+            # Tâche 1: langue1 -> langue2
+            tokenizer.src_lang = lang1_code
+            tokenizer.tgt_lang = lang2_code
+            # On préfixe avec le code langue pour aider le modèle
+            inputs.append(text1) 
+            targets.append(text2)
+
+            # Tâche 2: langue2 -> langue1
+            tokenizer.src_lang = lang2_code
+            tokenizer.tgt_lang = lang1_code
+            inputs.append(text2)
+            targets.append(text1)
+
+    # 4. Tokenisation en batch de toutes les paires générées
+    model_inputs = tokenizer(
+        inputs, 
+        text_target=targets, 
+        max_length=128, 
+        truncation=True
+    )
     
     return model_inputs
