@@ -1,244 +1,3 @@
-# name: MLOps - Entraînement, Validation et Déploiement du Modèle
-
-# on:
-#   push:
-#     branches:
-#       - master
-#     paths:
-#       - 'llm/**'
-#       - 'tests/data/**'
-#       - '.github/workflows/ml_pipeline.yml'
-#   workflow_dispatch:
-
-# jobs:
-#   # ===================================================================
-#   # JOB 1 : ENTRAÎNEMENT DU MODÈLE
-#   # ===================================================================
-#   train-and-validate:
-#     name: 1 - Entraînement & Validation du Modèle
-#     runs-on: [self-hosted, linux, x64, gpu]
-#     environment: training
-#     timeout-minutes: 1440 # 60 minutes * 24 heures = 1440
-
-#     env:
-#       MLFLOW_TRACKING_URI: http://127.0.0.1:5001 
-#       MLFLOW_EXPERIMENT_NAME: nllb_darija_finetuning
-#       ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
-#       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-#       BASE_URL: ${{ secrets.DATA_API_BASE_URL }}
-#       # Définir PYTHONPATH pour que les imports depuis la racine fonctionnent
-#       PYTHONPATH: ${{ github.workspace }}
-
-#     steps:
-#       - name: Checkout du code
-#         uses: actions/checkout@v4
-
-#       - name: Restaurer les checkpoints depuis le cache
-#         id: cache-checkpoints-restore
-#         uses: actions/cache/restore@v4
-#         with:
-#           path: ./nllb-darija-finetuned-lora-checkpoints
-#           key: checkpoints-${{ github.run_id }}
-#           restore-keys: |
-#             checkpoints-
-
-#       - name: Setup Python 3.11
-#         uses: actions/setup-python@v5
-#         with:
-#           python-version: '3.11'
-      
-#       - name: Installer les dépendances
-#         run: |
-#           python -m pip install --upgrade pip
-#           pip install -r requirements.txt
-
-#       - name: Récupérer le corpus de données complet via l'API
-#         run: python llm/export_dataset.py
-
-#       - name: Préparer et diviser les datasets (train/validation/test)
-#         run: python llm/prepare_datasets.py
-      
-#       - name: Lancer les tests de qualité sur les données
-#         run: pytest tests/data/test_data_quality.py
-
-#       - name: Lancer le Fine-Tuning du modèle avec MLflow
-#         run: python llm/finetune_nllb_lora.py
-
-#       ## <-- MODIFICATION : Ajout de l'étape de fusion pour créer un modèle autonome et robuste -->
-#       - name: Fusionner l'adaptateur LoRA dans un modèle complet
-#         if: success()
-#         run: |
-#           python llm/merge_and_save.py \
-#             facebook/nllb-200-distilled-600M \
-#             ./nllb-darija-lora-model/ \
-#             ./nllb-darija-merged-model/
-
-#       - name: Vérifier l'existence de checkpoints avant sauvegarde
-#         id: check_checkpoints
-#         if: always()
-#         run: |
-#           if [ -d "./nllb-darija-finetuned-lora-checkpoints" ] && [ "$(ls -A ./nllb-darija-finetuned-lora-checkpoints)" ]; then
-#             echo "checkpoints_exist=true" >> "$GITHUB_OUTPUT"
-#           else
-#             echo "checkpoints_exist=false" >> "$GITHUB_OUTPUT"
-#           fi
-
-#       - name: Sauvegarder les checkpoints dans le cache (uniquement en cas d'échec et si non vide)
-#         if: failure() && steps.check_checkpoints.outputs.checkpoints_exist == 'true'
-#         uses: actions/cache/save@v4
-#         with:
-#           path: ./nllb-darija-finetuned-lora-checkpoints
-#           key: checkpoints-${{ github.run_id }}
-          
-#       ## <-- MODIFICATION : On sauvegarde l'artefact du modèle FUSIONNÉ, pas l'adaptateur seul -->
-#       - name: Sauvegarder l'artefact du modèle FUSIONNÉ pour le job suivant
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: merged-model-artifact
-#           path: ./nllb-darija-merged-model/
-      
-#       - name: Sauvegarder l'artefact du jeu de test pour le job de validation
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: test-dataset-artifact
-#           path: test_dataset.json
-
-#       - name: Nettoyer les anciens caches après un succès complet
-#         if: success()
-#         run: |
-#           echo "L'entraînement a réussi. Nettoyage des anciens caches de checkpoints..."
-#           gh cache list --repo ${{ github.repository }} | \
-#           grep 'checkpoints-' | \
-#           awk '{print $1}' | \
-#           while read cacheKey; do
-#             gh cache delete "$cacheKey" --repo ${{ github.repository }} --confirm || echo "Avertissement : impossible de supprimer le cache $cacheKey"
-#           done
-#         env:
-#           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-#   # ===================================================================
-#   # JOB 2 : VALIDATION COMPARATIVE (Validation Gate)
-#   # ===================================================================
-#   validate-and-compare:
-#     name: 2 - Validation et Comparaison des Modèles
-#     runs-on: [self-hosted, linux, x64, gpu]
-#     needs: train-and-validate
-#     outputs:
-#       is_better: ${{ steps.compare.outputs.is_better }}
-#       new_bleu_score: ${{ steps.evaluate_new.outputs.bleu_score }}
-
-#     env:
-#       MLFLOW_TRACKING_URI: "file:./mlruns-temp-eval"
-#       PYTHONPATH: ${{ github.workspace }}
-
-#     steps:
-#       - name: Checkout du code
-#         uses: actions/checkout@v4
-      
-#       - name: Setup Python 3.11 et dépendances
-#         uses: actions/setup-python@v5
-#         with:
-#           python-version: '3.11'
-
-#       - name: Installer les dépendances
-#         run: |
-#           python -m pip install --upgrade pip
-#           pip install -r requirements.txt
-
-#       ## <-- MODIFICATION : On télécharge l'artefact du modèle FUSIONNÉ -->
-#       - name: Télécharger l'artefact du modèle FUSIONNÉ
-#         uses: actions/download-artifact@v4
-#         with:
-#           name: merged-model-artifact
-#           path: ./new-model-to-evaluate/
-      
-#       - name: Télécharger l'artefact du jeu de test
-#         uses: actions/download-artifact@v4
-#         with:
-#           name: test-dataset-artifact
-#           path: .
-
-#       - name: Évaluer le NOUVEAU modèle sur le jeu de test
-#         id: evaluate_new
-#         run: |
-#           SCORE=$(python llm/evaluate_model.py ./new-model-to-evaluate/ | grep 'SCORE_BLEU=' | cut -d'=' -f2)
-#           echo "Nouveau score BLEU : $SCORE"
-#           echo "bleu_score=$SCORE" >> "$GITHUB_OUTPUT"
-
-#       - name: Récupérer le score du modèle en PRODUCTION
-#         id: get_prod_score
-#         env:
-#           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-#         run: |
-#           huggingface-cli download Farid59/nllb-darija-lora-model evaluation.json --local-dir . --repo-type model --token ${{ secrets.HF_TOKEN }} || echo "evaluation.json non trouvé, score de prod mis à 0."
-#           if [ -f "evaluation.json" ]; then
-#             SCORE=$(jq .bleu_score evaluation.json)
-#           else
-#             SCORE=0
-#           fi
-#           echo "Score de production : $SCORE"
-#           echo "bleu_score=$SCORE" >> "$GITHUB_OUTPUT"
-
-#       - name: Comparer les scores
-#         id: compare
-#         run: |
-#           NEW_SCORE=${{ steps.evaluate_new.outputs.bleu_score }}
-#           PROD_SCORE=${{ steps.get_prod_score.outputs.bleu_score }}
-#           echo "Comparaison : Nouveau ($NEW_SCORE) vs. Production ($PROD_SCORE)"
-          
-#           if [ -z "$NEW_SCORE" ]; then
-#             echo "::error::Le nouveau score BLEU est vide. Échec de l'évaluation."
-#             exit 1
-#           fi
-
-#           IS_BETTER=$(python -c "print(float('${NEW_SCORE}') > float('${PROD_SCORE}'))")
-
-#           if [ "$IS_BETTER" == "True" ]; then
-#             echo "Le nouveau modèle est meilleur. Déploiement autorisé."
-#             echo "is_better=true" >> "$GITHUB_OUTPUT"
-#           else
-#             echo "Le nouveau modèle n'est pas meilleur que celui en production. Déploiement annulé."
-#             echo "is_better=false" >> "$GITHUB_OUTPUT"
-#           fi
-
-#   # ===================================================================
-#   # JOB 3 : DÉPLOIEMENT CONDITIONNEL DU MODÈLE
-#   # ===================================================================
-#   deploy-model-to-hub:
-#     name: 3 - Déploiement du Modèle sur Hugging Face
-#     runs-on: ubuntu-latest
-#     needs: validate-and-compare
-#     if: needs.validate-and-compare.outputs.is_better == 'true'
-
-#     steps:
-#       ## <-- MODIFICATION : On télécharge l'artefact du modèle FUSIONNÉ pour le push -->
-#       - name: Télécharger l'artefact du modèle FUSIONNÉ
-#         uses: actions/download-artifact@v4
-#         with:
-#           name: merged-model-artifact
-#           path: ./model-to-push/
-
-#       - name: Créer le fichier d'évaluation pour le nouveau modèle
-#         run: |
-#           echo '{"bleu_score": ${{ needs.validate-and-compare.outputs.new_bleu_score }} }' > ./model-to-push/evaluation.json
-#           echo "Fichier evaluation.json créé avec le score : ${{ needs.validate-and-compare.outputs.new_bleu_score }}"
-
-#       - name: Installer Git LFS et Hugging Face Hub CLI
-#         run: |
-#           sudo apt-get update && sudo apt-get install git-lfs -y
-#           pip install huggingface_hub
-
-#       - name: Push vers Hugging Face Hub (Modèle + Score)
-#         env:
-#           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-#         run: |
-#           huggingface-cli login --token $HF_TOKEN
-#           huggingface-cli upload \
-#             --repo-type model \
-#             Farid59/nllb-darija-lora-model \
-#             ./model-to-push/ \
-#             .
-
 name: MLOps - Entraînement, Validation et Déploiement du Modèle
 
 on:
@@ -246,28 +5,34 @@ on:
     branches:
       - master
     paths:
+      # On surveille les fichiers pertinents pour l'entraînement
       - 'llm/**'
       - 'tests/data/**'
+      - 'requirements.txt' # On surveille maintenant le fichier central
       - '.github/workflows/ml_pipeline.yml'
   workflow_dispatch:
 
 jobs:
   # ===================================================================
-  # JOB UNIQUE : Cycle de vie complet du modèle (Entraînement -> Déploiement)
+  # JOB UNIQUE : Cycle de vie complet du modèle
   # ===================================================================
   train-validate-and-deploy:
-    name: Cycle de vie complet du Modèle
+    name: Cycle de vie complet du Modèle (Entraînement -> Déploiement)
     runs-on: [self-hosted, linux, x64, gpu]
     environment: training
-    timeout-minutes: 1440
+    timeout-minutes: 1440 # 24 heures
 
     env:
+      # --- NOUVEAU NOM DE DÉPÔT ---
+      # Utilisé pour récupérer l'ancien score et pour le push
+      HF_REPO_ID: "Farid59/nllb-darija-fr_eng"
+
+      # Variables d'environnement standard
       MLFLOW_TRACKING_URI: http://127.0.0.1:5001 
       MLFLOW_EXPERIMENT_NAME: nllb_darija_finetuning
-      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
-      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-      BASE_URL: ${{ secrets.DATA_API_BASE_URL }}
       PYTHONPATH: ${{ github.workspace }}
+      # Assure que le dataloader ne crée pas de conflit
+      TOKENIZERS_PARALLELISM: "false"
 
     steps:
       # -------------------------------------------------------------------
@@ -276,24 +41,28 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      - name: Restaurer les checkpoints depuis le cache
-        id: cache-checkpoints-restore
+      - name: Restaurer les checkpoints du dernier run échoué
         uses: actions/cache/restore@v4
         with:
           path: ./nllb-darija-finetuned-lora-checkpoints
-          key: checkpoints-${{ github.run_id }}
+          # Clé simple pour restaurer le cache le plus récent
           restore-keys: |
             checkpoints-
 
-      - name: Setup Python 3.11 et dépendances
+      - name: Setup Python 3.12 et dépendances
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Récupérer le corpus de données complet via l'API
+      - name: Récupérer le corpus de données (si nécessaire)
+        # Assurez-vous que les secrets pour cette étape sont configurés
+        env:
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          BASE_URL: ${{ secrets.DATA_API_BASE_URL }}
         run: python llm/export_dataset.py
 
-      - name: Préparer et diviser les datasets (train/validation/test)
+      - name: Préparer et diviser les datasets
         run: python llm/prepare_datasets.py
       
       - name: Lancer les tests de qualité sur les données
@@ -306,7 +75,7 @@ jobs:
         if: success()
         run: |
           python llm/merge_and_save.py \
-            facebook/nllb-200-distilled-600M \
+            "facebook/nllb-200-distilled-600M" \
             ./nllb-darija-lora-model/ \
             ./nllb-darija-merged-model/
 
@@ -316,6 +85,7 @@ jobs:
       - name: Évaluer le NOUVEAU modèle sur le jeu de test
         id: evaluate_new
         run: |
+          # Le chemin pointe vers le modèle fusionné créé à l'étape précédente
           SCORE=$(python llm/evaluate_model.py ./nllb-darija-merged-model/ | grep 'SCORE_BLEU=' | cut -d'=' -f2)
           echo "Nouveau score BLEU : $SCORE"
           echo "bleu_score=$SCORE" >> "$GITHUB_OUTPUT"
@@ -325,8 +95,10 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          huggingface-cli download Farid59/nllb-darija-lora-model evaluation.json --local-dir . --repo-type model --token ${{ secrets.HF_TOKEN }} || echo "evaluation.json non trouvé, score de prod mis à 0."
+          # Télécharge le fichier d'évaluation depuis le NOUVEAU dépôt
+          huggingface-cli download $HF_REPO_ID evaluation.json --local-dir . --repo-type model --token $HF_TOKEN || echo "evaluation.json non trouvé, score de prod mis à 0."
           if [ -f "evaluation.json" ]; then
+            # Utilise jq pour extraire le score du JSON
             SCORE=$(jq .bleu_score evaluation.json)
           else
             SCORE=0
@@ -346,6 +118,7 @@ jobs:
             exit 1
           fi
 
+          # Comparaison en virgule flottante
           IS_BETTER=$(python -c "print(float('${NEW_SCORE}') > float('${PROD_SCORE}'))")
 
           if [ "$IS_BETTER" == "True" ]; then
@@ -364,47 +137,34 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          echo "Déploiement du nouveau modèle..."
-          # Créer le fichier d'évaluation
+          echo "Déploiement du nouveau modèle vers ${HF_REPO_ID}..."
+          # Créer le fichier d'évaluation avec le nouveau score
           echo '{"bleu_score": ${{ steps.evaluate_new.outputs.bleu_score }} }' > ./nllb-darija-merged-model/evaluation.json
           
-          # Lancer l'upload
+          # Lancer l'upload vers le NOUVEAU dépôt
           huggingface-cli login --token $HF_TOKEN
           huggingface-cli upload \
             --repo-type model \
-            Farid59/nllb-darija-lora-model \
+            $HF_REPO_ID \
             ./nllb-darija-merged-model/ \
             .
             
       # -------------------------------------------------------------------
-      # ÉTAPE 4 : NETTOYAGE
+      # ÉTAPE 4 : NETTOYAGE DU CACHE (S'EXÉCUTE TOUJOURS À LA FIN)
       # -------------------------------------------------------------------
-      - name: Vérifier l'existence de checkpoints avant sauvegarde (en cas d'échec)
-        id: check_checkpoints
-        if: failure() # Ne s'exécute qu'en cas d'échec du job
-        run: |
-          if [ -d "./nllb-darija-finetuned-lora-checkpoints" ] && [ "$(ls -A ./nllb-darija-finetuned-lora-checkpoints)" ]; then
-            echo "checkpoints_exist=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "checkpoints_exist=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Sauvegarder les checkpoints dans le cache (uniquement en cas d'échec)
-        if: failure() && steps.check_checkpoints.outputs.checkpoints_exist == 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ./nllb-darija-finetuned-lora-checkpoints
-          key: checkpoints-${{ github.run_id }}
-          
-      - name: Nettoyer les anciens caches après un succès complet
-        if: success()
-        run: |
-          echo "Le pipeline a réussi. Nettoyage des anciens caches de checkpoints..."
-          gh cache list --repo ${{ github.repository }} | \
-          grep 'checkpoints-' | \
-          awk '{print $1}' | \
-          while read cacheKey; do
-            gh cache delete "$cacheKey" --repo ${{ github.repository }} || echo "Avertissement : impossible de supprimer le cache $cacheKey"
-          done
+      - name: Nettoyer les anciens caches de checkpoints
+        # 'always()' garantit que cette étape s'exécute même si le déploiement est sauté
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Nettoyage des anciens caches de checkpoints..."
+          # Liste tous les caches, garde les 2 plus récents, supprime les autres
+          gh cache list --repo ${{ github.repository }} --sort created_at --order desc | \
+          grep 'checkpoints-' | \
+          sed '1,2d' | \
+          awk '{print $1}' | \
+          while read cacheKey; do
+            echo "Suppression du cache ancien : $cacheKey"
+            gh cache delete "$cacheKey" --repo ${{ github.repository }} --confirm || echo "Avertissement : impossible de supprimer le cache $cacheKey"
+          done
