@@ -46,6 +46,7 @@ jobs:
 
       - name: Lancer les tests et vérifier la couverture de l'API IA
         run: |
+          rm -rf ~/.cache/huggingface/hub
           export PYTHONPATH=$(pwd)
           pytest --cov=api/ia_api --cov-report=html --cov-report=term-missing --cov-fail-under=85 tests/api_ia/
 
