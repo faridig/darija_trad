@@ -79,6 +79,11 @@ def get_clean_data():
 
 # 🔹 Validation avancée du dataset
 def run_data_checks(data):
+    """
+    Effectue une série de contrôles de qualité sur le jeu de données final.
+    Cette version est adaptée pour les modèles multilingues (type NLLB)
+    et ne considère pas les paires inversées (A->B et B->A) comme des doublons.
+    """
     print("\n=== VALIDATION AVANCÉE DU DATASET ===")
 
     # 1️⃣ Champs obligatoires
@@ -86,48 +91,63 @@ def run_data_checks(data):
     for i, d in enumerate(data):
         missing = mandatory_fields - d.keys()
         if missing:
-            print(f"[ERREUR] Sample {i} missing fields: {missing}")
+            print(f"[ERREUR] Échantillon {i} : champs manquants : {missing}")
 
     # 2️⃣ Pas de textes identiques source/cible
-    same = [d for d in data if d["source_text"].strip() == d["target_text"].strip()]
+    # Ceci reste un check utile pour détecter les erreurs de copie/coller.
+    same = [d for d in data if d["source_text"].strip().lower() == d["target_text"].strip().lower()]
     if same:
-        print(f"[WARNING] {len(same)} sample(s) ont source_text == target_text")
+        print(f"[WARNING] {len(same)} échantillon(s) ont un texte source identique au texte cible.")
 
-    # 3️⃣ Doublons source/target (indépendant du sens)
-    pairs = set()
-    twins = 0
-    for d in data:
-        key = (d["source_text"].strip().lower(), d["target_text"].strip().lower())
-        key_rev = (key[1], key[0])
-        if key in pairs or key_rev in pairs:
-            twins += 1
-        pairs.add(key)
-    if twins:
-        print(f"[WARNING] {twins} doublons (source/target inversés ou identiques) détectés.")
-
-    # 4️⃣ Caractères hors script pour chaque langue
+    # 3️⃣ Caractères hors script pour chaque langue (anciennement 4️⃣)
+    # Vérifie que le texte correspond bien à l'alphabet attendu pour la langue.
     regex_scripts = {
-        "dr": re.compile(r'^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF0-9 ,\.\?!\'"-]+$'),
-        "fr": re.compile(r'^[A-Za-zÀ-ÖØ-öø-ž0-9 ,\.\?!\'"-]+$'),
-        "en": re.compile(r'^[A-Za-zÀ-ÖØ-öø-ž0-9 ,\.\?!\'"-]+$')
+        "dr": re.compile(r'^[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF0-9\s,\.\?!\'"()%-]+$'),
+        "fr": re.compile(r'^[A-Za-zÀ-ÖØ-öø-ž0-9\s,\.\?!\'"()%-]+$'),
+        "en": re.compile(r'^[A-Za-z0-9\s,\.\?!\'"()%-]+$')
     }
+    invalid_chars_count = 0
     for i, d in enumerate(data):
         sl, tl = d["source_lang"], d["target_lang"]
         st, tt = d["source_text"], d["target_text"]
+        
+        # Vérification du texte source
         if sl in regex_scripts and not regex_scripts[sl].match(st):
-            print(f"[WARNING] Ligne {i} source_text contient des caractères non attendus pour {sl}")
+            invalid_chars_count += 1
+            if invalid_chars_count <= 5: # Affiche les 5 premiers exemples seulement pour ne pas polluer la sortie
+                print(f"[WARNING] Ligne {i}, texte source ('{st[:30]}...') contient des caractères inattendus pour la langue '{sl}'")
+        
+        # Vérification du texte cible
         if tl in regex_scripts and not regex_scripts[tl].match(tt):
-            print(f"[WARNING] Ligne {i} target_text contient des caractères non attendus pour {tl}")
+            invalid_chars_count += 1
+            if invalid_chars_count <= 5:
+                print(f"[WARNING] Ligne {i}, texte cible ('{tt[:30]}...') contient des caractères inattendus pour la langue '{tl}'")
 
-    # 5️⃣ Distribution des longueurs
-    lens = [len(d["source_text"].split()) for d in data] + [len(d["target_text"].split()) for d in data]
-    print(f"[INFO] Taille min : {min(lens)} mots, max : {max(lens)} mots, moyenne : {sum(lens)//len(lens)} mots")
+    if invalid_chars_count > 5:
+        print(f"[WARNING] ... et {invalid_chars_count - 5} autres avertissements de caractères non attendus.")
+
+    # 4️⃣ Distribution des longueurs (anciennement 5️⃣)
+    # Calcule les statistiques sur la longueur des phrases.
+    if data: # Évite une erreur si la liste de données est vide
+        lens = [len(d["source_text"].split()) for d in data] + [len(d["target_text"].split()) for d in data]
+        if lens:
+             print(f"[INFO] Statistiques de longueur (en mots) -> Min: {min(lens)}, Max: {max(lens)}, Moyenne: {sum(lens)//len(lens)}")
+        else:
+            print("[INFO] Aucune donnée textuelle à analyser pour la distribution des longueurs.")
+    else:
+        print("[INFO] Le jeu de données est vide.")
+
 
     print("=== FIN DES CHECKS ===\n")
 
-# 🔹 Test local si exécuté directement
+# ... (le reste de votre fichier, y compris la section __main__, reste identique) ...
+
 if __name__ == "__main__":
+    # Cette partie reste inchangée et fonctionnera avec la fonction corrigée
     data = get_clean_data()
-    print("🔍 Exemple de traduction unique :")
-    print(data[0])
-    run_data_checks(data)
+    if data:
+        print("🔍 Exemple de traduction unique :")
+        print(data[0])
+        run_data_checks(data)
+    else:
+        print("Aucune donnée n'a été chargée.")

@@ -13,6 +13,7 @@ from transformers import (
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
     EarlyStoppingCallback,
+    DataCollatorForSeq2Seq,
 )
 from llm.utils import preprocess_dynamic
 
@@ -157,10 +158,18 @@ def main():
             "train_batch_size": training_args.per_device_train_batch_size,
             "gradient_accumulation_steps": training_args.gradient_accumulation_steps,
         })
+        
+        data_collator = DataCollatorForSeq2Seq(
+            tokenizer=tokenizer,
+            model=model,
+            padding=True,
+            label_pad_token_id=-100 # C'est la valeur standard pour ignorer les labels de padding dans le calcul de la loss.
+        )
 
         trainer = Seq2SeqTrainer(
             model=model,
             args=training_args,
+            data_collator=data_collator,
             train_dataset=tokenized_train_dataset,
             eval_dataset=tokenized_eval_dataset,
             tokenizer=tokenizer,

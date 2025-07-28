@@ -10,10 +10,11 @@ from sqlalchemy.exc import IntegrityError
 load_dotenv()
 
 # Import du contexte et de la base
-from database.core.db import SessionLocal, engine
+from database.core.db import get_session_local, get_engine
 from database.core.models import Base, User
 
-
+engine = get_engine()
+SessionLocal = get_session_local()
 
 # Contexte de hachage
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

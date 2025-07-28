@@ -1,4 +1,24 @@
-(venv) ➜  database git:(bdd) ✗ sudo -u postgres psql -d darija_db  pour aller dans la bdd
+BDD local:
+
+voir si postgres est ok 
+sudo systemctl status postgresql-14.service
+---
+sudo -u postgres psql -d darija_db  pour aller dans la bdd
+---
+pour la supprimer # On se connecte à la base de données 'postgres' et non 'darija_db':
+
+SELECT pg_terminate_backend(pg_stat_activity.pid)
+FROM pg_stat_activity
+WHERE pg_stat_activity.datname = 'darija_db'
+  AND pid <> pg_backend_pid();
+DROP DATABASE darija_db;
+CREATE DATABASE darija_db;
+\q
+
+
+-----
+
+pour lancer le script ./database/install_postgresql.sh  il faut être à la racine du projet 
 
 api crud :    uvicorn api.data_api.main:app --reload
 api model : uvicorn api.ia_api.main:app --reload --port 8001
