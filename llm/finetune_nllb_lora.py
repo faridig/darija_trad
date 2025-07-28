@@ -133,6 +133,7 @@ def main():
         # === TECHNIQUE ===
         bf16=True,
         predict_with_generate=True,
+        dataloader_num_workers=4,
         
         # === LOGGING ===
         logging_dir="./logs",
