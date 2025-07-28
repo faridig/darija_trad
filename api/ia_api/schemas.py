@@ -49,14 +49,15 @@ class TexteInput(BaseModel):
 
         return model
 
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "texte": "je veux manger",
                 "src_lang": "fra_Latn",
                 "tgt_lang": "ary_Arab"
             }
         }
+    }
 
 class TexteOutput(BaseModel):
     reponse: str
