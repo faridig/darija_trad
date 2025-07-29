@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/761435763306924483/0dd0480c9d234444976b5a00e1fc454a/artifacts
+end_time: 1753812913658
+entry_point_name: ''
+experiment_id: '761435763306924483'
+lifecycle_stage: active
+run_id: 0dd0480c9d234444976b5a00e1fc454a
+run_name: bittersweet-crab-691
+run_uuid: 0dd0480c9d234444976b5a00e1fc454a
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753811238665
+status: 3
+tags: []
+user_id: farid

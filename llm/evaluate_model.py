@@ -94,6 +94,7 @@ def evaluate(model_path):
     print("\n" + "="*50)
     print(f"✅ Évaluation terminée. SCORE BLEU FINAL : {bleu_score:.4f}")
     print("="*50)
+    print(f"SCORE_BLEU={bleu_score}")
     
     return bleu_score
 

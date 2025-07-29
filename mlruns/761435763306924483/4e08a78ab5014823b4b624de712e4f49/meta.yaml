@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/761435763306924483/4e08a78ab5014823b4b624de712e4f49/artifacts
+end_time: 1753814605260
+entry_point_name: ''
+experiment_id: '761435763306924483'
+lifecycle_stage: active
+run_id: 4e08a78ab5014823b4b624de712e4f49
+run_name: ./temp_eval
+run_uuid: 4e08a78ab5014823b4b624de712e4f49
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753814605194
+status: 3
+tags: []
+user_id: farid
