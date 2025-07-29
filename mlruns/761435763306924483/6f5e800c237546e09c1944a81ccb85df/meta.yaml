@@ -1,0 +1,16 @@
+artifact_uri: mlflow-artifacts:/761435763306924483/6f5e800c237546e09c1944a81ccb85df/artifacts
+deleted_time: 1753802633959
+end_time: 1753802168372
+entry_point_name: ''
+experiment_id: '761435763306924483'
+lifecycle_stage: deleted
+run_id: 6f5e800c237546e09c1944a81ccb85df
+run_name: ./temp_eval
+run_uuid: 6f5e800c237546e09c1944a81ccb85df
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753802168336
+status: 3
+tags: []
+user_id: farid

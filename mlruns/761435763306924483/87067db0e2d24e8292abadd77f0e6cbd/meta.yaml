@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/761435763306924483/87067db0e2d24e8292abadd77f0e6cbd/artifacts
+end_time: 1753804054078
+entry_point_name: ''
+experiment_id: '761435763306924483'
+lifecycle_stage: active
+run_id: 87067db0e2d24e8292abadd77f0e6cbd
+run_name: stately-hawk-130
+run_uuid: 87067db0e2d24e8292abadd77f0e6cbd
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753803624944
+status: 3
+tags: []
+user_id: farid

@@ -123,8 +123,8 @@ def main():
         # === ÉVALUATION & SAUVEGARDE ===
         eval_strategy="steps",
         save_strategy="steps",
-        eval_steps=1000,                     # AUGMENTÉ : Évaluations moins fréquentes pour gagner du temps.
-        save_steps=1000,                     # Doit être identique à eval_steps.
+        eval_steps=300,                     # AUGMENTÉ : Évaluations moins fréquentes pour gagner du temps. (1000)
+        save_steps=300,                     # Doit être identique à eval_steps.  (1000)
         logging_steps=100,                   # On peut logger un peu moins souvent aussi.
         
         load_best_model_at_end=True,
