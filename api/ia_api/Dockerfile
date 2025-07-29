@@ -45,18 +45,8 @@ COPY database/ ./database/
 # Cette étape est longue, mais elle est mise après la copie du code
 # pour que le cache Docker soit utilisé efficacement.
 # Si seul le code change, cette étape ne sera pas ré-exécutée.
-RUN python -c "\
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM;\
-from peft import PeftModel;\
-print('Téléchargement du tokenizer et du modèle de base...');\
-base = 'facebook/nllb-200-distilled-600M';\
-tokenizer = AutoTokenizer.from_pretrained(base);\
-model = AutoModelForSeq2SeqLM.from_pretrained(base);\
-print('Téléchargement et application de l"adaptateur LoRA...');\
-adapter = 'Farid59/nllb-darija-lora-model';\
-peft = PeftModel.from_pretrained(model, adapter);\
-print('Mise en cache terminée.')\
-"
+COPY api/ia_api/download_model.py .
+RUN python download_model.py
 
 # Exposition du port de l'application
 EXPOSE 8001
