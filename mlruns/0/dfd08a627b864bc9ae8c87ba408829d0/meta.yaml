@@ -1,8 +1,9 @@
 artifact_uri: file:///projets/darija_app_final/mlruns/0/dfd08a627b864bc9ae8c87ba408829d0/artifacts
+deleted_time: 1753716035279
 end_time: 1753277764013
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: dfd08a627b864bc9ae8c87ba408829d0
 run_name: ./temp_base_eval
 run_uuid: dfd08a627b864bc9ae8c87ba408829d0

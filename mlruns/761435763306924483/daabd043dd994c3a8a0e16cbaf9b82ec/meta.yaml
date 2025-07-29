@@ -1,0 +1,16 @@
+artifact_uri: mlflow-artifacts:/761435763306924483/daabd043dd994c3a8a0e16cbaf9b82ec/artifacts
+deleted_time: 1753712255198
+end_time: 1753711419444
+entry_point_name: ''
+experiment_id: '761435763306924483'
+lifecycle_stage: deleted
+run_id: daabd043dd994c3a8a0e16cbaf9b82ec
+run_name: powerful-elk-971
+run_uuid: daabd043dd994c3a8a0e16cbaf9b82ec
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753711298639
+status: 4
+tags: []
+user_id: farid

@@ -8,7 +8,7 @@ class LLMTranslator:
     def __init__(
         self,
         # Le chemin pointe maintenant vers le modèle complet et autonome sur le Hub
-        model_id: str = "Farid59/nllb-darija-lora-model"
+        model_id: str = "Farid59/nllb-darija-fr_eng"
     ):
         print(f"Chargement du modèle de traduction COMPLET depuis : {model_id}")
 

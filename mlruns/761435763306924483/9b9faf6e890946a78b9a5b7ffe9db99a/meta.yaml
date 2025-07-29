@@ -1,0 +1,16 @@
+artifact_uri: mlflow-artifacts:/761435763306924483/9b9faf6e890946a78b9a5b7ffe9db99a/artifacts
+deleted_time: 1753735926239
+end_time: 1753731826786
+entry_point_name: ''
+experiment_id: '761435763306924483'
+lifecycle_stage: deleted
+run_id: 9b9faf6e890946a78b9a5b7ffe9db99a
+run_name: skittish-cub-121
+run_uuid: 9b9faf6e890946a78b9a5b7ffe9db99a
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753716065876
+status: 4
+tags: []
+user_id: farid

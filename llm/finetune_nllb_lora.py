@@ -56,8 +56,8 @@ def main():
 
     # Chargement du dataset
     print("📂 Chargement des datasets pré-divisés...")
-    train_dataset = load_dataset("json", data_files="train_dataset.jsonl", split="train")
-    eval_dataset = load_dataset("json", data_files="validation_dataset.jsonl", split="train")
+    train_dataset = load_dataset("json", data_files="llm/train_dataset.jsonl", split="train")
+    eval_dataset = load_dataset("json", data_files="llm/validation_dataset.jsonl", split="train")
     print(f"✅ Jeu de données chargé : {len(train_dataset)} pour l'entraînement, {len(eval_dataset)} pour la validation.")
 
     # ==============================================================================
@@ -112,9 +112,9 @@ def main():
 
             # === APPRENTISSAGE ===
         learning_rate=1e-4,
-        num_train_epochs=3,                  # RÉDUIT : 3 époques suffisent pour commencer.
-        per_device_train_batch_size=16,      # AUGMENTÉ : Maximiser l'utilisation du GPU.
-        gradient_accumulation_steps=2,       # RÉDUIT : Moins d'accumulation = plus rapide.
+        num_train_epochs=0.1,                  # RÉDUIT : 3 époques suffisent pour commencer.
+        per_device_train_batch_size=4,      # AUGMENTÉ : Maximiser l'utilisation du GPU.
+        gradient_accumulation_steps=8,       # RÉDUIT : Moins d'accumulation = plus rapide.
         
         # === PLANIFICATION ===
         warmup_ratio=0.1,

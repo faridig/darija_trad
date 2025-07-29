@@ -1,0 +1,6 @@
+artifact_location: mlflow-artifacts:/761435763306924483
+creation_time: 1753711161079
+experiment_id: '761435763306924483'
+last_update_time: 1753711161079
+lifecycle_stage: active
+name: nllb_darija_finetuning

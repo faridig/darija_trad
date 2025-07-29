@@ -93,9 +93,9 @@ def prepare_and_save_datasets():
 
     # Sauvegarder chaque ensemble dans un fichier JSONL (json lines)
     print("\nSauvegarde des datasets finaux au format JSONL...")
-    final_train_set.to_json("train_dataset.jsonl", orient="records", lines=True)
-    validation_set.to_json("validation_dataset.jsonl", orient="records", lines=True)
-    test_set.to_json("test_dataset.jsonl", orient="records", lines=True)
+    final_train_set.to_json("llm/train_dataset.jsonl", orient="records", lines=True)
+    validation_set.to_json("llm/validation_dataset.jsonl", orient="records", lines=True)
+    test_set.to_json("llm/test_dataset.jsonl", orient="records", lines=True)
     
     print("\n✅ Préparation et sauvegarde des datasets terminées avec succès.")
     print("   - train_dataset.jsonl (équilibré)")

@@ -20,6 +20,34 @@ CREATE DATABASE darija_db;
 
 pour lancer le script ./database/install_postgresql.sh  il faut être à la racine du projet 
 
+----------------------------------------------------------------
+
+pour lancer l'entrainement local :
+
+d'abord mlflow ui --port 5001
+puis
+python -m llm.finetune_nllb_lora
+
+une fois le train fini on merged le model + lora en UN avec :
+
+python llm/merge_and_save.py \
+            "facebook/nllb-200-distilled-600M" \
+            ./nllb-darija-lora-model/ \
+            ./nllb-darija-merged-model/
+
+puis on evalue avec le jsonl de test avec :
+
+python -m llm.evaluate_model ./nllb-darija-merged-model/
+----------------------------------------------------
+
+push le model fine tune vers repo hugging face:
+
+huggingface-cli login
+hf upload Farid59/nllb-darija-fr_eng ./nllb-darija-merged-model/ .
+
+-----------------------------
+
+
 api crud :    uvicorn api.data_api.main:app --reload
 api model : uvicorn api.ia_api.main:app --reload --port 8001
 
@@ -41,10 +69,10 @@ mlflow ui
 
 ----------------------------------------------------------------
 
-Pour déclancher pipeline d'entrainement :
+Pour déclancher pipeline d'entrainement githubaction :
 
 # Exemple de commande de lancement
-mlflow server --host 127.0.0.1 --port 5001 --backend-store-uri ./mlflow-backend-store --default-artifact-root ./mlflow-artifacts
+mlflow ui --port 5001
 Runner GitHub Actions
 # Allez dans le dossier du runner
 cd /path/to/your/actions-runner

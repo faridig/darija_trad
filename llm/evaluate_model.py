@@ -8,6 +8,7 @@ from transformers import (
     AutoModelForSeq2SeqLM,
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
+    DataCollatorForSeq2Seq,
 )
 # Assurez-vous que cette version de preprocess_dynamic est celle qui gère les batches
 from llm.utils import preprocess_dynamic 
@@ -29,7 +30,7 @@ def evaluate(model_path):
     model = AutoModelForSeq2SeqLM.from_pretrained(model_path).to(device)
 
     print("📂 Chargement du jeu de test...")
-    eval_dataset = load_dataset("json", data_files="test_dataset.jsonl", split="train")
+    eval_dataset = load_dataset("json", data_files="llm/test_dataset.jsonl", split="train")
 
     # Nettoyage pour garder uniquement les paires valides
     cleaned_eval_dataset = eval_dataset.filter(
@@ -45,6 +46,8 @@ def evaluate(model_path):
     )
 
     bleu_metric = load("sacrebleu")
+    
+    
 
     def compute_metrics(eval_preds):
         preds, labels = eval_preds
@@ -60,16 +63,24 @@ def evaluate(model_path):
         
         result = bleu_metric.compute(predictions=decoded_preds, references=decoded_labels)
         return {"bleu": result["score"]}
+    
+    data_collator = DataCollatorForSeq2Seq(
+        tokenizer=tokenizer,
+        model=model,
+        padding=True,
+        label_pad_token_id=-100 # Ignore les tokens de padding dans le calcul de la loss (non utilisé ici, mais bonne pratique)
+    )
 
     print("⚙️ Configuration du Seq2SeqTrainer pour l'évaluation...")
     trainer = Seq2SeqTrainer(
         model=model,
         tokenizer=tokenizer,
+        data_collator=data_collator,
         compute_metrics=compute_metrics,
         args=Seq2SeqTrainingArguments(
             output_dir="./temp_eval",           # Répertoire temporaire
             predict_with_generate=True,         # Essentiel pour la métrique BLEU
-            per_device_eval_batch_size=32,      # AUGMENTÉ : Taille de batch plus grande
+            per_device_eval_batch_size=8,      # AUGMENTÉ : Taille de batch plus grande
             bf16=use_bf16,                      # AMÉLIORÉ : Utilise bf16 si disponible
             fp16=False if use_bf16 else use_cuda, # N'utilise fp16 que si bf16 n'est pas dispo
             dataloader_num_workers=4,           # Utilise plusieurs coeurs pour charger les données

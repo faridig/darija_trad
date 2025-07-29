@@ -10,7 +10,7 @@ import os
 import secrets
 from dotenv import load_dotenv
 
-from ..model import LLMTranslator                # <-- import modifié
+from .generation import translator
 from database.core.db import get_db
 from database.core.auth import verify_jwt_token
 
@@ -48,8 +48,6 @@ DATA_DRIFT_INPUT_LENGTH = Histogram(
     buckets=(0, 10, 20, 40, 60, 80, 100, 150, 200)
 )
 
-# Modèle pour health check
-modele = LLMTranslator("Farid59/nllb-darija-lora-model")   # <-- classe renommée
 
 @router.get("/health")
 async def health_check(
@@ -59,8 +57,8 @@ async def health_check(
     """Endpoint de vérification de santé"""
     try:
         test_text = "Test santé"
-        # on suppose fra_Latn->ary_Arab par défaut ; on peut préciser si besoin
-        _ = modele.traiter(test_text, src_lang="fra_Latn", tgt_lang="ary_Arab")
+        
+        _ = translator.traiter(test_text, src_lang="fra_Latn", tgt_lang="ary_Arab")
         return {
             "status": "healthy",
             "timestamp": datetime.now().isoformat()
@@ -87,6 +85,3 @@ async def metrics(credentials: HTTPBasicCredentials = Depends(security)):
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST
     )
-
-
-

@@ -6,6 +6,7 @@ venv/
 __pycache__/
 *.py[cod]
 actions-runner/
+mlartifacts
 
 # Testing
 /coverage
@@ -46,5 +47,5 @@ yarn-error.log*
 # Temporary files
 *.tmp
 *.temp
-.cache/ actions-runner/
-actions-runner/
+.cache/ 
+
