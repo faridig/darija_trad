@@ -58,4 +58,24 @@ grille.mdc
 referentiel.mdc
 reglement_dev_ia_2023.md
 text.txt
-nllb-darija-merged-model
+
+# --- Artefacts Python ---
+__pycache__/
+*.pyc
+
+# --- Artefacts de Build & Modèles IA ---
+# Ne jamais versionner les modèles, les checkpoints ou les datasets téléchargés.
+# Ils sont trop volumineux et sont des artefacts de build.
+nllb-darija-merged-model/
+nllb-darija-lora-model/
+nllb-darija-finetuned-lora-checkpoints/
+all_translations_dataset.jsonl
+llm/train_dataset.jsonl
+llm/validation_dataset.jsonl
+llm/test_dataset.jsonl
+
+# --- Fichiers de test & logs ---
+htmlcov/
+.pytest_cache/
+logs/
+mlruns/
