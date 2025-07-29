@@ -41,11 +41,14 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      - name: Restaurer les checkpoints du dernier run échoué
-        uses: actions/cache/restore@v4
+      - name: Restaurer les checkpoints et configurer le cache
+        id: cache-checkpoints # On ajoute un id pour la clarté
+        uses: actions/cache@v4
         with:
           path: ./nllb-darija-finetuned-lora-checkpoints
-          # Clé simple pour restaurer le cache le plus récent
+          # Clé unique pour le cache de CE run. Sera utilisée pour la sauvegarde à la fin du job.
+          key: checkpoints-${{ github.run_id }}
+          # Clé de restauration : on cherche le cache le plus récent qui commence par "checkpoints-"
           restore-keys: |
             checkpoints-
 
