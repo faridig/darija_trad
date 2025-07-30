@@ -115,24 +115,32 @@ jobs:
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-grafana:${{ github.sha }}
 
 # ===================================================================
-  # JOB 3 : DÉPLOYER SUR AZURE KUBERNETES SERVICE (AKS) - NOUVELLE VERSION
+  # JOB 3 : DÉPLOYER SUR AZURE KUBERNETES SERVICE (AKS)
   # ===================================================================
   deploy-to-aks:
-    name: 3 - Déploiement sur AKS
-    runs-on: ubuntu-latest
+    name: 3 - Déploiement sur AKS via Self-Hosted Runner
+    
+    # --- LA MODIFICATION CLÉ EST ICI ---
+    runs-on: self-hosted # Ou [self-hosted, linux, x64] si vous avez plusieurs types de runners
+    
     needs: build-and-deploy-images
 
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
 
+      # --- L'AUTHENTIFICATION N'EST PROBABLEMENT PLUS NÉCESSAIRE ---
+      # Si votre runner tourne sur une VM Azure avec une Identité Managée
+      # qui a les droits sur le cluster, vous n'avez même plus besoin de vous logger.
+      # Sinon, la méthode KUBE_CONFIG est la plus sûre.
+
       - name: Installation et configuration de kubectl
         run: |
-          # Crée le répertoire de configuration
+          # Cette étape suppose que kubectl est déjà installé sur votre runner
+          # ou qu'il peut être installé.
+          # On configure le kubeconfig comme avant.
           mkdir -p ~/.kube
-          # Écrit le contenu de votre secret KUBE_CONFIG dans le fichier de config
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
-          # (Optionnel) Sécurise le fichier
           chmod 600 ~/.kube/config
 
       - name: Vérifier la connexion kubectl
@@ -156,4 +164,4 @@ jobs:
         run: |
           kubectl rollout status deployment/ia-api-deployment
           kubectl rollout status deployment/prometheus-deployment
-          kubectl rollout status deployment/grafana-deployment           
+          kubectl rollout status deployment/grafana-deployment          
