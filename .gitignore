@@ -24,7 +24,7 @@ mlartifacts
 .env.development.local
 .env.test.local
 .env.production.local
-.env
+.envF
 *.secret
 
 # Logs
@@ -48,16 +48,7 @@ yarn-error.log*
 *.tmp
 *.temp
 .cache/ 
-A comprendre.docx
-Absolument.docx
-cmd.txt
-E1.docx
-E2.docx
-E3.docx
-grille.mdc
-referentiel.mdc
-reglement_dev_ia_2023.md
-text.txt
+doc_divers/
 
 # --- Artefacts Python ---
 __pycache__/
