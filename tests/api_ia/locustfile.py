@@ -1,3 +1,5 @@
+# tests/api_ia/locustfile.py
+
 from locust import HttpUser, task, between
 from dotenv import load_dotenv
 import os
@@ -14,19 +16,26 @@ class UserBehavior(HttpUser):
 
     def on_start(self):
         """Authentifie l'utilisateur et récupère un JWT valide."""
+        # --- DÉBUT DE LA CORRECTION ---
+        # On passe les données directement comme un formulaire encodé,
+        # et on enlève l'en-tête Content-Type car le client le mettra automatiquement.
         response = self.client.post(
             "/login",
             data={
                 "username": USERNAME,
                 "password": PASSWORD
-            },
-            headers={"Content-Type": "application/x-www-form-urlencoded"}
+            }
+            # Il n'est généralement pas nécessaire de spécifier le header Content-Type
+            # car le client `requests` (utilisé par Locust) est assez intelligent
+            # pour le mettre à `application/x-www-form-urlencoded` quand on passe un dict à `data`.
         )
+        # --- FIN DE LA CORRECTION ---
 
         if response.status_code == 200:
             self.token = response.json()["access_token"]
+            print("✅ Login réussi, token obtenu.")
         else:
-            print(f"Échec de login ({response.status_code}): {response.text}")
+            print(f"❌ Échec de login ({response.status_code}): {response.text}")
             self.token = None
 
     @task
@@ -46,4 +55,5 @@ class UserBehavior(HttpUser):
             "Content-Type": "application/json"
         }
 
-        self.client.post("/generer", data=json.dumps(payload), headers=headers)
+        # Pour les requêtes JSON, on utilise l'argument `json` et non `data`
+        self.client.post("/generer", json=payload, headers=headers)
