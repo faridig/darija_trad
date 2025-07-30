@@ -113,3 +113,47 @@ jobs:
           tags: |
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-grafana:latest
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-grafana:${{ github.sha }}
+
+# ===================================================================
+  # JOB 3 : DÉPLOYER SUR AZURE KUBERNETES SERVICE (AKS) - NOUVELLE VERSION
+  # ===================================================================
+  deploy-to-aks:
+    name: 3 - Déploiement sur AKS
+    runs-on: ubuntu-latest
+    needs: build-and-deploy-images
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Installation et configuration de kubectl
+        run: |
+          # Crée le répertoire de configuration
+          mkdir -p ~/.kube
+          # Écrit le contenu de votre secret KUBE_CONFIG dans le fichier de config
+          echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+          # (Optionnel) Sécurise le fichier
+          chmod 600 ~/.kube/config
+
+      - name: Vérifier la connexion kubectl
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Créer/Mettre à jour le secret pour l'API
+        run: |
+          kubectl create secret generic api-secrets \
+            --from-literal=ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
+            --from-literal=ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
+            --from-literal=SUPABASE_URL='${{ secrets.SUPABASE_URL }}' \
+            --dry-run=client -o yaml | kubectl apply -f -
+            
+      - name: Déployer les manifestes Kubernetes
+        run: |
+          kubectl apply -f k8s/
+
+      - name: Vérifier l'état du déploiement
+        run: |
+          kubectl rollout status deployment/ia-api-deployment
+          kubectl rollout status deployment/prometheus-deployment
+          kubectl rollout status deployment/grafana-deployment           
