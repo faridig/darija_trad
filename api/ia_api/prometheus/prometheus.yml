@@ -1,8 +1,9 @@
+# api/ia_api/prometheus/prometheus.yml (Pour Kubernetes)
 scrape_configs:
   - job_name: "darija_api"
     metrics_path: /metrics
     static_configs:
-      - targets: ["app:8001"]
+      - targets: ["ia-api-service:8001"] # Nom du service K8s
     basic_auth:
       username: admin
       password_file: /etc/prometheus/prometheus_password.secret

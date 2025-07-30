@@ -1,0 +1,10 @@
+# api/ia_api/prometheus/prometheus.local.yml (Pour Docker Compose)
+scrape_configs:
+  - job_name: "darija_api"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["app:8001"] # Nom du service Docker Compose
+    basic_auth:
+      username: admin
+      # En local, on peut lire le mot de passe depuis une variable d'env
+      password: '${ADMIN_PASSWORD}' 
