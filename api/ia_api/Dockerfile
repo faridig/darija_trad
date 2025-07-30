@@ -38,7 +38,7 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copie du code de l'application
+# Copie du code de l'application.
 COPY api/ia_api/ ./api/ia_api/
 COPY database/ ./database/
 
