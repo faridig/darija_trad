@@ -17,8 +17,29 @@ spec:
         image: iaapi.azurecr.io/darija-api-prometheus:latest
         ports:
         - containerPort: 9090
+        # --- DÉBUT DE LA CORRECTION ---
+        volumeMounts:
+        - name: prometheus-password-volume  # Un nom pour le montage
+          # Le chemin où le fichier doit apparaître DANS le conteneur
+          mountPath: "/etc/prometheus/prometheus_password.secret"
+          # Le nom du fichier qui sera créé dans le volume
+          subPath: "password.txt"
+          readOnly: true
+        # --- FIN DE LA CORRECTION ---
       imagePullSecrets:
       - name: acr-secret
+      # --- DÉBUT DE LA CORRECTION ---
+      volumes:
+      - name: prometheus-password-volume # Doit correspondre au nom du volumeMount
+        secret:
+          # Le nom du secret Kubernetes qui contient la donnée
+          secretName: api-secrets
+          items:
+          # La clé à extraire du secret 'api-secrets'
+          - key: ADMIN_PASSWORD
+            # Le nom du fichier à créer pour le subPath
+            path: "password.txt"
+      # --- FIN DE LA CORRECTION ---
 ---
 apiVersion: v1
 kind: Service

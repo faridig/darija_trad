@@ -1,0 +1,8 @@
+# api/ia_api/grafana/provisioning/datasources/prometheus.local.yaml
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090 # Nom du service Docker Compose
+    isDefault: true
