@@ -10,6 +10,7 @@ peft
 datasets
 evaluate
 sacrebleu
+triton 
 
 # --- Data Science & Utilities ---
 pandas
