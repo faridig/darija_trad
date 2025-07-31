@@ -1,0 +1,49 @@
+# k8s/data-api.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-api-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-api
+  template:
+    metadata:
+      labels:
+        app: data-api
+    spec:
+      # ===================================================================
+      # DÉBUT DE LA CORRECTION : Ajout de la référence au secret d'image
+      # Cette section indique à Kubernetes d'utiliser les identifiants
+      # stockés dans le secret 'acr-secret' pour s'authentifier auprès
+      # de votre Azure Container Registry privé.
+      imagePullSecrets:
+      - name: acr-secret
+      # FIN DE LA CORRECTION
+      # ===================================================================
+      
+      containers:
+      - name: data-api-container
+        # L'image qui sera construite et pushée par le script 1
+        image: iaapi.azurecr.io/darija-data-api:1.0.2 
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - secretRef:
+            # Le nom du secret Kubernetes qui contiendra vos variables d'environnement (SUPABASE_URL, etc.)
+            name: api-secrets 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-api-service
+spec:
+  type: LoadBalancer 
+  selector:
+    app: data-api
+  ports:
+  - protocol: TCP
+    port: 80 # Port public exposé par le Load Balancer
+    targetPort: 8000 # Port du conteneur

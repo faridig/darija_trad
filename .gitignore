@@ -70,3 +70,7 @@ htmlcov/
 .pytest_cache/
 logs/
 mlruns/
+.env
+.env
+__pycache__/
+*.pyc

@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 
 from sqlalchemy.orm import Session
 from .models import User
-from ..schemas import UserCreate
 
 load_dotenv()
 
