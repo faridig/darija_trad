@@ -3,14 +3,14 @@
 # Exécutez 'pip-compile' pour générer requirements.txt
 
 # --- Core ML & Deep Learning ---
-torch
+torch==2.3.1
 transformers
 accelerate
 peft
 datasets
 evaluate
 sacrebleu
-triton 
+triton==2.3.1 
 
 # --- Data Science & Utilities ---
 pandas
