@@ -22,7 +22,7 @@ NC='\033[0m'
 
 # 1. Connexion à Azure et au cluster AKS
 echo -e "${YELLOW}1. Connexion à Azure et configuration de kubectl...${NC}"
-az login
+
 az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$AKS_NAME" --overwrite-existing
 echo -e "${GREEN}Connecté au cluster AKS '$AKS_NAME'.${NC}\n"
 

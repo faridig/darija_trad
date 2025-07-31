@@ -1,0 +1,51 @@
+# Fichier: requirements.in
+# Listez ici vos dépendances directes.
+# Exécutez 'pip-compile' pour générer requirements.txt
+
+# --- Core ML & Deep Learning ---
+torch
+transformers
+accelerate
+peft
+datasets
+evaluate
+sacrebleu
+
+# --- Data Science & Utilities ---
+pandas
+numpy
+scikit-learn
+scipy
+seaborn
+matplotlib
+
+# --- Backend API (FastAPI) & Authentification ---
+fastapi
+uvicorn[standard]
+python-dotenv
+python-multipart
+slowapi
+gunicorn
+httpx
+python-jose[cryptography]
+passlib[bcrypt]
+
+# --- Monitoring & Métriques API ---
+prometheus-fastapi-instrumentator
+prometheus-client
+
+# --- Base de Données ---
+SQLAlchemy
+psycopg2-binary
+alembic
+
+# --- Monitoring Expériences ML ---
+mlflow
+
+# --- Testing & Qualité ---
+pytest
+pytest-cov
+locust
+
+# --- Outils de Développement ---
+ipython

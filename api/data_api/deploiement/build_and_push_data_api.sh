@@ -27,7 +27,7 @@ echo -e "${GREEN}Prérequis validés.${NC}\n"
 
 # 1. Connexion à Azure
 echo -e "${YELLOW}1. Connexion à Azure...${NC}"
-az login
+
 
 # 2. Connexion à Azure Container Registry (ACR)
 echo -e "${YELLOW}2. Connexion à Azure Container Registry: ${ACR_NAME}...${NC}"
