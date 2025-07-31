@@ -10,7 +10,7 @@ set -e
 # --- CONFIGURATION (À REMPLIR) ---
 ACR_NAME="iaapi"                                  # Le nom de votre Azure Container Registry
 IMAGE_NAME="darija-data-api"                      # Le nom de l'image à créer dans l'ACR
-IMAGE_TAG="1.0.2"                                 # La version de l'image. PENSEZ À L'INCRÉMENTER !
+IMAGE_TAG="1.0.6"                                 # La version de l'image. PENSEZ À L'INCRÉMENTER !
 # --- FIN DE LA CONFIGURATION ---
 
 
