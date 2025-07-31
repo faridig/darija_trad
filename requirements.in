@@ -31,6 +31,7 @@ httpx
 python-jose[cryptography]
 passlib[bcrypt]
 
+
 # --- Monitoring & Métriques API ---
 prometheus-fastapi-instrumentator
 prometheus-client

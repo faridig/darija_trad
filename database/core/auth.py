@@ -43,6 +43,9 @@ def authenticate_user(username: str, password: str, db: Session):
         return {"username": user.username}
     return None
 
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
 def create_user(db: Session, user_data): # user_data sera de type UserCreate
     # 1. Vérifier si l'utilisateur existe déjà
     existing_user = db.query(User).filter(User.username == user_data.username).first()
