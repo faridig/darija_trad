@@ -49,3 +49,4 @@ locust
 
 # --- Outils de Développement ---
 ipython
+setuptools  
