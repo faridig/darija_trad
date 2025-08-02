@@ -1,64 +1,150 @@
 # Architecture Technique - Frontend de Traduction
 
-Ce document décrit l'architecture, les technologies et les flux de données pour l'application web frontend du projet de traduction.
+Ce document détaille l'architecture et les choix techniques retenus pour le développement de l'application frontend. Il constitue la réponse technique aux besoins fonctionnels et aux parcours utilisateurs qui sont formalisés dans le document de spécifications fonctionnelles.
+
+➡️ **Consulter les spécifications fonctionnelles : [SPECIFICATIONS_FRONTEND.md](./SPECIFICATIONS_FRONTEND.md)**
+
+---
 
 ## 1. Choix des Technologies et Outils
 
 Le développement de l'application s'appuiera sur un écosystème JavaScript moderne, axé sur la performance, la maintenabilité et une expérience de développement fluide.
 
 | Catégorie | Outil / Technologie | Justification |
-| :--- | :--- | :--- |
-| **Framework UI** | **React (avec Vite)** | Un standard de l'industrie pour construire des interfaces utilisateur réactives et modulaires. Vite offre un environnement de développement ultra-rapide et une configuration optimisée par défaut. Cette approche est idéale pour une **Single Page Application (SPA)**, offrant une expérience utilisateur fluide sans rechargement de page. |
-| **Langage** | **JavaScript (ES6+)** | Le langage natif du navigateur, indispensable pour une application frontend interactive. |
-| **Client HTTP** | **Axios** | Une bibliothèque robuste pour effectuer les requêtes HTTP vers notre API backend. Elle gère nativement les promesses et simplifie l'interception des requêtes/réponses (utile pour ajouter le token JWT). |
-| **Gestion des Paquets** | **NPM** | Le gestionnaire de paquets par défaut de l'écosystème Node.js. |
-| **Conteneurisation** | **Docker** | Permet de packager notre application frontend dans une image portable, garantissant un environnement d'exécution cohérent du développement à la production. |
-| **Serveur Web (en prod)** | **Nginx** | Un serveur web haute performance et léger, parfait pour servir les fichiers statiques (HTML, CSS, JS) de notre application React une fois "buildée". |
-| **Versionnement** | **Git & GitHub** | Pour le suivi du code source, la collaboration et l'intégration avec les workflows CI/CD. |
+| --------- | ------------------- | ------------- |
+|           |                     |               |
+
+| **Framework UI**     | React (avec Vite) | Un standard de l'industrie pour construire des interfaces utilisateur réactives et modulaires. Vite offre un environnement de développement ultra-rapide et une configuration optimisée par défaut (SPA sans rechargement). |
+| -------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Langage**          | JavaScript (ES6+) | Le langage natif du navigateur, indispensable pour une application frontend interactive.                                                                                                                                    |
+| **Client HTTP**      | Axios             | Une bibliothèque robuste pour effectuer les requêtes HTTP vers nos API backend. Elle gère nativement les promesses et simplifie l'interception des requêtes/réponses (ajout du token JWT).                                  |
+| **Gestion Paquets**  | NPM               | Le gestionnaire de paquets par défaut de l'écosystème Node.js.                                                                                                                                                              |
+| **Conteneurisation** | Docker            | Permet de packager notre application frontend dans une image portable, garantissant un environnement d'exécution cohérent du développement à la production.                                                                 |
+| **Serveur Web**      | Nginx             | Un serveur web haute performance et léger, parfait pour servir les fichiers statiques (HTML, CSS, JS) de notre application React une fois "buildée".                                                                        |
+| **Versionnement**    | Git & GitHub      | Pour le suivi du code source, la collaboration et l'intégration avec les workflows CI/CD.                                                                                                                                   |
 
 ### Justification des choix par rapport à d'autres alternatives
 
-Le choix d'une stack basée sur React/Nginx a été fait après avoir considéré d'autres options pertinentes :
+- **Pourquoi pas Django ?**\
+  Django est un framework backend "full-stack" puissant, écrit en Python. Ici, les backends existent déjà sous forme d'API FastAPI. Utiliser Django pour le frontend serait redondant et contraire au principe de séparation des préoccupations. React est conçu pour un client découplé.
 
--   **Pourquoi pas Django ?**
-    Django est un framework backend "full-stack" puissant, écrit en Python. Il est conçu pour gérer à la fois la logique métier, l'accès aux bases de données et le rendu des pages HTML (via des templates). Dans notre cas, **le backend existe déjà** : c'est notre API FastAPI. Utiliser Django pour le frontend serait redondant et contraire au principe de **séparation des préoccupations**. Notre architecture vise un découplage clair entre le client (frontend, en JavaScript) et le serveur (backend API, en Python). React est spécifiquement conçu pour créer des interfaces utilisateur et se connecte parfaitement à n'importe quelle API, ce qui correspond exactement à notre besoin.
+- **Pourquoi pas Streamlit ou Gradio ?**\
+  Ces outils sont excellents pour des démos rapides mais offrent moins de contrôle sur l'UI/UX et sont moins adaptés pour construire un client web indépendant et optimisé pour la production, respectant des spécifications précises (notamment d'accessibilité).
 
--   **Pourquoi pas Streamlit ou Gradio ?**
-    Streamlit et Gradio sont des outils fantastiques pour créer rapidement des démonstrations et des interfaces pour des modèles de Machine Learning. Cependant, ils présentent deux limitations pour ce projet :
-    1.  **Moins de contrôle sur l'UI/UX :** Ils sont "opinionated", c'est-à-dire qu'ils imposent une structure et un style. Cela rend plus difficile l'implémentation de spécifications d'UI/UX précises et le respect de normes d'accessibilité (WCAG) comme demandé dans nos spécifications. React nous donne un contrôle total sur le HTML, le CSS et le comportement de l'application.
-    2.  **Couplage avec Python :** Ces outils sont conçus pour s'exécuter dans le même processus Python que le modèle. Notre modèle est déjà exposé via une API REST sécurisée. L'objectif est de développer un **client indépendant**, qui pourrait être une application web, mobile ou de bureau. Construire un client en React démontre cette indépendance et simule un cas d'usage d'entreprise plus réaliste.
+**En conclusion**, la stack React + Nginx est la plus adaptée pour construire un client web découplé, personnalisable et optimisé pour la production, qui consomme des API existantes.
 
-En conclusion, la stack React + Nginx est la plus adaptée pour construire un client web découplé, personnalisable et optimisé pour la production, qui consomme une API IA existante.
+---
 
 ## 2. Architecture Applicative et Flux de Données
 
-### 2.1. Schéma d'Architecture sur Kubernetes
+### 2.1. Schéma d'Architecture sur Kubernetes (Mis à jour)
 
-L'application est conçue selon une architecture **N-tiers** et déployée sur Azure Kubernetes Service (AKS). La communication entre le client et le serveur est découplée et gérée par les services Kubernetes, qui agissent comme des répartiteurs de charge (load balancers).
+L'application est conçue selon une architecture N-tiers. Le frontend est totalement découplé des services backend et communique avec eux via leurs adresses IP publiques respectives, gérées par des services LoadBalancer sur Kubernetes.
 
-![Schéma d'Architecture sur AKS](./docs/architecture/architecture-schema.png) 
-*(Nous allons créer ce schéma)*
+```mermaid
+graph TD
+    subgraph "Navigateur de l'Utilisateur"
+        U[Utilisateur]
+        Browser["Application React (Code JS exécuté localement)"]
+    end
 
-**Description du schéma :**
+    subgraph "Cluster Kubernetes (AKS)"
+        FE_LB["IP Publique Frontend (Service LoadBalancer)"]
+        FE_POD["Pod Frontend (Nginx + React)"]
 
-1.  **Utilisateur Final :** L'utilisateur accède à l'application via son navigateur web.
-2.  **Azure Load Balancer (Frontend) :** Le trafic entrant pour l'application frontend est intercepté par un Load Balancer Azure, provisionné par le `Service` Kubernetes du frontend. Il possède une IP publique et redirige le trafic vers le pod Nginx.
-3.  **Pod Frontend (React + Nginx) :** Le conteneur Nginx sert les fichiers statiques de l'application React au navigateur de l'utilisateur.
-4.  **Communication Frontend -> Backend :** Lorsque l'utilisateur effectue une action (login, traduction), le code JavaScript (via Axios) dans le navigateur envoie une requête HTTP directement à l'IP publique de l'API.
-5.  **Azure Load Balancer (API) :** Un second Load Balancer, provisionné par le `Service` Kubernetes de l'API, reçoit cette requête sur son IP publique.
-6.  **Pod Backend (API FastAPI) :** Le Load Balancer transmet la requête au pod de l'API FastAPI, qui la traite.
-7.  **Base de Données (Supabase) :** Si nécessaire (pour l'authentification), l'API communique avec la base de données externe PostgreSQL (Supabase).
-8.  **Réponse :** La réponse de l'API suit le chemin inverse jusqu'au navigateur de l'utilisateur.
+        DATA_API_LB["IP Publique Data API (Service LoadBalancer)"]
+        DATA_API_POD["Pod Data API (FastAPI + SQLAlchemy)"]
 
-Ce modèle, utilisant deux services `LoadBalancer`, est simple et fonctionnel. Pour des applications plus complexes, un **Ingress Controller** pourrait être utilisé pour unifier le trafic sous une seule adresse IP et gérer des règles de routage avancées.
+        IA_API_LB["IP Publique IA API (Service LoadBalancer)"]
+        IA_API_POD["Pod IA API (FastAPI + Transformers)"]
+    end
+
+    subgraph "Services Externes"
+        DB[("Supabase / PostgreSQL")]
+    end
+
+    %% --- Connexions structurelles ---
+    U --> FE_LB
+    FE_LB --> FE_POD
+    FE_POD --> Browser
+
+    Browser --> DATA_API_LB
+    Browser --> IA_API_LB
+    
+    DATA_API_LB --> DATA_API_POD
+    IA_API_LB --> IA_API_POD
+
+    DATA_API_POD --> DB
+    IA_API_POD --> DB
+
+    style U fill:#f9f,stroke:#333,stroke-width:2px
+    style DB fill:#cff,stroke:#333,stroke-width:2px
+```
+
+#### Description du schéma
+
+- **Utilisateur Final :** L'utilisateur accède à l'application via son navigateur.
+- **Azure Load Balancer (Frontend) :** Le trafic est dirigé vers le pod Nginx du frontend.
+- **Pod Frontend (React + Nginx) :** Le conteneur Nginx sert les fichiers statiques (HTML, CSS, JS) de l'application React.
+- **Communication Frontend → Backend APIs :**
+  - Pour l'inscription (`/register`) et la connexion (`/login`), le frontend appelle l'API de Données (data-api).
+  - Pour la traduction (`/generer`), il appelle l'API d'IA (ia-api).
+- **Load Balancers des API :** Chaque API a son propre service LoadBalancer qui reçoit les requêtes et les transmet au pod correspondant.
+- **Pods Backend :**
+  - Le pod `data-api` gère la logique de création et d'authentification des utilisateurs.
+  - Le pod `ia-api` gère la logique d'inférence du modèle de traduction.
+- **Base de Données (Supabase) :** Les deux API interagissent avec la base de données PostgreSQL pour les tâches liées aux utilisateurs (création, vérification des identifiants).
+
+---
 
 ### 2.2. Flux de Données d'Authentification (JWT)
 
-La sécurité entre le frontend et le backend est assurée par des JSON Web Tokens (JWT).
+La sécurité est assurée par des **JSON Web Tokens (JWT)**.
 
-1.  **Login :** L'utilisateur soumet son `username` et `password` au endpoint `POST /login` de l'API.
-2.  **Validation :** L'API vérifie les identifiants dans la base de données.
-3.  **Génération du Token :** Si les identifiants sont valides, l'API génère un token JWT signé contenant une date d'expiration.
-4.  **Stockage du Token :** Le frontend reçoit le token et le stocke de manière sécurisée dans le navigateur (par exemple, dans le `sessionStorage` ou `localStorage`).
-5.  **Requêtes Authentifiées :** Pour toutes les requêtes suivantes vers des endpoints protégés (comme `POST /generer`), le frontend ajoute le token dans l'en-tête HTTP : `Authorization: Bearer <token>`.
-6.  **Vérification du Token :** À chaque requête, l'API vérifie la validité de la signature et la date d'expiration du token avant d'autoriser l'accès à la ressource.
+1. **Login :** L'utilisateur soumet ses identifiants au `POST /login` de la data-api.
+2. **Validation :** L'API vérifie les identifiants dans la base de données.
+3. **Génération du Token :** Si valides, l'API génère un token JWT signé.
+4. **Stockage du Token :** Le frontend reçoit et stocke le token de manière sécurisée (ex : `sessionStorage`).
+5. **Requêtes Authentifiées :** Pour les requêtes protégées (comme `POST /generer` sur l'ia-api), le frontend ajoute l'en-tête `Authorization: Bearer <token>`.
+6. **Vérification du Token :** L'ia-api reçoit la requête, décode le token, et vérifie sa validité avant d'autoriser l'accès.
+
+---
+
+### 2.3. Flux de Données d'Inscription (Nouveau)
+
+Le processus de création de compte suit ce flux :
+
+1. **Saisie :** L'utilisateur remplit le formulaire d'inscription sur le frontend (nom d'utilisateur, mot de passe).
+2. **Requête de Création :** Le frontend envoie une requête `POST /register` à l'API de Données (data-api) avec les informations saisies.
+3. **Traitement Backend :**
+   - L'API de Données reçoit la requête.
+   - Vérifie si le nom d'utilisateur n'est pas déjà pris.
+   - Hache le mot de passe en utilisant `bcrypt`.
+   - Insère le nouvel utilisateur dans la base de données.
+4. **Réponse de l'API :**
+   - **Succès (**``**) :** L'API renvoie les informations de l'utilisateur créé (sans le mot de passe).
+   - **Échec (**``**) :** Si l'utilisateur existe déjà, l'API renvoie une erreur.
+5. **Traitement Frontend :**
+   - En cas de succès : le frontend affiche un message de confirmation et redirige l'utilisateur vers la page de connexion.
+   - En cas d'échec : le frontend affiche un message d'erreur clair à l'utilisateur (ex : "Ce nom d'utilisateur est déjà utilisé.").
+
+---
+
+### 2.4. Considérations sur l'Éco-Conception et la Démarche Éco-Responsable
+
+Bien que le projet n'ait pas eu l'éco-responsabilité comme contrainte principale, les choix techniques ont été faits en faveur de l'efficacité, de la performance et de la maîtrise des ressources, ce qui est directement aligné avec les principes du *Green IT* et de la sobriété numérique.
+
+Les points suivants démontrent comment une démarche éco-responsable a été favorisée :
+
+1.  **Choix d'un Hébergeur Cloud Engagé (PaaS - Azure) :**
+    *   Le déploiement sur Microsoft Azure s'appuie sur un fournisseur qui a des objectifs clairs de neutralité carbone et d'alimentation de ses datacenters par des énergies renouvelables. L'utilisation de services managés comme **Azure Kubernetes Service (AKS)** permet de mutualiser les infrastructures physiques, optimisant ainsi l'efficacité énergétique (PUE - *Power Usage Effectiveness*) par rapport à un hébergement sur site.
+
+2.  **Utilisation de Conteneurs Légers (Docker) :**
+    *   La conteneurisation avec Docker, et particulièrement l'usage d'images de base `python:3.11-slim` (`api/ia_api/Dockerfile`), permet de créer des artefacts légers. Des images plus petites signifient moins de données à stocker, à transférer sur le réseau et des temps de démarrage plus rapides, réduisant ainsi la consommation de ressources à chaque déploiement.
+
+
+En conclusion, en privilégiant des services cloud modernes, des technologies légères et performantes,  le projet favorise une approche technique sobre et efficace, alignée avec une démarche éco-responsable.
+
+---
+
+
