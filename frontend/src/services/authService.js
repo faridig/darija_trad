@@ -19,10 +19,10 @@ const login = async (username, password) => {
   if (response.data.access_token) {
     sessionStorage.setItem(TOKEN_KEY, response.data.access_token);
   }
-  return response.data;
+  return response.data; 
 };
 
-// Fonction de déconnexion (logout)
+// Fonction de déconnexion (logout))
 const logout = () => {
   sessionStorage.removeItem(TOKEN_KEY);
 };
