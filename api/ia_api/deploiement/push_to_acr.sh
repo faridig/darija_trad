@@ -54,7 +54,7 @@ echo -e "${YELLOW}2. Construction des images Docker via docker-compose...${NC}"
 cd "${COMPOSE_DIR}"
 echo "Contexte de build: $(pwd)"
 # Utilisation de docker-compose (avec tiret)
-docker-compose build --no-cache
+docker-compose build
 echo -e "${GREEN}Images construites avec succès.${NC}\n"
 
 # 3. Taggage et Push des images

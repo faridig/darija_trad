@@ -156,6 +156,9 @@ jobs:
             --from-literal=SUPABASE_URL='${{ secrets.SUPABASE_URL }}' \
             --dry-run=client -o yaml | kubectl apply -f -
       
+      # Dans le job deploy-to-aks:
+# ... (après l'étape de configuration de kubectl)
+
       - name: Mettre à jour le tag de l'image dans les manifestes
         run: |
           IMAGE_TAG=${{ github.sha }}
@@ -163,17 +166,20 @@ jobs:
           
           echo "Mise à jour des manifestes avec le tag : $IMAGE_TAG"
           
-          # Remplace le tag pour l'API IA
+          # Commande magique : 'sed' remplace le tag de l'image
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api:.*|image: $ACR_NAME.azurecr.io/darija-api:$IMAGE_TAG|g" k8s/api.yaml
           
-          # Remplace le tag pour Prometheus
+          # Répétez pour les autres fichiers comme prometheus.yaml et grafana.yaml
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api-prometheus:.*|image: $ACR_NAME.azurecr.io/darija-api-prometheus:$IMAGE_TAG|g" k8s/prometheus.yaml
-          
-          # Remplace le tag pour Grafana
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api-grafana:.*|image: $ACR_NAME.azurecr.io/darija-api-grafana:$IMAGE_TAG|g" k8s/grafana.yaml
           
           echo "Contenu de k8s/api.yaml après modification :"
-          cat k8s/api.yaml
+          cat k8s/api.yaml # Pour le débogage
+
+      - name: Déployer les manifestes Kubernetes
+        run: |
+          # Applique les fichiers YAML qui viennent d'être modifiés
+          kubectl apply -f k8s/
       
             
       - name: Déployer les manifestes Kubernetes
