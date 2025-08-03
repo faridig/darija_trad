@@ -38,9 +38,10 @@ app.middleware("http")(add_security_headers)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://mon-frontend.exemple.com",
-        "http://127.0.0.1:8001",
-        "http://localhost:8001",
+        "http://localhost:5173",  # <--- pour le développement local
+        "http://127.0.0.1:5173",   # (Par sécurité, on ajoute aussi 127.0.0.1)
+        # "https://mon-frontend.exemple.com", # On garde ce placeholder pour la prod
+        # Les anciennes valeurs ne sont plus utiles  contre l'API déployée
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST"],

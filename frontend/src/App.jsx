@@ -1,7 +1,12 @@
+import { Outlet } from 'react-router-dom';
+
 function App() {
   return (
-    <h1>Projet de Traduction Darija</h1>
-  )
+    <main>
+      {/* C'est ici que le routeur mettra la page active (LoginPage, etc.) */}
+      <Outlet />
+    </main>
+  );
 }
 
-export default App
+export default App;

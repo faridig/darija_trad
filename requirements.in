@@ -21,7 +21,7 @@ seaborn
 matplotlib
 
 # --- Backend API (FastAPI) & Authentification ---
-fastapi
+fastapi[all]
 uvicorn[standard]
 python-dotenv
 python-multipart

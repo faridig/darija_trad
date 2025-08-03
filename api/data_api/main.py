@@ -4,11 +4,12 @@ from fastapi.exceptions import RequestValidationError
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import auth, translations
 
 app = FastAPI(
-    title="Translation API",
+    title="Data API",
     version="1.0",
     description="""
 🔐 **Authentification avec JWT :**
@@ -19,6 +20,18 @@ app = FastAPI(
 
 ⚠️ Toutes les routes `/translations` nécessitent un token valide.
 """
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # Pour le développement local du frontend
+        "http://127.0.0.1:5173",
+        # "http://<IP_DE_VOTRE_FRONTEND_EN_PROD>", # À ajouter quand vous déploierez le frontend
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"], # Autorisez toutes les méthodes que vous utilisez
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # Rate limiting

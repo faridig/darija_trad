@@ -155,6 +155,26 @@ jobs:
             --from-literal=ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
             --from-literal=SUPABASE_URL='${{ secrets.SUPABASE_URL }}' \
             --dry-run=client -o yaml | kubectl apply -f -
+      
+      - name: Mettre à jour le tag de l'image dans les manifestes
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          ACR_NAME=${{ secrets.ACR_NAME }}
+          
+          echo "Mise à jour des manifestes avec le tag : $IMAGE_TAG"
+          
+          # Remplace le tag pour l'API IA
+          sed -i "s|image: $ACR_NAME.azurecr.io/darija-api:.*|image: $ACR_NAME.azurecr.io/darija-api:$IMAGE_TAG|g" k8s/api.yaml
+          
+          # Remplace le tag pour Prometheus
+          sed -i "s|image: $ACR_NAME.azurecr.io/darija-api-prometheus:.*|image: $ACR_NAME.azurecr.io/darija-api-prometheus:$IMAGE_TAG|g" k8s/prometheus.yaml
+          
+          # Remplace le tag pour Grafana
+          sed -i "s|image: $ACR_NAME.azurecr.io/darija-api-grafana:.*|image: $ACR_NAME.azurecr.io/darija-api-grafana:$IMAGE_TAG|g" k8s/grafana.yaml
+          
+          echo "Contenu de k8s/api.yaml après modification :"
+          cat k8s/api.yaml
+      
             
       - name: Déployer les manifestes Kubernetes
         run: |

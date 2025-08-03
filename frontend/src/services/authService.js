@@ -22,6 +22,15 @@ const login = async (username, password) => {
   return response.data; 
 };
 
+// Fonction d'inscription (register)
+const register = async (username, password) => {
+  // Pour cet endpoint, l'API attend un payload JSON standard
+  const userData = { username, password };
+  const response = await dataApi.post('/register', userData);
+  return response.data;
+};
+
+
 // Fonction de déconnexion (logout))
 const logout = () => {
   sessionStorage.removeItem(TOKEN_KEY);
@@ -33,6 +42,7 @@ const getToken = () => {
 };
 
 export const authService = {
+  register,
   login,
   logout,
   getToken,

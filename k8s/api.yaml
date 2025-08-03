@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: ia-api-container
-        image: iaapi.azurecr.io/darija-api:latest
+        image: iaapi.azurecr.io/darija-api:1.0.2
         ports:
         - containerPort: 8001
         envFrom:

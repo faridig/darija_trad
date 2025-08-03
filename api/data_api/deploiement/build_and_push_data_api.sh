@@ -10,7 +10,6 @@ set -e
 # --- CONFIGURATION (À REMPLIR) ---
 ACR_NAME="iaapi"                                  # Le nom de votre Azure Container Registry
 IMAGE_NAME="darija-data-api"                      # Le nom de l'image à créer dans l'ACR
-IMAGE_TAG="1.0.6"                                 # La version de l'image. PENSEZ À L'INCRÉMENTER !
 # --- FIN DE LA CONFIGURATION ---
 
 
@@ -19,6 +18,14 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
+
+IMAGE_TAG=$(git rev-parse --short HEAD)
+if [ -z "$IMAGE_TAG" ]; then
+  echo -e "${RED}Erreur: Impossible de récupérer le SHA du commit Git. Êtes-vous dans un dépôt Git ?${NC}"
+  exit 1
+fi
+echo -e "${YELLOW}Le tag de l'image sera basé sur le commit Git : ${IMAGE_TAG}${NC}\n"
+
 
 echo -e "${YELLOW}Vérification des prérequis...${NC}"
 if ! command -v az &> /dev/null; then echo -e "${RED}Erreur: Azure CLI (az) n'est pas installé.${NC}"; exit 1; fi
@@ -40,12 +47,15 @@ echo -e "${GREEN}Le nom complet de l'image sera : ${ACR_IMAGE_FULL_NAME}${NC}\n"
 DOCKERFILE_PATH="./api/data_api/Dockerfile"
 BUILD_CONTEXT="."
 echo -e "${YELLOW}3. Construction de l'image Docker...${NC}"
-docker build -f "$DOCKERFILE_PATH" -t "$ACR_IMAGE_FULL_NAME" "$BUILD_CONTEXT"
+docker build --no-cache -f "$DOCKERFILE_PATH" -t "$ACR_IMAGE_FULL_NAME" "$BUILD_CONTEXT"
 echo -e "${GREEN}Image construite avec succès.${NC}\n"
 
 # 4. Push de l'image vers ACR
 echo -e "${YELLOW}4. Push de l'image vers ACR...${NC}"
 docker push "$ACR_IMAGE_FULL_NAME"
+
+echo -n "${IMAGE_TAG}" > ./api/data_api/deploiement/last_build_tag.txt
+
 
 echo "--------------------------------------------------"
 echo -e "${GREEN}✅ Tâche terminée !${NC}"
