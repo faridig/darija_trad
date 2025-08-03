@@ -154,6 +154,7 @@ jobs:
             --from-literal=ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
             --from-literal=ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
             --from-literal=SUPABASE_URL='${{ secrets.SUPABASE_URL }}' \
+            --from-literal=BASE_URL='${{ secrets.BASE_URL }}' \
             --dry-run=client -o yaml | kubectl apply -f -
       
       # Dans le job deploy-to-aks:
