@@ -27,7 +27,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",  # Pour le développement local du frontend
         "http://127.0.0.1:5173",
-        # "http://<IP_DE_VOTRE_FRONTEND_EN_PROD>", # À ajouter quand vous déploierez le frontend
+        "http://4.178.232.175/login", #fronted azure
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"], # Autorisez toutes les méthodes que vous utilisez
