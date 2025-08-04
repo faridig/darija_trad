@@ -40,7 +40,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",  # <--- pour le développement local
         "http://127.0.0.1:5173",   # (Par sécurité, on ajoute aussi 127.0.0.1)
-        "http://4.178.232.175:80", #fronted azure
+        "http://4.178.232.175", #fronted azure
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST"],

@@ -50,7 +50,7 @@ jobs:
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-frontend:latest
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-frontend:${{ github.sha }}
 
-  # ===================================================================
+  # ====================================================================
   # JOB 2 : DÉPLOYER L'APPLICATION SUR AKS
   # ====================================================================
   deploy-to-aks:
