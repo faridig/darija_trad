@@ -1,76 +1,71 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
+import './AuthPage.css'; // AJOUT: Importer la nouvelle feuille de style
 
 function LoginPage() {
-  // Pour la redirection après connexion réussie
   const navigate = useNavigate();
-
-  // Pour récupérer le message de succès après l'inscription
   const location = useLocation();
   const successMessage = location.state?.message;
-
-  // États pour stocker les valeurs des champs et les erreurs
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fonction appelée lors de la soumission du formulaire
   const handleSubmit = async (event) => {
-    event.preventDefault(); // Empêche le rechargement de la page
-    setError(''); // Réinitialise les erreurs
-    setIsLoading(true); // Affiche l'indicateur de chargement
-
+    event.preventDefault();
+    setError('');
+    setIsLoading(true);
     try {
       await authService.login(username, password);
-      // Si le login réussit, redirige vers la page de traduction
       navigate('/translate');
     } catch (err) {
-      // Si l'API renvoie une erreur (ex: 400 Bad Request)
       setError('Nom d\'utilisateur ou mot de passe incorrect.');
     } finally {
-      setIsLoading(false); // Cache l'indicateur de chargement
+      setIsLoading(false);
     }
   };
 
+  // MODIFICATION: Remplacement du JSX par la nouvelle structure avec les classes CSS
   return (
-    <div>
-      <h2>Connexion</h2>
-      {/* Affiche le message de succès s'il est présent */}
-      {successMessage && <p style={{ color: 'green' }}>{successMessage}</p>}
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="username">Nom d'utilisateur :</label>
-          <input
-            type="text"
-            id="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="password">Mot de passe :</label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
+    <div className="auth-container">
+      <div className="auth-card">
+        <h2>Connexion</h2>
+        
+        {/* On utilise des classes CSS pour les messages */}
+        {successMessage && <p className="success-message">{successMessage}</p>}
+        {error && <p className="error-message">{error}</p>}
 
-        {/* Affiche le message d'erreur s'il y en a un */}
-        {error && <p style={{ color: 'red' }}>{error}</p>}
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-group">
+            <label htmlFor="username">Nom d'utilisateur</label>
+            <input
+              type="text"
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="password">Mot de passe</label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
 
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? 'Connexion en cours...' : 'Se connecter'}
-        </button>
-      </form>
-      <p>
-        Vous n'avez pas de compte ? <Link to="/register">S'inscrire</Link>
-      </p>
+          <button type="submit" className="auth-button" disabled={isLoading}>
+            {isLoading ? 'Connexion...' : 'Se connecter'}
+          </button>
+        </form>
+        <p className="switch-link">
+          Vous n'avez pas de compte ? <Link to="/register">S'inscrire</Link>
+        </p>
+      </div>
     </div>
   );
 }
