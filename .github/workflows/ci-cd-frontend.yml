@@ -1,0 +1,98 @@
+# .github/workflows/ci-cd-frontend.yml
+
+name: CI/CD - Application Frontend
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - 'frontend/**'
+      - 'k8s/frontend.yaml'
+      - '.github/workflows/ci-cd-frontend.yml'
+  
+  pull_request:
+    branches: [ master, main ]
+    paths:
+      - 'frontend/**'
+      - 'k8s/frontend.yaml'
+
+  workflow_dispatch:
+
+jobs:
+  # ===================================================================
+  # JOB 1 : CONSTRUIRE L'IMAGE DOCKER ET LA POUSSER SUR ACR
+  # ===================================================================
+  build-and-push-image:
+    name: 1 - Build et Push de l'image Frontend
+    runs-on: ubuntu-latest
+    # S'exécute uniquement sur un push vers la branche principale pour éviter
+    # de construire des images pour chaque commit de PR.
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Connexion à Azure Container Registry (ACR)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_NAME }}.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+          
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.ACR_NAME }}.azurecr.io/darija-frontend:latest
+            ${{ secrets.ACR_NAME }}.azurecr.io/darija-frontend:${{ github.sha }}
+
+  # ===================================================================
+  # JOB 2 : DÉPLOYER L'APPLICATION SUR AKS
+  # ===================================================================
+  deploy-to-aks:
+    name: 2 - Déploiement du Frontend sur AKS
+    runs-on: self-hosted # Ou ubuntu-latest
+    needs: build-and-push-image
+    # Le 'if' du job précédent garantit que celui-ci ne s'exécute aussi que sur un push vers master/main.
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Installation et configuration de kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Vérifier la connexion kubectl
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Mettre à jour le tag de l'image dans le manifeste Frontend
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          ACR_NAME=${{ secrets.ACR_NAME }}
+          
+          echo "Mise à jour de k8s/frontend.yaml avec le tag : $IMAGE_TAG"
+          
+          # Commande 'sed' pour remplacer le tag de l'image du frontend
+          sed -i "s|image: $ACR_NAME.azurecr.io/darija-frontend:.*|image: $ACR_NAME.azurecr.io/darija-frontend:$IMAGE_TAG|g" k8s/frontend.yaml
+          
+          echo "Contenu de k8s/frontend.yaml après modification :"
+          cat k8s/frontend.yaml
+
+      - name: Déployer les manifestes Kubernetes
+        run: |
+          # Applique uniquement le fichier YAML du frontend qui vient d'être modifié
+          kubectl apply -f k8s/frontend.yaml
+      
+      - name: Vérifier l'état du déploiement
+        run: |
+          # Attend que le nouveau déploiement soit terminé avec succès
+          kubectl rollout status deployment/frontend-deployment

@@ -1,0 +1,34 @@
+# k8s/frontend.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+spec:
+  replicas: 1
+  # ... (le reste de la config)
+  template:
+    # ...
+    spec:
+      containers:
+      - name: frontend-container
+        # On utilise 'latest' ici comme placeholder qui sera remplacé par le pipeline
+        image: iaapi.azurecr.io/darija-frontend:latest 
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+      imagePullSecrets:
+      - name: acr-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  type: LoadBalancer # Expose une IP publique
+  selector:
+    app: frontend
+  ports:
+  - protocol: TCP
+    port: 80 # Le port public sera le port 80 (HTTP)
+    targetPort: 80 # Le conteneur Nginx écoute sur le port 80
