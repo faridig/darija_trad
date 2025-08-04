@@ -1,34 +1,69 @@
-# k8s/frontend.yaml
-
+# ===================================================================
+# DÉPLOIEMENT (Deployment)
+# Décrit l'état désiré pour les Pods de l'application frontend.
+# ===================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend-deployment
+  labels:
+    app: frontend
 spec:
   replicas: 1
-  # ... (le reste de la config)
+  selector:
+    matchLabels:
+      app: frontend
   template:
-    # ...
+    metadata:
+      labels:
+        app: frontend
     spec:
       containers:
       - name: frontend-container
-        # On utilise 'latest' ici comme placeholder qui sera remplacé par le pipeline
-        image: iaapi.azurecr.io/darija-frontend:latest 
+        # L'image Docker à utiliser.
+        # Le tag ':latest' est un placeholder qui sera dynamiquement remplacé 
+        # par le SHA du commit lors du déploiement via le pipeline CI/CD.
+        image: iaapi.azurecr.io/darija-frontend:latest
+        
+        # Toujours télécharger la nouvelle version de l'image, même si une version
+        # avec le même tag existe déjà sur le nœud. Crucial pour les mises à jour.
         imagePullPolicy: Always
+        
         ports:
+        # Le port sur lequel le conteneur Nginx écoute à l'intérieur du Pod.
         - containerPort: 80
+          protocol: TCP
+
+      # Secret Kubernetes contenant les identifiants pour se connecter 
+      # à Azure Container Registry (ACR) et télécharger l'image privée.
       imagePullSecrets:
       - name: acr-secret
+
 ---
+# ===================================================================
+# SERVICE
+# Expose le déploiement sur internet via une adresse IP publique.
+# ===================================================================
 apiVersion: v1
 kind: Service
 metadata:
   name: frontend-service
+  labels:
+    app: frontend
 spec:
-  type: LoadBalancer # Expose une IP publique
+  # 'LoadBalancer' demande au fournisseur cloud (Azure) de créer
+  # un équilibreur de charge avec une adresse IP publique.
+  type: LoadBalancer
+
+  # Lie ce service aux Pods qui ont le label 'app: frontend'.
   selector:
     app: frontend
+    
   ports:
-  - protocol: TCP
-    port: 80 # Le port public sera le port 80 (HTTP)
-    targetPort: 80 # Le conteneur Nginx écoute sur le port 80
+  - name: http
+    protocol: TCP
+    # Le port exposé publiquement par le Load Balancer.
+    port: 80
+    # Le port sur lequel le service redirige le trafic à l'intérieur du cluster.
+    # Il doit correspondre au 'containerPort' du déploiement.
+    targetPort: 80
