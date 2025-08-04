@@ -74,3 +74,7 @@ mlruns/
 .env
 __pycache__/
 *.pyc
+
+# Ignorer les dépendances du frontend
+frontend/node_modules/
+frontend/dist/
