@@ -181,11 +181,6 @@ jobs:
         run: |
           # Applique les fichiers YAML qui viennent d'être modifiés
           kubectl apply -f k8s/
-      
-            
-      - name: Déployer les manifestes Kubernetes
-        run: |
-          kubectl apply -f k8s/
 
       - name: Vérifier l'état du déploiement
         run: |

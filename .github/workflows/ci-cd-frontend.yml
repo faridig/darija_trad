@@ -57,7 +57,7 @@ jobs:
     name: 2 - Déploiement du Frontend sur AKS
     runs-on: self-hosted # Ou ubuntu-latest
     needs: build-and-push-image
-    # Le 'if' du job précédent garantit que celui-ci ne s'exécute aussi que sur un push vers master/main.
+    # Le 'if' du job précédent garantit que celui-ci ne s'exécute aussi que sur un push vers master/main..
 
     steps:
       - name: Checkout du code
