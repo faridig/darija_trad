@@ -1,3 +1,5 @@
+// frontend/src/services/api.js - VERSION CORRIGÉE
+
 import axios from 'axios';
 
 // Création d'une instance Axios pour l'API de données
@@ -13,19 +15,15 @@ const iaApi = axios.create({
 // Intercepteur pour l'instance de l'API d'IA
 iaApi.interceptors.request.use(
   (config) => {
-    // Récupérer le token depuis le sessionStorage
-    const token = sessionStorage.getItem('jwt_token');
+    // CORRECTION : On lit depuis localStorage pour être cohérent avec authService.js
+    const token = localStorage.getItem('jwt_token');
 
-    // Si le token existe, on l'ajoute à l'en-tête Authorization
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-
-    // On retourne la configuration de la requête pour qu'elle puisse continuer
     return config;
   },
   (error) => {
-    // En cas d'erreur lors de la configuration de la requête, on la rejette
     return Promise.reject(error);
   }
 );

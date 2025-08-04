@@ -1,0 +1,212 @@
+/* frontend/src/pages/TranslatorPage.css (Nouvelle palette) */
+:root {
+  /* Palette de couleurs "Deep Ocean" */
+  --background-primary: #101418;  /* Un noir très profond, presque bleu nuit */
+  --background-secondary: #1a2026; /* Bleu ardoise foncé pour les panneaux */
+  --background-panel: #1a2026;
+  --border-color: #2d3748;      /* Une bordure gris-bleu subtile */
+  --text-primary: #e2e8f0;       /* Un blanc cassé très lisible */
+  --text-secondary: #a0aec0;      /* Un gris clair pour le texte moins important */
+  
+  /* --- L'ACCENT --- */
+  --accent-color: #38b2ac;       /* Bleu-vert (Teal) pour l'action principale */
+  --accent-color-hover: #319795;  /* Une version légèrement plus foncée pour le survol */
+}
+
+.translator-page-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--background-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+}
+
+/* === MODIFICATION ICI === */
+.translator-header {
+  /* On transforme le header en flexbox pour aligner le titre et le bouton */
+  display: flex;
+  justify-content: space-between; /* Aligne les éléments aux extrémités */
+  align-items: center; /* Centre verticalement */
+  
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+/* === FIN DE LA MODIFICATION === */
+
+
+.translator-header h1 {
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.translator-main {
+  flex-grow: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 2rem;
+  gap: 1rem;
+}
+
+.panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden; /* Important pour que le contenu ne dépasse pas les bords arrondis */
+}
+
+.language-selector {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.language-selector select {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.language-selector select:focus {
+  outline: none;
+}
+
+.text-area {
+  flex-grow: 1;
+  padding: 1.5rem;
+  font-size: 1.25rem;
+  line-height: 1.7;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  resize: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.text-area:focus {
+  outline: none;
+}
+
+.output-text {
+  color: var(--text-secondary);
+}
+
+.swap-languages-button {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 8px; 
+  width: auto;
+  height: 44px;
+  padding: 0 1rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  flex-shrink: 0;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.swap-languages-button:hover {
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+}
+
+.swap-button-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.translator-footer {
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.translate-button {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  background-color: var(--accent-color);
+  color: white;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.translate-button:hover {
+  background-color: var(--accent-color-hover);
+}
+
+.translate-button:active {
+  transform: scale(0.97);
+}
+
+.language-selector select option {
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+}
+
+.spinner {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top: 4px solid var(--accent-color);
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-message {
+  color: #e53e3e;
+  margin-right: auto;
+  align-self: center;
+}
+
+.translate-button:disabled,
+.swap-languages-button:disabled {
+  background-color: #555;
+  cursor: not-allowed;
+}
+
+
+/* === AJOUT À LA FIN DU FICHIER === */
+.logout-button {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.logout-button:hover {
+  background-color: var(--background-panel);
+  color: var(--text-primary);
+}
+/* === FIN DE L'AJOUT === */

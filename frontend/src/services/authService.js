@@ -1,3 +1,5 @@
+// frontend/src/services/authService.js (Version mise à jour et corrigée)
+
 import { dataApi } from './api';
 
 const TOKEN_KEY = 'jwt_token';
@@ -17,7 +19,8 @@ const login = async (username, password) => {
   });
 
   if (response.data.access_token) {
-    sessionStorage.setItem(TOKEN_KEY, response.data.access_token);
+    // CORRECTION: On utilise localStorage pour la persistance
+    localStorage.setItem(TOKEN_KEY, response.data.access_token);
   }
   return response.data; 
 };
@@ -30,20 +33,29 @@ const register = async (username, password) => {
   return response.data;
 };
 
-
-// Fonction de déconnexion (logout))
+// Fonction de déconnexion (logout)
 const logout = () => {
-  sessionStorage.removeItem(TOKEN_KEY);
+  // CORRECTION: On utilise localStorage pour la persistance
+  localStorage.removeItem(TOKEN_KEY);
 };
 
 // Fonction pour récupérer le token (utile pour vérifier si l'utilisateur est connecté)
 const getToken = () => {
-  return sessionStorage.getItem(TOKEN_KEY);
+  // CORRECTION: On utilise localStorage pour la persistance
+  return localStorage.getItem(TOKEN_KEY);
 };
 
+// NOUVELLE FONCTION: Vérifie si l'utilisateur est authentifié
+const isAuthenticated = () => {
+  // Un utilisateur est considéré comme authentifié s'il a un token dans le localStorage
+  return !!localStorage.getItem(TOKEN_KEY);
+};
+
+// Export de toutes les fonctions utiles pour le reste de l'application
 export const authService = {
   register,
   login,
   logout,
   getToken,
+  isAuthenticated, // On exporte la nouvelle fonction
 };
