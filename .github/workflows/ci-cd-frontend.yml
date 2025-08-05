@@ -21,7 +21,7 @@ on:
 jobs:
   # ===================================================================
   # JOB 1 : CONSTRUIRE L'IMAGE DOCKER ET LA POUSSER SUR ACR
-  # ===================================================================
+  # ====================================================================
   build-and-push-image:
     name: 1 - Build et Push de l'image Frontend
     runs-on: ubuntu-latest
@@ -73,6 +73,21 @@ jobs:
         run: |
           kubectl cluster-info
           kubectl get nodes
+
+      - name: Supprimer le secret existant (ignore si non trouvé)
+        run: |
+          kubectl delete secret api-secrets || true
+
+      - name: Créer/Mettre à jour le secret pour l'API
+        run: |
+          kubectl create secret generic api-secrets \
+            --from-literal=ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
+            --from-literal=ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
+            --from-literal=SUPABASE_URL='${{ secrets.SUPABASE_URL }}' \
+            --from-literal=BASE_URL='${{ secrets.BASE_URL }}' \
+            --from-literal=BASE_URL='${{ secrets.VITE_DATA_API_BASE_URL }}' \
+            --from-literal=BASE_URL='${{ secrets.VITE_IA_API_BASE_URL }}' \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Mettre à jour le tag de l'image dans le manifeste Frontend
         run: |
