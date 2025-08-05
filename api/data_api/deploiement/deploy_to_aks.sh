@@ -69,6 +69,7 @@ kubectl create secret generic api-secrets \
   --from-literal=ADMIN_USERNAME="$ADMIN_USERNAME" \
   --from-literal=ADMIN_PASSWORD="$ADMIN_PASSWORD" \
   --from-literal=SUPABASE_URL="$SUPABASE_URL" \
+  --from-literal=BASE_URL="$BASE_URL" \
   --from-literal=DATA_API_BASE_URL="$VITE_DATA_API_BASE_URL" \
   --from-literal=IA_API_BASE_URL="$VITE_IA_API_BASE_URL"
 
