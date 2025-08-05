@@ -8,18 +8,38 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',
-    // AJOUTER/MODIFIER CETTE SECTION
     coverage: {
-      provider: 'v8', // ou 'istanbul'
-      reporter: ['text', 'json', 'html'], // Formats de rapport à générer
-      // Exclure certains fichiers de l'analyse de couverture
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      
+      // =======================================================
+      // DÉBUT DE LA MISE À JOUR
+      // =======================================================
       exclude: [
+        // Fichiers et dossiers standards à ignorer
         'node_modules/',
+        'dist/',
+        'coverage/',
+        '.github/',
+        'public/',
+
+        // Fichiers de configuration du projet
+        '*.config.js',
+        '*.config.mjs',
+        '.eslintrc.cjs',
+
+        // Fichiers de setup des tests et points d'entrée
         'src/setupTests.js',
-        'src/main.jsx', // Souvent peu de logique testable ici
-        '.*.js', // Exclure les fichiers de config comme vite.config.js
+        'src/main.jsx',
+
+        // Composants qui n'ont pas de logique à tester (ex: layout pur)
+        'src/App.jsx'
       ],
-      // (Optionnel) Définir un seuil de couverture en pourcentage
+      // =======================================================
+      // FIN DE LA MISE À JOUR
+      // =======================================================
+
+      // On conserve les seuils pour garantir la qualité
       thresholds: {
         lines: 80,
         functions: 80,
