@@ -54,4 +54,18 @@ describe('authService', () => {
   test('isAuthenticated devrait retourner false si aucun token n\'existe', () => {
     expect(authService.isAuthenticated()).toBe(false);
   });
+
+  test('getToken devrait retourner le token depuis localStorage', () => {
+    const mockToken = 'my-secret-token';
+    localStorage.setItem('jwt_token', mockToken);
+    
+    const token = authService.getToken();
+    
+    expect(token).toBe(mockToken);
+  });
+
+  test('getToken devrait retourner null si aucun token n\'est stocké', () => {
+    const token = authService.getToken();
+    expect(token).toBeNull();
+  });
 });

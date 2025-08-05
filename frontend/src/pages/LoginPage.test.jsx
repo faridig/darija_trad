@@ -59,4 +59,27 @@ describe('LoginPage', () => {
     expect(authService.login).toHaveBeenCalledWith('testuser', 'password123');
   });
 
+
+  // Dans le describe('LoginPage', ...)
+
+test('devrait afficher un message d\'erreur si le login échoue', async () => {
+const user = userEvent.setup();
+// On simule une promesse rejetée par le service de login
+authService.login.mockRejectedValue(new Error('Invalid credentials'));
+
+render(
+<BrowserRouter>
+    <LoginPage />
+</BrowserRouter>
+);
+
+// Simulation de la saisie et du clic
+await user.type(screen.getByLabelText(/nom d'utilisateur/i), 'baduser');
+await user.type(screen.getByLabelText(/mot de passe/i), 'badpass');
+await user.click(screen.getByRole('button', { name: /se connecter/i }));
+
+// Vérification que le message d'erreur est bien affiché
+expect(await screen.findByText("Nom d'utilisateur ou mot de passe incorrect.")).toBeInTheDocument();
+});
+
 });

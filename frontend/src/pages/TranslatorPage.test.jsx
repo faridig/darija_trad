@@ -161,4 +161,36 @@ describe('TranslatorPage', () => {
       state: { message: "Votre session a expiré. Veuillez vous reconnecter." },
     });
   });
+
+  test('devrait mettre à jour automatiquement la langue cible si elle devient invalide', async () => {
+    const user = userEvent.setup();
+    authService.isAuthenticated.mockReturnValue(true);
+
+    render(
+        <BrowserRouter>
+        <TranslatorPage />
+        </BrowserRouter>
+    );
+
+    const selects = screen.getAllByRole('combobox');
+    const sourceLangSelect = selects[0];
+    const targetLangSelect = selects[1];
+
+    // État initial : Français -> Darija
+    expect(sourceLangSelect.value).toBe('fra_Latn');
+    expect(targetLangSelect.value).toBe('ary_Arab');
+
+    // 1. On passe en Darija -> Anglais (un état valide)
+    await user.selectOptions(sourceLangSelect, 'ary_Arab');
+    await user.selectOptions(targetLangSelect, 'eng_Latn');
+    expect(sourceLangSelect.value).toBe('ary_Arab');
+    expect(targetLangSelect.value).toBe('eng_Latn');
+
+    // 2. On change la source pour Français. La cible 'Anglais' devient invalide.
+    // Le useEffect devrait automatiquement forcer la cible à 'Darija'.
+    await user.selectOptions(sourceLangSelect, 'fra_Latn');
+
+    // Vérification que la cible a bien été mise à jour automatiquement
+    expect(targetLangSelect.value).toBe('ary_Arab');
+    });
 });

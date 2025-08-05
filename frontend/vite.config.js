@@ -31,6 +31,7 @@ export default defineConfig({
         // Fichiers de setup des tests et points d'entrée
         'src/setupTests.js',
         'src/main.jsx',
+        'src/services/api.js', 
 
         // Composants qui n'ont pas de logique à tester (ex: layout pur)
         'src/App.jsx'

@@ -98,4 +98,26 @@ describe('RegisterPage', () => {
     // Vérification que le message d'erreur spécifique est affiché
     expect(await screen.findByText("Ce nom d'utilisateur est déjà pris.")).toBeInTheDocument();
   });
+
+  test("devrait afficher une erreur générique pour une autre défaillance de l'API", async () => {
+    const user = userEvent.setup();
+    // On simule une erreur générique (différente de 409)
+    authService.register.mockRejectedValue(new Error('Internal Server Error'));
+
+    render(
+        <BrowserRouter>
+        <RegisterPage />
+        </BrowserRouter>
+    );
+
+    // Simulation de la saisie et du clic
+    await user.type(screen.getByLabelText(/nom d'utilisateur/i), 'someuser');
+    await user.type(screen.getByLabelText('Mot de passe'), 'password123');
+    await user.type(screen.getByLabelText(/confirmer le mot de passe/i), 'password123');
+    await user.click(screen.getByRole('button', { name: /s'inscrire/i }));
+
+    // Vérification que le message d'erreur générique est affiché
+    expect(await screen.findByText('Une erreur est survenue. Veuillez réessayer.')).toBeInTheDocument();
+    });
+  
 });
