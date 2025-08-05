@@ -159,8 +159,8 @@ jobs:
             --from-literal=ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
             --from-literal=SUPABASE_URL='${{ secrets.SUPABASE_URL }}' \
             --from-literal=BASE_URL='${{ secrets.BASE_URL }}' \
-            --from-literal=BASE_URL='${{ secrets.VITE_DATA_API_BASE_URL }}' \
-            --from-literal=BASE_URL='${{ secrets.VITE_IA_API_BASE_URL }}' \
+            --from-literal=VITE_DATA_API_BASE_URL='${{ secrets.VITE_DATA_API_BASE_URL }}' \
+            --from-literal=VITE_IA_API_BASE_URL='${{ secrets.VITE_IA_API_BASE_URL }}' \
             --dry-run=client -o yaml | kubectl apply -f -
       
       # Dans le job deploy-to-aks:
