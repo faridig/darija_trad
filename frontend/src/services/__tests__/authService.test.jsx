@@ -1,11 +1,11 @@
 // frontend/src/services/authService.test.jsx
 
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { authService } from './authService';
-import { dataApi } from './api';
+import { authService } from '../authService';
+import { dataApi } from '../api';
 
 // On mocke 'axios' (via notre instance dataApi)
-vi.mock('./api', () => ({
+vi.mock('../api', () => ({
   dataApi: {
     post: vi.fn(),
   },

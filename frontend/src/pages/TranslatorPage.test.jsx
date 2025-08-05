@@ -9,7 +9,8 @@ import TranslatorPage from './TranslatorPage';
 import { authService } from '../services/authService';
 import { iaApi } from '../services/api';
 
-// --- Bloc de Mocks (INCHANGÉ) ---
+// --- Mocks ---
+// On simule les services externes pour isoler le composant
 vi.mock('../services/authService');
 vi.mock('../services/api', () => ({
   iaApi: {
@@ -17,9 +18,10 @@ vi.mock('../services/api', () => ({
   },
 }));
 
+// On simule useNavigate pour pouvoir vérifier les redirections
 const mockedUsedNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-    const actual = await vi.importActual('react-router-dom');
+vi.mock('react-router-dom', async (importOriginal) => {
+    const actual = await importOriginal();
     return {
         ...actual,
         useNavigate: () => mockedUsedNavigate,
@@ -30,19 +32,13 @@ vi.mock('react-router-dom', async () => {
 describe('TranslatorPage', () => {
 
   beforeEach(() => {
+    // On réinitialise tous les mocks avant chaque test pour garantir l'isolation
     vi.clearAllMocks();
   });
 
-  // --- Tests existants (INCHANGÉS) ---
-  test('devrait rediriger vers la page de login si l\'utilisateur n\'est pas authentifié', () => {
+  test('devrait rediriger vers /login si l\'utilisateur n\'est pas authentifié', () => {
     authService.isAuthenticated.mockReturnValue(false);
-
-    render(
-        <BrowserRouter>
-            <TranslatorPage />
-        </BrowserRouter>
-    );
-
+    render(<BrowserRouter><TranslatorPage /></BrowserRouter>);
     expect(mockedUsedNavigate).toHaveBeenCalledWith('/login', {
       state: { message: "Veuillez vous connecter pour accéder au traducteur." },
     });
@@ -50,35 +46,25 @@ describe('TranslatorPage', () => {
 
   test('devrait afficher la page du traducteur si l\'utilisateur est authentifié', () => {
     authService.isAuthenticated.mockReturnValue(true);
-
-    render(
-      <BrowserRouter>
-        <TranslatorPage />
-      </BrowserRouter>
-    );
-
+    render(<BrowserRouter><TranslatorPage /></BrowserRouter>);
     expect(screen.getByRole('heading', { name: /traducteur darija/i })).toBeInTheDocument();
   });
 
-  // --- Test mis à jour avec act() ---
   test('devrait appeler l\'API de traduction et afficher le résultat', async () => {
     const user = userEvent.setup();
     authService.isAuthenticated.mockReturnValue(true);
     const mockResponse = { data: { reponse: 'Salam alikoum' } };
     iaApi.post.mockResolvedValue(mockResponse);
 
-    render(
-      <BrowserRouter>
-        <TranslatorPage />
-      </BrowserRouter>
-    );
+    render(<BrowserRouter><TranslatorPage /></BrowserRouter>);
 
     const textarea = screen.getByPlaceholderText(/saisissez votre texte/i);
     const translateButton = screen.getByRole('button', { name: /traduire/i });
 
-    // Envelopper les actions asynchrones dans act()
+    await user.type(textarea, 'Bonjour à tous');
+    
+    // On enveloppe le clic qui déclenche l'appel API asynchrone dans act()
     await act(async () => {
-      await user.type(textarea, 'Bonjour à tous');
       await user.click(translateButton);
     });
     
@@ -91,51 +77,44 @@ describe('TranslatorPage', () => {
     expect(await screen.findByText('Salam alikoum')).toBeInTheDocument();
   });
 
-  // --- Test mis à jour avec act() ---
   test('devrait gérer une erreur de l\'API de traduction et afficher un message', async () => {
     const user = userEvent.setup();
     authService.isAuthenticated.mockReturnValue(true);
     iaApi.post.mockRejectedValue(new Error('API Error'));
 
-    render(
-      <BrowserRouter>
-        <TranslatorPage />
-      </BrowserRouter>
-    );
+    render(<BrowserRouter><TranslatorPage /></BrowserRouter>);
 
-    // Envelopper les actions asynchrones dans act()
+    await user.type(screen.getByPlaceholderText(/saisissez votre texte/i), 'Test');
+    
+    // On enveloppe le clic qui déclenche l'appel API asynchrone (qui va échouer)
     await act(async () => {
-      await user.type(screen.getByPlaceholderText(/saisissez votre texte/i), 'Test');
       await user.click(screen.getByRole('button', { name: /traduire/i }));
     });
     
     expect(await screen.findByText('Une erreur est survenue lors de la traduction. Veuillez réessayer.')).toBeInTheDocument();
   });
 
-  // --- Test mis à jour avec act() ---
   test('devrait inverser les langues et les textes lors du clic sur le bouton "Inverser"', async () => {
     const user = userEvent.setup();
     authService.isAuthenticated.mockReturnValue(true);
     
-    render(
-      <BrowserRouter>
-        <TranslatorPage />
-      </BrowserRouter>
-    );
+    render(<BrowserRouter><TranslatorPage /></BrowserRouter>);
 
     const inputArea = screen.getByPlaceholderText(/saisissez votre texte/i);
     const translateButton = screen.getByRole('button', { name: /traduire/i });
 
+    // Étape 1 : Saisir du texte et le traduire
+    await user.type(inputArea, 'Bonjour');
     await act(async () => {
-        await user.type(inputArea, 'Bonjour');
         iaApi.post.mockResolvedValue({ data: { reponse: 'Salam' } });
         await user.click(translateButton);
     });
 
+    // On attend que la première mise à jour soit terminée
     await screen.findByText('Salam');
+    
+    // Étape 2 : Inverser les langues
     const swapButton = screen.getByRole('button', { name: /inverser/i });
-
-    // Envelopper la deuxième action dans act()
     await act(async () => {
       await user.click(swapButton);
     });
@@ -147,57 +126,39 @@ describe('TranslatorPage', () => {
     expect(selects[1].value).toBe('fra_Latn');
   });
 
-  // ==========================================================
-  // NOUVEAUX TESTS POUR AUGMENTER LA COUVERTURE
-  // ==========================================================
-
-  test('devrait appeler authService.logout et rediriger vers /login au clic sur Déconnexion', async () => {
+  test('devrait appeler authService.logout et rediriger au clic sur Déconnexion', async () => {
     const user = userEvent.setup();
     authService.isAuthenticated.mockReturnValue(true);
 
-    render(
-      <BrowserRouter>
-        <TranslatorPage />
-      </BrowserRouter>
-    );
+    render(<BrowserRouter><TranslatorPage /></BrowserRouter>);
 
     const logoutButton = screen.getByRole('button', { name: /déconnexion/i });
-    await user.click(logoutButton);
+    // Le clic sur logout est synchrone mais déclenche une navigation, il est bon de l'envelopper aussi.
+    await act(async () => {
+        await user.click(logoutButton);
+    });
 
-    // Vérifie que la fonction de déconnexion du service a été appelée
     expect(authService.logout).toHaveBeenCalledOnce();
-    // Vérifie que l'utilisateur est redirigé vers la page de connexion
     expect(mockedUsedNavigate).toHaveBeenCalledWith('/login');
   });
   
   test('devrait rediriger vers login avec un message si l\'API renvoie une erreur 401 (session expirée)', async () => {
     const user = userEvent.setup();
     authService.isAuthenticated.mockReturnValue(true);
-
-    // On simule une erreur 401 (Unauthorized) de l'API
     const apiError = { response: { status: 401 } };
     iaApi.post.mockRejectedValue(apiError);
 
-    render(
-      <BrowserRouter>
-        <TranslatorPage />
-      </BrowserRouter>
-    );
+    render(<BrowserRouter><TranslatorPage /></BrowserRouter>);
 
-    const textarea = screen.getByPlaceholderText(/saisissez votre texte/i);
-    const translateButton = screen.getByRole('button', { name: /traduire/i });
-
+    await user.type(screen.getByPlaceholderText(/saisissez votre texte/i), 'Ce texte va échouer');
+    
     await act(async () => {
-      await user.type(textarea, 'Ce texte va échouer');
-      await user.click(translateButton);
+      await user.click(screen.getByRole('button', { name: /traduire/i }));
     });
 
-    // Vérifie que la déconnexion a été appelée (bonne pratique en cas de 401)
     expect(authService.logout).toHaveBeenCalledOnce();
-    // Vérifie que la redirection se fait vers /login avec le message approprié
     expect(mockedUsedNavigate).toHaveBeenCalledWith('/login', {
       state: { message: "Votre session a expiré. Veuillez vous reconnecter." },
     });
   });
-
 });
