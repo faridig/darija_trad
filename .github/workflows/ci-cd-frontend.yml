@@ -84,13 +84,6 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      - name: Create .env file for production build
-        run: |
-          echo "VITE_DATA_API_BASE_URL=${{ secrets.VITE_DATA_API_BASE_URL }}" > ./frontend/.env
-          echo "VITE_IA_API_BASE_URL=${{ secrets.VITE_IA_API_BASE_URL }}" >> ./frontend/.env
-          echo "Fichier .env pour le build :"
-          cat ./frontend/.env
-
       - name: Build and Push Frontend Image
         uses: docker/build-push-action@v5
         with:

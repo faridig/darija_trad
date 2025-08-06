@@ -51,4 +51,6 @@ locust
 
 # --- Outils de Développement ---
 ipython
-setuptools  
+setuptools
+pip-tools
+gpt-context-builder

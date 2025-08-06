@@ -44,9 +44,15 @@ REQUEST_LATENCY = Histogram(
 
 DATA_DRIFT_INPUT_LENGTH = Histogram(
     'data_drift_text_length',
-    'Longueur du texte soumis au modèle',
-    buckets=(0, 10, 20, 40, 60, 80, 100, 150, 200)
+    'Longueur du texte soumis au modèle (en nombre de mots)',
+    buckets=(
+        0, 3, 6, 9, 12, 15,  # <-- Haute résolution pour le cœur de la distribution (75% des données)
+        20, 25, 30,          # <-- Résolution moyenne pour le début de la traîne
+        40, 50,              # <-- Résolution plus faible pour les données plus rares
+        75, 100, 150, 200     # <-- Larges seaux pour les outliers jusqu'à la limite max de l'API (200 mots)
+    )
 )
+
 
 
 @router.get("/health")

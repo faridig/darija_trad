@@ -1,85 +1,166 @@
 {
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
   "id": null,
-  "uid": "nllb-darija-api",
-  "title": "NLLB-LoRA Darija – Monitoring",
-  "timezone": "browser",
-  "schemaVersion": 27,
-  "version": 0,
-  "refresh": "10s",
+  "links": [],
   "panels": [
     {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 10,
+      "panels": [],
+      "title": "1. Indicateurs de Performance (Latence et Trafic)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Ce graphique montre le volume de requêtes que l'API reçoit chaque seconde, ventilé par *endpoint* (ex: `/generer`, `/login`).\n\n**Comment l'interpréter ?**\n- **Activité :** Confirme que l'API est en service et utilisée.\n- **Charge :** Permet d'identifier les pics d'utilisation.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
       "id": 1,
-      "type": "graph",
-      "title": "Requêtes API par endpoint",
-      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 },
-      "datasource": "Prometheus",
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
       "targets": [
         {
-          "expr": "sum(rate(api_requests_total[1m])) by (endpoint)",
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(api_requests_total[2m])) by (endpoint)",
           "legendFormat": "{{endpoint}}",
           "refId": "A"
         }
       ],
-      "yaxes": [
-        { "format": "req/s", "label": "req/s", "min": 0 },
-        { "show": false }
-      ]
+      "title": "Activité de l'API : Requêtes par Seconde (RPS)",
+      "type": "timeseries",
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
     },
     {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Ce graphique mesure la rapidité de réponse de l'API.\n\n- **Moyenne :** Le temps de réponse typique.\n- **P95 :** Le temps de réponse maximum pour 95% des utilisateurs. C'est le meilleur indicateur de la performance *perçue*. Une P95 élevée indique que certains utilisateurs subissent des lenteurs.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
       "id": 2,
-      "type": "graph",
-      "title": "Latence moyenne par endpoint",
-      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
-      "datasource": "Prometheus",
-      "targets": [
-        {
-          "expr": "sum(rate(api_request_latency_seconds_sum[5m])) by (endpoint) / sum(rate(api_request_latency_seconds_count[5m])) by (endpoint)",
-          "legendFormat": "{{endpoint}} avg",
-          "refId": "A"
-        }
-      ],
-      "yaxes": [
-        { "format": "s", "label": "secondes", "min": 0 },
-        { "show": false }
-      ]
-    },
-    {
-      "id": 3,
-      "type": "graph",
-      "title": "Latence P95 par endpoint",
-      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 6 },
-      "datasource": "Prometheus",
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.95, sum(rate(api_request_latency_seconds_bucket[5m])) by (le, endpoint))",
-          "legendFormat": "{{endpoint}} p95",
-          "refId": "A"
-        }
-      ],
-      "yaxes": [
-        { "format": "s", "label": "secondes", "min": 0 },
-        { "show": false }
-      ]
-    },
-    {
-      "id": 4,
-      "type": "heatmap",
-      "title": "Distribution longueur du texte (drift)",
-      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 6 },
-      "datasource": "Prometheus",
-      "targets": [
-        {
-          "expr": "rate(data_drift_text_length_bucket[5m])",
-          "refId": "A"
-        }
-      ],
       "options": {
-        "showLegend": true,
-        "bucketBound": {
-          "from": "le",
-          "to": null
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(rate(api_request_latency_seconds_sum[5m])) by (endpoint) / sum(rate(api_request_latency_seconds_count[5m])) by (endpoint)",
+          "legendFormat": "{{endpoint}} (moyenne)",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(api_request_latency_seconds_bucket[5m])) by (le, endpoint))",
+          "legendFormat": "{{endpoint}} (P95)",
+          "refId": "B"
         }
+      ],
+      "title": "Performance de l'API : Temps de Réponse (Latence)",
+      "type": "timeseries",
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 12,
+      "panels": [],
+      "title": "2. Suivi de la Pertinence du Modèle (Data Drift)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "C'est l'indicateur principal de la dérive des données. Il suit la longueur maximale des textes pour 75% des requêtes.\n\n- **Référence d'entraînement = 14 mots.**\n\nUne tendance durable au-dessus de cette référence signifie que le modèle est utilisé avec des données plus longues que prévu, ce qui peut dégrader sa pertinence.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "id": 6,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "histogram_quantile(0.75, sum(rate(data_drift_text_length_bucket[5m])) by (le))",
+          "legendFormat": "P75 Longueur (Production)",
+          "refId": "A"
+        }
+      ],
+      "title": "Signal de Data Drift : Tendance du P75 (Longueur des Textes)",
+      "type": "timeseries",
+      "fieldConfig": {
+        "defaults": { "unit": " mot(s)" },
+        "overrides": [
+          {
+            "matcher": { "id": "thresholds" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "rgba(237, 129, 40, 0.82)", "value": 14 },
+                    { "color": "red", "value": 25 }
+                  ]
+                }
+              },
+              { "id": "custom.thresholdsStyle", "value": { "mode": "area" } }
+            ]
+          }
+        ]
       }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Ce graphique montre la 'forme' de l'utilisation actuelle : combien de requêtes courtes, moyennes ou longues sont reçues.\n\n**Comment l'interpréter ?**\n- Il permet de comprendre *pourquoi* le P75 évolue.\n- Idéalement, sa forme doit ressembler à celle des données d'entraînement (un pic sur les textes très courts).",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "id": 4,
+      "options": {
+        "legend": { "displayMode": "hidden" },
+        "tooltip": { "mode": "single", "sort": "none" },
+        "viz": "comparison",
+        "xAxis": { "placement": "bottom", "label": "Nombre de mots" },
+        "yAxis": { "placement": "left", "label": "Nombre de requêtes" }
+      },
+      "pluginVersion": "10.4.1",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(increase(data_drift_text_length_bucket[5m])) by (le)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Analyse du Data Drift : Forme de la Distribution Actuelle",
+      "type": "barchart",
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "transformations": [ { "id": "histogram", "options": {} } ]
     }
-  ]
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": [],
+  "templating": { "list": [] },
+  "timezone": "browser",
+  "title": "NLLB-Darija API - Tableau de Bord Opérationnel",
+  "uid": "nllb-darija-api-explicit-v5",
+  "version": 5,
+  "weekStart": ""
 }
