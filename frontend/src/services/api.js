@@ -2,14 +2,19 @@
 
 import axios from 'axios';
 
+const DATA_API_URL = window.runtimeConfig?.VITE_DATA_API_BASE_URL || import.meta.env.VITE_DATA_API_BASE_URL;
+const IA_API_URL = window.runtimeConfig?.VITE_IA_API_BASE_URL || import.meta.env.VITE_IA_API_BASE_URL;
+
 // Création d'une instance Axios pour l'API de données
 const dataApi = axios.create({
-  baseURL: import.meta.env.VITE_DATA_API_BASE_URL,
+  // On utilise la variable que l'on vient de définir
+  baseURL: DATA_API_URL,
 });
 
 // Création d'une instance Axios pour l'API d'IA
 const iaApi = axios.create({
-  baseURL: import.meta.env.VITE_IA_API_BASE_URL,
+  // On utilise la variable que l'on vient de définir
+  baseURL: IA_API_URL,
 });
 
 // Intercepteur pour l'instance de l'API d'IA

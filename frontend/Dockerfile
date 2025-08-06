@@ -1,41 +1,58 @@
 # frontend/Dockerfile
 
 # ===================================================================
-# Étape 1 : Le "Builder"
-# Utilise une image Node.js pour installer les dépendances et construire l'application.
+# Étape 1: "Builder" - Construction de l'application JavaScript
 # ===================================================================
-FROM node:18-alpine AS builder
+# On part d'une image Node.js pour compiler notre code.
+FROM node:18-alpine as builder
 
-# Définir le répertoire de travail dans le conteneur
+# On définit le répertoire de travail dans l'image.
 WORKDIR /app
 
-# Copier les fichiers de définition des dépendances
-# On copie package.json et package-lock.json en premier pour profiter du cache Docker.
-# Si ces fichiers ne changent pas, Docker n'exécutera pas 'npm install' à chaque build.
-COPY package.json package-lock.json ./
+# On copie les fichiers de définition des dépendances.
+COPY package*.json ./
 
-# Installer les dépendances
-RUN npm install
+# On installe les dépendances. 'npm ci' est plus rapide et plus sûr pour la CI.
+RUN npm ci
 
-# Copier tout le reste du code source de l'application
+# On copie le reste du code source.
 COPY . .
 
-# Construire l'application pour la production
+# On lance le build de production. Cela crée les fichiers statiques (html, js, css)
+# dans le dossier /app/dist.
 RUN npm run build
 
-# À la fin de cette étape, notre application buildée se trouve dans /app/dist
 
 # ===================================================================
-# Étape 2 : La "Production"
-# Utilise une image Nginx très légère pour servir les fichiers statiques.
+# Étape 2: "Production" - Création de l'image finale légère
 # ===================================================================
-FROM nginx:1.25-alpine
+# On part d'une image Nginx très légère.
+FROM nginx:stable-alpine
 
+# On copie les fichiers construits à l'étape précédente dans le dossier
+# où Nginx sert les fichiers.
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# AJOUT: Copier notre configuration Nginx personnalisée
-# Cela va écraser la configuration par défaut de Nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Exposer le port 80
+# ===================================================================
+# ===> MODIFICATION AJOUTÉE <===
+# ===================================================================
+# On copie notre script "messager" (entrypoint.sh) dans l'image.
+COPY entrypoint.sh /entrypoint.sh
+
+# On s'assure qu'il a les permissions pour être exécuté.
+RUN chmod +x /entrypoint.sh
+
+# On définit ce script comme étant la SEULE chose à lancer au démarrage
+# du conteneur. C'est le changement le plus important.
+ENTRYPOINT ["/entrypoint.sh"]
+# ===================================================================
+# ===> FIN DE LA MODIFICATION <===
+# ===================================================================
+
+# On expose le port 80, sur lequel Nginx écoute.
 EXPOSE 80
+
+# On supprime l'ancienne commande CMD car c'est maintenant notre
+# entrypoint.sh qui se charge de lancer Nginx.
+# CMD ["nginx", "-g", "daemon off;"] # ANCIENNE LIGNE (maintenant inutile)
