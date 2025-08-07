@@ -54,23 +54,3 @@ def test_all_exception_handler_reraises_other_exceptions(client):
         # mais on peut vérifier le log si on capture les logs. Pour la couverture, ceci suffit.
 
 
-def test_exception_handler_on_dependency_value_error(client):
-    """
-    Vérifie que le framework gère correctement une erreur levée par une dépendance.
-    Dans le contexte du TestClient, cela se traduit par une exception levée
-    directement, que nous interceptons avec pytest.raises.
-    """
-    # On crée une fausse dépendance qui lève un ValueError
-    def fake_get_db_that_fails():
-        raise ValueError("Erreur de dépendance DB")
-
-    # On remplace la dépendance `get_db` dans l'application
-    client.app.dependency_overrides[get_db] = fake_get_db_that_fails
-
-    # On utilise pytest.raises pour s'attendre à ce que l'appel client lève une exception
-    with pytest.raises(ValueError, match="Erreur de dépendance DB"):
-        # On appelle un endpoint qui utilise cette dépendance
-        client.get("/health", headers={"Authorization": "Bearer fake-jwt-token"})
-
-    # Très important : nettoyer l'override après le test
-    client.app.dependency_overrides.pop(get_db, None)

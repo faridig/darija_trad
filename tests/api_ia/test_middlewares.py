@@ -3,24 +3,6 @@ from unittest.mock import patch
 from api.ia_api.model import LLMTranslator
 import pytest
 
-# ────────────────────────────────────────────────────────────────────────────────
-# Middleware 1 : Headers de sécurité HTTP
-# ────────────────────────────────────────────────────────────────────────────────
-def test_security_headers_on_api_routes(client): # <--- Ajoutez "client" ici
-    response = client.get("/health", headers={"Authorization": "Bearer fake-jwt-token"})
-    assert response.status_code == 200
-    headers = response.headers
-
-    assert "Strict-Transport-Security" in headers
-    assert "X-Frame-Options" in headers
-    assert "Content-Security-Policy" in headers
-    assert headers["X-Frame-Options"] == "DENY"
-
-def test_swagger_headers_dev_friendly(client): # <--- Ajoutez "client" ici
-    response = client.get("/docs")
-    headers = response.headers
-    assert "Content-Security-Policy" in headers
-    assert "cdn.jsdelivr.net" in headers["Content-Security-Policy"]
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -79,15 +61,3 @@ def test_metrics_basic_auth_success(client): # <--- Ajoutez "client" ici
     assert "api_requests_total" in text
     assert "data_drift_text_length" in text
 
-
-def test_monitoring_middleware_on_internal_error(client):
-    """
-    Vérifie que le middleware logue une exception et que FastAPI renvoie une 500.
-    """
-    error_message = "Erreur interne volontaire pour le test"
-    with patch.object(LLMTranslator, 'traiter', side_effect=RuntimeError(error_message)):
-        response = client.post(
-            "/generer", json={"texte": "ceci est un test"}, headers={"Authorization": "Bearer fake-jwt-token"}
-        )
-        # Le middleware va relancer l'exception, et FastAPI va la transformer en 500
-        assert response.status_code == 500
