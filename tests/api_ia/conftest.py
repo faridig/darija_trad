@@ -1,19 +1,39 @@
 import os
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from passlib.context import CryptContext
 
+# --- IMPORTS DE L'APPLICATION ---
 from api.ia_api.main import app
-# --- CORRECTION ---
-# On ne peut plus importer 'auth' car il a été supprimé.
-# On importe directement les dépendances que l'on veut simuler.
 from api.ia_api.routers import monitoring as mon_router
+from api.ia_api.model import LLMTranslator
 import database.core.db as core_db
 import database.core.auth as core_auth
-from api.ia_api.model import LLMTranslator
-# --- FIN DE LA CORRECTION ---
+
+# ==============================================================================
+# ===> CORRECTION : Restauration d'une base de données de test en mémoire <===
+# ==============================================================================
+# Même si l'API IA n'utilise plus la BDD pour sa logique métier, certaines routes
+# (comme /health dans sa version actuelle) ont encore la dépendance `Depends(get_db)`.
+# Pour que les tests ne plantent pas en essayant de se connecter à une vraie BDD,
+# nous fournissons une fausse BDD en mémoire (SQLite) uniquement pour la durée des tests.
+
+SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def override_get_db():
+    """Crée une session de base de données de test."""
+    try:
+        db = TestingSessionLocal()
+        yield db
+    finally:
+        db.close()
+
+# ==============================================================================
+# ===> FIN DE LA CORRECTION <===
+# ==============================================================================
 
 
 @pytest.fixture(autouse=True)
@@ -22,39 +42,25 @@ def stub_env_and_dependencies(monkeypatch):
     Ce fixture s'exécute automatiquement pour chaque test.
     Il simule les dépendances externes pour isoler nos tests.
     """
-    # 1) Variables d'environnement pour la route /metrics
+    # 1) Simulation des variables d'environnement pour la route /metrics
     monkeypatch.setenv("ADMIN_USERNAME", "admin")
     monkeypatch.setenv("ADMIN_PASSWORD", "password")
-    # On modifie directement les constantes dans le module 'monitoring'
     monkeypatch.setattr(mon_router, "ADMIN_USERNAME", "admin")
     monkeypatch.setattr(mon_router, "ADMIN_PASSWORD", "password")
 
-    # --- CORRECTION ---
-    # 2) La logique de 'authenticate_user' et 'create_access_token' n'est plus
-    #    dans l'API IA. Il n'y a donc plus rien à simuler ici concernant
-    #    la création de token. On supprime les anciens mocks.
-    # --- FIN DE LA CORRECTION ---
-
-    # 3) Simulation de la validation de token pour toutes les routes protégées.
-    #    Ceci est maintenant la seule simulation d'authentification nécessaire.
-    def fake_verify_jwt_token(credentials=None):
-        # On simule un utilisateur authentifié avec succès.
+    # 2) Simulation de la validation de token pour toutes les routes protégées.
+    def fake_verify_jwt_token():
         return {"username": "testuser", "sub": "testuser"}
-
     app.dependency_overrides[core_auth.verify_jwt_token] = fake_verify_jwt_token
 
-    # 4) Simulation de la méthode 'traiter' du modèle LLM pour que les tests
-    #    soient rapides et ne dépendent pas du chargement d'un vrai modèle.
+    # 3) Simulation de la méthode 'traiter' du modèle LLM pour des tests rapides.
     def fake_traduction(self, texte, src_lang=None, tgt_lang=None):
         return f"translated:{texte}"
-
     monkeypatch.setattr(LLMTranslator, "traiter", fake_traduction)
+    
+    # 4) On applique l'override de la base de données pour tous les tests.
+    app.dependency_overrides[core_db.get_db] = override_get_db
 
-# --- CORRECTION ---
-# 5) La base de données n'est plus du tout utilisée par l'API IA.
-#    Toute la logique de création de BDD de test, de session, et d'override de get_db
-#    peut être supprimée car elle est devenue inutile.
-# --- FIN DE LA CORRECTION ---
 
 @pytest.fixture(scope="function")
 def client():
@@ -62,8 +68,6 @@ def client():
     Crée un client de test pour l'application.
     Ce client permet d'envoyer des requêtes HTTP à notre API en mémoire.
     """
-    # On utilise un with TestClient(app) pour s'assurer que les événements
-    # de démarrage et d'arrêt de l'application sont bien exécutés.
     with TestClient(app) as test_client:
         yield test_client
 

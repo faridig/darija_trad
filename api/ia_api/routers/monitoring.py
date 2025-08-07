@@ -11,7 +11,6 @@ import secrets
 from dotenv import load_dotenv
 
 from .generation import translator
-from database.core.db import get_db
 from database.core.auth import verify_jwt_token
 
 # Init router
@@ -58,7 +57,6 @@ DATA_DRIFT_INPUT_LENGTH = Histogram(
 @router.get("/health")
 async def health_check(
     token: dict = Depends(verify_jwt_token),
-    db=Depends(get_db)
 ):
     """Endpoint de vérification de santé"""
     try:
