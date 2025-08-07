@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from .generation import translator
 from database.core.auth import verify_jwt_token
 
-# Init router
+# Init routerr
 router = APIRouter(tags=["Monitoring"])
 
 # Charger .env
