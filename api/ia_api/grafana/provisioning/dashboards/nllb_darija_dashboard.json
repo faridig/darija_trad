@@ -130,9 +130,16 @@
       "options": {
         "legend": { "displayMode": "hidden" },
         "tooltip": { "mode": "single", "sort": "none" },
-        "viz": "comparison",
         "xAxis": { "placement": "bottom", "label": "Nombre de mots" },
-        "yAxis": { "placement": "left", "label": "Nombre de requêtes" }
+        "yAxis": { "placement": "left", "label": "Nombre de requêtes" },
+        "barRadius": 0,
+        "barWidth": 1,
+        "groupWidth": 0,
+        "orientation": "vertical",
+        "showValue": "never",
+        "stacking": "none",
+        "xField": "le",
+        "yField": "Value"
       },
       "pluginVersion": "10.4.1",
       "targets": [
@@ -154,12 +161,8 @@
           "id": "convertFieldType",
           "options": {
             "conversions": [
-              {
-                "destinationType": "string",
-                "targetField": "le"
-              }
-            ],
-            "fields": {}
+              { "destinationType": "string", "targetField": "le" }
+            ]
           }
         }
       ]
@@ -173,6 +176,6 @@
   "timezone": "browser",
   "title": "NLLB-Darija API - Tableau de Bord Opérationnel",
   "uid": "nllb-darija-api-explicit-v5-compatible",
-  "version": 8,
+  "version": 9,
   "weekStart": ""
 }
