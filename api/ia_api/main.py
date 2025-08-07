@@ -11,7 +11,7 @@ from slowapi.middleware import SlowAPIMiddleware
 # Test de déclenchement du pipeline CI/CD
 
 # Routes
-from api.ia_api.routers import auth, generation, monitoring
+from api.ia_api.routers import generation, monitoring
 
 # Middlewares personnalisés
 from api.ia_api.middlewares import (
@@ -22,29 +22,30 @@ from api.ia_api.middlewares import (
 
 # Initialisation FastAPI
 app = FastAPI(
-    title="Translation API",
+    title="IA Translation API", # Titre mis à jour
     version="1.0",
-    description="🔐 Authentification avec JWT",
+    
+    # --- DÉBUT DE LA MODIFICATION DE LA DESCRIPTION ---
+    description="""
+🤖 **API d'Inférence pour la Traduction**
+
+Cette API utilise un modèle d'IA pour traduire du texte. Elle est sécurisée par JWT.
+
+**Comment l'utiliser :**
+
+1.  Obtenez un token d'accès en faisant un `POST /login` sur l'**API de Données** (`data-api`).
+2.  Copiez le `access_token` retourné.
+3.  Cliquez sur le bouton 🔐 "Authorize" en haut à droite de cette page.
+4.  Dans la fenêtre qui apparaît, collez votre token sous la forme `Bearer <votre_token>`.
+
+⚠️ Toutes les routes de cette API (comme `/generer`) nécessitent un token valide.
+""",
+    # --- FIN DE LA MODIFICATION DE LA DESCRIPTION ---
+    
     swagger_ui_parameters={
         "jsonEditor": False,
         "defaultModelRendering": "model",
     },
-)
-
-# 1) Sécurité HTTP headers
-app.middleware("http")(add_security_headers)
-
-# 2) CORS — autoriser l'origine locale et celle du frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # <--- pour le développement local
-        "http://127.0.0.1:5173",   # (Par sécurité, on ajoute aussi 127.0.0.1)
-        "http://4.178.232.175", #fronted azure
-    ],
-    allow_credentials=True,
-    allow_methods=["GET", "POST"],
-    allow_headers=["Authorization", "Content-Type"]
 )
 
 # 3) Limitation stricte de la taille du body (ex: max 10 KB)
@@ -72,7 +73,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 # 7) Inclusion des routes principales
-app.include_router(auth.router)
 app.include_router(generation.router)
 app.include_router(monitoring.router)
 
