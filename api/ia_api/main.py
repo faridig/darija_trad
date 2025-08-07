@@ -40,7 +40,7 @@ Cette API utilise un modèle d'IA pour traduire du texte. Elle est sécurisée p
 
 ⚠️ Toutes les routes de cette API (comme `/generer`) nécessitent un token valide.
 """,
-    # --- FIN DE LA MODIFICATION DE LA DESCRIPTION ---
+    # --- FIN DE LA MODIFICATION DE LA DESCRIPTION ------
     
     swagger_ui_parameters={
         "jsonEditor": False,
