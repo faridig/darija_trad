@@ -6,87 +6,67 @@ from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 
 from api.ia_api.main import app
-from api.ia_api.routers import auth as auth_router, monitoring as mon_router
+# --- CORRECTION ---
+# On ne peut plus importer 'auth' car il a été supprimé.
+# On importe directement les dépendances que l'on veut simuler.
+from api.ia_api.routers import monitoring as mon_router
 import database.core.db as core_db
 import database.core.auth as core_auth
 from api.ia_api.model import LLMTranslator
+# --- FIN DE LA CORRECTION ---
+
 
 @pytest.fixture(autouse=True)
 def stub_env_and_dependencies(monkeypatch):
-    # 1) Variables pour /metrics
+    """
+    Ce fixture s'exécute automatiquement pour chaque test.
+    Il simule les dépendances externes pour isoler nos tests.
+    """
+    # 1) Variables d'environnement pour la route /metrics
     monkeypatch.setenv("ADMIN_USERNAME", "admin")
     monkeypatch.setenv("ADMIN_PASSWORD", "password")
-    # Override des constantes du module monitoring
+    # On modifie directement les constantes dans le module 'monitoring'
     monkeypatch.setattr(mon_router, "ADMIN_USERNAME", "admin")
     monkeypatch.setattr(mon_router, "ADMIN_PASSWORD", "password")
 
-    # 2) Stub de authenticate_user & create_access_token
-    def fake_auth(username, password, db):
-        return {"username": username} if (username, password) == ("admin", "password") else None
+    # --- CORRECTION ---
+    # 2) La logique de 'authenticate_user' et 'create_access_token' n'est plus
+    #    dans l'API IA. Il n'y a donc plus rien à simuler ici concernant
+    #    la création de token. On supprime les anciens mocks.
+    # --- FIN DE LA CORRECTION ---
 
-    def fake_token(data, expires_delta=None):
-        return "fake-jwt-token"
-
-    monkeypatch.setattr(auth_router, "authenticate_user", fake_auth)
-    monkeypatch.setattr(auth_router, "create_access_token", fake_token)
-
-    # 3) Stub de verify_jwt_token pour toute l'app
+    # 3) Simulation de la validation de token pour toutes les routes protégées.
+    #    Ceci est maintenant la seule simulation d'authentification nécessaire.
     def fake_verify_jwt_token(credentials=None):
-        return {"username": "admin"}
+        # On simule un utilisateur authentifié avec succès.
+        return {"username": "testuser", "sub": "testuser"}
 
     app.dependency_overrides[core_auth.verify_jwt_token] = fake_verify_jwt_token
 
-    # 4) Stub de la méthode traiter de LLMTranslator (génération & health)
+    # 4) Simulation de la méthode 'traiter' du modèle LLM pour que les tests
+    #    soient rapides et ne dépendent pas du chargement d'un vrai modèle.
     def fake_traduction(self, texte, src_lang=None, tgt_lang=None):
-        print("[MOCK] Traduction simulée")
         return f"translated:{texte}"
-
 
     monkeypatch.setattr(LLMTranslator, "traiter", fake_traduction)
 
-@pytest.fixture(scope="function")
-def test_db_engine():
-    # SQLite in-memory pour /login
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False}
-    )
-    with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                hashed_password TEXT NOT NULL,
-                is_admin BOOLEAN DEFAULT FALSE
-            )
-        """))
-        pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        hashed = pwd_ctx.hash("password")
-        conn.execute(text("""
-            INSERT INTO users (username, hashed_password, is_admin)
-            VALUES (:u, :p, 1)
-        """), {"u": "admin", "p": hashed})
-    return engine
+# --- CORRECTION ---
+# 5) La base de données n'est plus du tout utilisée par l'API IA.
+#    Toute la logique de création de BDD de test, de session, et d'override de get_db
+#    peut être supprimée car elle est devenue inutile.
+# --- FIN DE LA CORRECTION ---
 
 @pytest.fixture(scope="function")
-def client(test_db_engine):
-    TestingSessionLocal = sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=test_db_engine
-    )
+def client():
+    """
+    Crée un client de test pour l'application.
+    Ce client permet d'envoyer des requêtes HTTP à notre API en mémoire.
+    """
+    # On utilise un with TestClient(app) pour s'assurer que les événements
+    # de démarrage et d'arrêt de l'application sont bien exécutés.
+    with TestClient(app) as test_client:
+        yield test_client
 
-    def override_get_db():
-        db = TestingSessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-
-    app.dependency_overrides[core_db.get_db] = override_get_db
-
-    client = TestClient(app)
-    yield client
-
-    # Nettoyage des overrides
+    # Nettoyage des simulations de dépendances après chaque test
+    # pour garantir l'isolation des tests.
     app.dependency_overrides.clear()
