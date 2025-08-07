@@ -22,10 +22,8 @@ from api.ia_api.middlewares import (
 
 # Initialisation FastAPI
 app = FastAPI(
-    title="IA Translation API", # Titre mis à jour
+    title="IA Translation API",
     version="1.0",
-    
-    # --- DÉBUT DE LA MODIFICATION DE LA DESCRIPTION ---
     description="""
 🤖 **API d'Inférence pour la Traduction**
 
@@ -40,12 +38,23 @@ Cette API utilise un modèle d'IA pour traduire du texte. Elle est sécurisée p
 
 ⚠️ Toutes les routes de cette API (comme `/generer`) nécessitent un token valide.
 """,
-    # --- FIN DE LA MODIFICATION DE LA DESCRIPTION ------
-    
     swagger_ui_parameters={
         "jsonEditor": False,
         "defaultModelRendering": "model",
     },
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",      # Pour le développement local
+        "http://127.0.0.1:5173",
+        "http://4.178.232.175"       # L'IP de votre frontend déployé
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],  # Autorise TOUTES les méthodes (GET, POST, OPTIONS, etc.)
+    allow_headers=["*"]   # Autorise TOUS les en-têtes (comme Authorization, Content-Type)
 )
 
 # 3) Limitation stricte de la taille du body (ex: max 10 KB)
@@ -63,33 +72,26 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # 6) Gestion des erreurs de validation (FastAPI + Pydantic)
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    # On ne garde que les messages de chaque erreur Pydantic,
-    # pour éviter d'essayer de serialiser un Pattern, un ValueError, etc.
     messages = [ err.get("msg") for err in exc.errors() ]
     return JSONResponse(
         status_code=422,
         content={"detail": messages}
     )
 
-
 # 7) Inclusion des routes principales
 app.include_router(generation.router)
 app.include_router(monitoring.router)
 
-
 @app.exception_handler(Exception)
 async def all_exception_handler(request: Request, exc: Exception):
-    # Si c'est un ValueError (nos validations Pydantic),
-    # on renvoie 422 avec le message de l'erreur.
     if isinstance(exc, ValueError):
         return JSONResponse(
             status_code=422,
             content={"detail": str(exc)}
         )
-    # Tout le reste, on le remonte pour que FastAPI/Gestionnaire dédié le traite.
     raise exc
-
-    return JSONResponse(
-    status_code=500,
-    content={"detail": "Internal Server Error"}
-)
+    # Note : Le code après 'raise exc' ne sera jamais atteint.
+    # return JSONResponse(
+    #     status_code=500,
+    #     content={"detail": "Internal Server Error"}
+    # )
