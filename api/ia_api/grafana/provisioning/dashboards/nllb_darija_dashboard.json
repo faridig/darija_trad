@@ -124,23 +124,33 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "description": "Ce graphique montre la 'forme' de l'utilisation actuelle : combien de requêtes courtes, moyennes ou longues sont reçues.\n\n**Comment l'interpréter ?**\n- Il permet de comprendre *pourquoi* le P75 évolue.\n- Idéalement, sa forme doit ressembler à celle des données d'entraînement (un pic sur les textes très courts).",
+      "description": "Ce tableau montre la 'forme' de l'utilisation actuelle : combien de requêtes courtes, moyennes ou longues sont reçues.\n\n**Comment l'interpréter ?**\n- Il permet de comprendre *pourquoi* le P75 évolue.\n- Idéalement, sa forme doit ressembler à celle des données d'entraînement (un pic sur les textes très courts).",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "align": "auto", "displayMode": "auto" },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "le" },
+            "properties": [
+              { "id": "displayName", "value": "Plage (<= mots)" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Value" },
+            "properties": [
+              { "id": "displayName", "value": "Nombre de requêtes" },
+              { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "basic" } },
+              { "id": "unit", "value": "short" }
+            ]
+          }
+        ]
+      },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
       "id": 4,
-      "options": {
-        "legend": { "displayMode": "hidden" },
-        "tooltip": { "mode": "single", "sort": "none" },
-        "xAxis": { "placement": "bottom", "label": "Nombre de mots" },
-        "yAxis": { "placement": "left", "label": "Nombre de requêtes" },
-        "barRadius": 0,
-        "barWidth": 1,
-        "groupWidth": 0,
-        "orientation": "vertical",
-        "showValue": "never",
-        "stacking": "none",
-        "xField": "le",
-        "yField": "Value"
-      },
+      "options": { "footer": { "show": false }, "showHeader": true },
       "pluginVersion": "10.4.1",
       "targets": [
         {
@@ -153,19 +163,10 @@
         }
       ],
       "title": "Analyse du Data Drift : Forme de la Distribution Actuelle",
-      "type": "barchart",
-      "fieldConfig": { "defaults": { "unit": "short" } },
       "transformations": [
-        { "id": "histogram", "options": {} },
-        {
-          "id": "convertFieldType",
-          "options": {
-            "conversions": [
-              { "destinationType": "string", "targetField": "le" }
-            ]
-          }
-        }
-      ]
+        { "id": "histogram", "options": {} }
+      ],
+      "type": "table"
     }
   ],
   "refresh": "10s",
@@ -175,7 +176,7 @@
   "templating": { "list": [] },
   "timezone": "browser",
   "title": "NLLB-Darija API - Tableau de Bord Opérationnel",
-  "uid": "nllb-darija-api-explicit-v5-compatible",
-  "version": 9,
+  "uid": "nllb-darija-api-final-compatible",
+  "version": 10,
   "weekStart": ""
 }
