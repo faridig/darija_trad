@@ -148,7 +148,21 @@
       "title": "Analyse du Data Drift : Forme de la Distribution Actuelle",
       "type": "barchart",
       "fieldConfig": { "defaults": { "unit": "short" } },
-      "transformations": [ { "id": "histogram", "options": {} } ]
+      "transformations": [
+        { "id": "histogram", "options": {} },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "string",
+                "targetField": "le"
+              }
+            ],
+            "fields": {}
+          }
+        }
+      ]
     }
   ],
   "refresh": "10s",
@@ -159,6 +173,6 @@
   "timezone": "browser",
   "title": "NLLB-Darija API - Tableau de Bord Opérationnel",
   "uid": "nllb-darija-api-explicit-v5-compatible",
-  "version": 7,
+  "version": 8,
   "weekStart": ""
 }
