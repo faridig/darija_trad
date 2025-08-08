@@ -20,18 +20,22 @@ services:
       dockerfile: Dockerfile
     container_name: prometheus
     volumes:
+      # On monte les configurations spécifiques au local
       - ./prometheus/prometheus.local.yml:/etc/prometheus/prometheus.yml
-      # On ajoute le fichier de règles au volume
       - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--web.enable-lifecycle'
+      # On dit à Prometheus où trouver Alertmanager en utilisant son nom de service
+      - '--alertmanager.url=http://alertmanager:9093' 
     environment:
+       # On passe le mot de passe via une variable d'environnement (utilisé par prometheus.local.yml)
        - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     ports:
       - "9090:9090"
     depends_on:
       - app
+      - alertmanager # Prometheus dépend de l'API et d'Alertmanager
     networks:
       - monitoring_net
   
@@ -44,28 +48,24 @@ services:
       - "3000:3000"
     volumes:
       - grafana-storage:/var/lib/grafana
+      # Note : Le fichier de datasource pour Grafana est déjà correct
       - ./grafana/provisioning/datasources/prometheus.local.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml
     depends_on:
       - prometheus
     networks:
       - monitoring_net
 
-  # ===================================================================
-  # ===> AJOUTEZ TOUTE CETTE SECTION "alertmanager" <===
-  # ===================================================================
   alertmanager:
     image: prom/alertmanager:v0.27.0
     container_name: alertmanager
     volumes:
-      # On monte le fichier de configuration créé à l'étape 1
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
     ports:
-      - "9093:9093" # On expose le port pour pouvoir y accéder depuis notre navigateur
+      - "9093:9093"
     networks:
       - monitoring_net
-  # ===================================================================
 
 volumes:
   grafana-storage:

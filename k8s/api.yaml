@@ -25,14 +25,14 @@ spec:
           # C'est la réservation garantie pour votre pod.
           # L'autoscaler se basera sur ces valeurs.
           requests:
-            cpu: "250m"       # On réserve 0.25 cœur CPU
-            memory: "512Mi"   # On réserve 512 Mebibytes de RAM
+            cpu: "500m"       # On réserve 0.25 cœur CPU
+            memory: "4Gi"   # On réserve 512 Mebibytes de RAM
           
           # C'est le plafond maximum.
           # Empêche un pod de faire planter tout le Nœud.
           limits:
-            cpu: "1"          # Limité à 1 cœur CPU
-            memory: "1Gi"     # Limité à 1 Gigabyte de RAM
+            cpu: "2"          # Limité à 1 cœur CPU
+            memory: "6Gi"     # Limité à 1 Gigabyte de RAM
         
         # On ajoute aussi la sonde de santé, c'est une bonne pratique.
         livenessProbe:
