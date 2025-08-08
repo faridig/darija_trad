@@ -1,0 +1,17 @@
+# api/ia_api/prometheus/Dockerfile.local
+#
+# Version simplifiée pour le build local avec Docker Compose.
+# Cette version ne gère PAS les secrets au moment du build, car Docker Compose
+# les injecte via les variables d'environnement au moment de l'exécution.
+#
+# Elle copie directement le fichier de configuration LOCAL.
+
+FROM prom/prometheus:latest
+
+# On copie le fichier de configuration LOCAL et on le renomme en prometheus.yml DANS l'image.
+COPY prometheus.local.yml /etc/prometheus/prometheus.yml
+
+# On s'assure que l'utilisateur par défaut de l'image ('nobody') est bien le propriétaire.
+USER root
+RUN chown nobody:nobody /etc/prometheus/prometheus.yml
+USER nobody

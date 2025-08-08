@@ -17,25 +17,24 @@ services:
   prometheus:
     build:
       context: ./prometheus  
-      dockerfile: Dockerfile
+      # MODIFICATION CLÉ : On indique le nom du Dockerfile à utiliser pour le local
+      dockerfile: Dockerfile.local 
     container_name: prometheus
     volumes:
-      # On monte les configurations spécifiques au local
+      # Ce volume est toujours utile pour pouvoir modifier la config sans reconstruire l'image
       - ./prometheus/prometheus.local.yml:/etc/prometheus/prometheus.yml
       - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--web.enable-lifecycle'
-      # On dit à Prometheus où trouver Alertmanager en utilisant son nom de service
       - '--alertmanager.url=http://alertmanager:9093' 
     environment:
-       # On passe le mot de passe via une variable d'environnement (utilisé par prometheus.local.yml)
        - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     ports:
       - "9090:9090"
     depends_on:
       - app
-      - alertmanager # Prometheus dépend de l'API et d'Alertmanager
+      - alertmanager
     networks:
       - monitoring_net
   
