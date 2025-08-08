@@ -4,6 +4,13 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // =======================================================
+  // ===> AJOUT DE CETTE LIGNE <===
+  // Indique à Vite de chercher les fichiers .env dans le
+  // répertoire parent (la racine du projet).
+  // =======================================================
+  envDir: '..',
+
   test: {
     globals: true,
     environment: 'jsdom',
@@ -12,9 +19,6 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       
-      // =======================================================
-      // DÉBUT DE LA MISE À JOUR
-      // =======================================================
       exclude: [
         // Fichiers et dossiers standards à ignorer
         'node_modules/',
@@ -36,9 +40,6 @@ export default defineConfig({
         // Composants qui n'ont pas de logique à tester (ex: layout pur)
         'src/App.jsx'
       ],
-      // =======================================================
-      // FIN DE LA MISE À JOUR
-      // =======================================================
 
       // On conserve les seuils pour garantir la qualité
       thresholds: {

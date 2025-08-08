@@ -27,10 +27,19 @@ spec:
       containers:
       - name: data-api-container
         # L'image qui sera construite et pushée par le script 1
-        image: iaapi.azurecr.io/darija-data-api:b26197c
+        image: iaapi.azurecr.io/darija-data-api:4049800
         imagePullPolicy: Always 
         ports:
         - containerPort: 8000
+
+        livenessProbe:
+          httpGet:
+            path: /docs  # ou '/', une route qui doit toujours répondre
+            port: 8000
+          initialDelaySeconds: 20
+          periodSeconds: 30
+          failureThreshold: 3
+        
         envFrom:
         - secretRef:
             # Le nom du secret Kubernetes qui contiendra vos variables d'environnement (SUPABASE_URL, etc.)
