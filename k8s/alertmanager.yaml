@@ -1,0 +1,78 @@
+# k8s/alertmanager.yaml
+
+# ===================================================================
+# 1. Configuration d'Alertmanager via un ConfigMap
+#    C'est ici qu'on définit comment les alertes sont traitées.
+# ===================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+data:
+  alertmanager.yml: |
+    global:
+      # Pour cette évaluation, nous n'avons pas besoin de configurer de récepteur réel
+      # comme Slack ou PagerDuty. La configuration par défaut est suffisante
+      # pour démontrer que le flux fonctionne.
+      resolve_timeout: 5m
+
+    route:
+      group_by: ['alertname', 'severity']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 1h
+      receiver: 'null' # On envoie les alertes à un récepteur "poubelle" pour la démo
+
+    receivers:
+    - name: 'null' # Un récepteur qui ne fait rien
+---
+# ===================================================================
+# 2. Déploiement d'Alertmanager
+#    C'est ce qui crée le Pod qui fait tourner l'application.
+# ===================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+      - name: alertmanager
+        # On utilise l'image officielle de Prometheus pour Alertmanager
+        image: prom/alertmanager:v0.27.0
+        ports:
+        - containerPort: 9093
+        args:
+          - "--config.file=/etc/alertmanager/alertmanager.yml"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/alertmanager
+      volumes:
+      - name: config-volume
+        configMap:
+          name: alertmanager-config
+---
+# ===================================================================
+# 3. Service pour Alertmanager
+#    Permet à Prometheus de communiquer avec Alertmanager dans le cluster.
+# ===================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-service
+spec:
+  type: ClusterIP # Pas besoin d'exposer Alertmanager à l'extérieur
+  selector:
+    app: alertmanager
+  ports:
+  - protocol: TCP
+    port: 9093
+    targetPort: 9093

@@ -1,0 +1,62 @@
+# api/ia_api/prometheus/alert.rules.yml
+
+groups:
+- name: API-IA-Alerts
+  rules:
+
+  # ===================================================================
+  # Règle n°1 : L'API est-elle en panne ? (Fiabilité la plus critique)
+  # ===================================================================
+  - alert: ApiDown
+    # EXPRession : La métrique 'up' est à 0, ce qui signifie que Prometheus
+    # n'arrive plus à contacter l'API.
+    expr: up{job="darija_api"} == 0
+    # ...pendant au moins 1 minute en continu (pour éviter les faux positifs sur un simple blip réseau).
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "L'API IA est inaccessible (instance down)"
+      description: "Prometheus n'arrive pas à scraper l'endpoint /metrics de l'API IA depuis plus d'une minute. Le service est probablement en panne ou le réseau est inaccessible."
+
+  # ===================================================================
+  # Règle n°2 : L'API génère-t-elle trop d'erreurs ? (Fiabilité)
+  # ===================================================================
+  - alert: HighErrorRate5xx
+    # EXPRession : Si le ratio d'erreurs 5xx sur le total des requêtes est > 2%...
+    expr: (sum(rate(api_http_errors_5xx_total{endpoint="/generer"}[5m])) by (endpoint) / sum(rate(api_requests_total{endpoint="/generer"}[5m])) by (endpoint)) * 100 > 2
+    # ...pendant au moins 2 minutes en continu.
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Taux d'erreurs 5xx élevé (> 2%)"
+      description: "L'API génère un nombre anormalement élevé d'erreurs serveur sur l'endpoint /generer. Un incident est probablement en cours."
+
+  # ===================================================================
+  # Règle n°3 : L'API est-elle trop lente ? (Performance)
+  # ===================================================================
+  - alert: HighApiLatency
+    # EXPRession : Si la latence au 95ème percentile sur /generer est > 1 seconde...
+    expr: histogram_quantile(0.95, sum(rate(api_request_latency_seconds_bucket{endpoint="/generer"}[5m])) by (le, endpoint)) > 1
+    # ...pendant au moins 5 minutes en continu.
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Latence API élevée (P95 > 1s)"
+      description: "La latence du endpoint /generer est supérieure à 1s depuis plus de 5 minutes. Le service risque de paraître lent pour les utilisateurs."
+
+  # ===================================================================
+  # Règle n°4 : Le modèle est-il toujours pertinent ? (MLOps)
+  # ===================================================================
+  - alert: DataDriftDetected
+    # EXPRession : Si le 75ème percentile de la longueur des textes en entrée dépasse 14 mots...
+    expr: histogram_quantile(0.75, sum(rate(data_drift_text_length_bucket[5m])) by (le)) > 14
+    # ...pendant au moins 1 heure en continu. C'est une tendance, pas un incident ponctuel.
+    for: 1h
+    labels:
+      severity: warning
+    annotations:
+      summary: "Signal de Data Drift détecté (longueur des textes)"
+      description: "La longueur des textes en entrée (P75) est supérieure à 14 mots depuis 1 heure. Le modèle reçoit des données qui pourraient différer de son corpus d'entraînement. Un réentraînement est à considérer."

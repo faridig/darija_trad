@@ -1,0 +1,41 @@
+# Fichier : k8s/ia-api-hpa.yaml
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  # Un nom simple pour identifier cet autoscaler
+  name: ia-api-hpa
+spec:
+  # === Partie 1 : La CIBLE ===
+  # On lui dit quel déploiement il doit surveiller.
+  # Il doit correspondre au 'name' dans votre fichier api.yaml.
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ia-api-deployment
+
+  # === Partie 2 : Les LIMITES ===
+  # On définit ses pouvoirs.
+  minReplicas: 1      # Il y aura toujours au moins 1 pod en fonctionnement.
+  maxReplicas: 5      # Il ne créera jamais plus de 5 pods au total (pour contrôler les coûts).
+
+  # === Partie 3 : Les RÈGLES ===
+  # On lui dit QUAND il doit agir.
+  metrics:
+  # Règle pour le CPU
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        # "Si l'utilisation moyenne du CPU dépasse 75% de ce qui a été demandé dans 'requests' (75% de 250m), agis !"
+        averageUtilization: 75
+
+  # Règle pour la Mémoire (RAM)
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        # "Si l'utilisation moyenne de la RAM dépasse 80% de ce qui a été demandé dans 'requests' (80% de 512Mi), agis !"
+        averageUtilization: 80

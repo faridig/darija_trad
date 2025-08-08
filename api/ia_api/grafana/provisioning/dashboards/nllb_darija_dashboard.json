@@ -28,7 +28,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "description": "Ce graphique montre le volume de requêtes que l'API reçoit chaque seconde, ventilé par *endpoint* (ex: `/generer`, `/login`).\n\n**Comment l'interpréter ?**\n- **Activité :** Confirme que l'API est en service et utilisée.\n- **Charge :** Permet d'identifier les pics d'utilisation.",
+      "description": "Ce graphique montre le volume de requêtes que l'API reçoit chaque seconde, ventilé par *endpoint* (ex: `/generer`, `/health`).\n\n**Comment l'interpréter ?**\n- **Activité :** Confirme que l'API est en service et utilisée.\n- **Charge :** Permet d'identifier les pics d'utilisation.",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
       "id": 1,
       "options": {
@@ -38,7 +38,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "sum(rate(api_requests_total[2m])) by (endpoint)",
+          "expr": "sum(rate(api_requests_total{endpoint=~\"/generer|/health\"}[2m])) by (endpoint)",
           "legendFormat": "{{endpoint}}",
           "refId": "A"
         }
@@ -49,7 +49,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "description": "Ce graphique mesure la rapidité de réponse de l'API.\n\n- **Moyenne :** Le temps de réponse typique.\n- **P95 :** Le temps de réponse maximum pour 95% des utilisateurs. C'est le meilleur indicateur de la performance *perçue*. Une P95 élevée indique que certains utilisateurs subissent des lenteurs.",
+      "description": "Ce graphique mesure la rapidité de réponse de l'API. La P95 est le meilleur indicateur de la performance *perçue*.\n\n**Comment l'interpréter ?**\n- **Moyenne :** Le temps de réponse typique.\n- **P95 :** Le temps de réponse maximum pour 95% des utilisateurs. Une P95 élevée indique que certains utilisateurs subissent des lenteurs.",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
       "id": 2,
       "options": {
@@ -59,13 +59,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "sum(rate(api_request_latency_seconds_sum[5m])) by (endpoint) / sum(rate(api_request_latency_seconds_count[5m])) by (endpoint)",
+          "expr": "sum(rate(api_request_latency_seconds_sum{endpoint=~\"/generer|/health\"}[5m])) by (endpoint) / sum(rate(api_request_latency_seconds_count{endpoint=~\"/generer|/health\"}[5m])) by (endpoint)",
           "legendFormat": "{{endpoint}} (moyenne)",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "histogram_quantile(0.95, sum(rate(api_request_latency_seconds_bucket[5m])) by (le, endpoint))",
+          "expr": "histogram_quantile(0.95, sum(rate(api_request_latency_seconds_bucket{endpoint=~\"/generer|/health\"}[5m])) by (le, endpoint))",
           "legendFormat": "{{endpoint}} (P95)",
           "refId": "B"
         }
@@ -77,15 +77,77 @@
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 15,
+      "panels": [],
+      "title": "2. Indicateur de Fiabilité (Erreurs)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Ce graphique suit le pourcentage d'erreurs serveur (codes 5xx) par rapport au trafic total sur l'endpoint `/generer`. C'est un indicateur clé de la fiabilité de l'application.\n\n**Comment l'interpréter ?**\n- **Fiabilité :** Un taux proche de 0% indique que l'API est stable et fiable.\n- **Incident :** Un pic soudain signale un incident en cours (ex: bug dans le code, modèle non chargé, dépendance externe indisponible).\n- **Dégradation :** Un taux d'erreur qui augmente progressivement peut indiquer une dégradation des performances ou une saturation des ressources.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "area" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 2 }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 10 },
+      "id": 14,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "(sum(rate(api_http_errors_5xx_total{endpoint=\"/generer\"}[5m])) by (endpoint) / sum(rate(api_requests_total{endpoint=\"/generer\"}[5m])) by (endpoint)) * 100 or on(endpoint) vector(0)",
+          "legendFormat": "Taux d'erreurs sur {{endpoint}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Taux d'Erreurs Serveur (5xx)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
       "id": 12,
       "panels": [],
-      "title": "2. Suivi de la Pertinence du Modèle (Data Drift)",
+      "title": "3. Suivi de la Pertinence du Modèle (Data Drift)",
       "type": "row"
     },
     {
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "description": "C'est l'indicateur principal de la dérive des données. Il suit la longueur maximale des textes pour 75% des requêtes.\n\n- **Référence d'entraînement = 14 mots.**\n\nUne tendance durable au-dessus de cette référence signifie que le modèle est utilisé avec des données plus longues que prévu, ce qui peut dégrader sa pertinence.",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 19 },
       "id": 6,
       "options": {
         "legend": { "displayMode": "list", "placement": "bottom" },
@@ -121,52 +183,6 @@
           }
         }
       }
-    },
-    {
-      "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "description": "Ce tableau montre la 'forme' de l'utilisation actuelle : combien de requêtes courtes, moyennes ou longues sont reçues.\n\n**Comment l'interpréter ?**\n- Il permet de comprendre *pourquoi* le P75 évolue.\n- Idéalement, sa forme doit ressembler à celle des données d'entraînement (un pic sur les textes très courts).",
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "align": "auto", "displayMode": "auto" },
-          "mappings": []
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "le" },
-            "properties": [
-              { "id": "displayName", "value": "Plage (<= mots)" }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Value" },
-            "properties": [
-              { "id": "displayName", "value": "Nombre de requêtes" },
-              { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "basic" } },
-              { "id": "unit", "value": "short" }
-            ]
-          }
-        ]
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
-      "id": 4,
-      "options": { "footer": { "show": false }, "showHeader": true },
-      "pluginVersion": "10.4.1",
-      "targets": [
-        {
-          "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "sum(increase(data_drift_text_length_bucket[5m])) by (le)",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "Analyse du Data Drift : Forme de la Distribution Actuelle",
-      "transformations": [
-        { "id": "histogram", "options": {} }
-      ],
-      "type": "table"
     }
   ],
   "refresh": "10s",
@@ -177,6 +193,6 @@
   "timezone": "browser",
   "title": "NLLB-Darija API - Tableau de Bord Opérationnel",
   "uid": "nllb-darija-api-final-compatible",
-  "version": 10,
+  "version": 14,
   "weekStart": ""
 }

@@ -1,4 +1,18 @@
 # api/ia_api/prometheus/prometheus.yml (Pour Kubernetes)
+
+global:
+  scrape_interval: 15s
+
+rule_files:
+  - "alert.rules.yml"
+
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+      # On utilise le nom du service Kubernetes que nous avons défini à l'étape 3.
+      - "alertmanager-service:9093"
+
 scrape_configs:
   - job_name: "darija_api"
     metrics_path: /metrics

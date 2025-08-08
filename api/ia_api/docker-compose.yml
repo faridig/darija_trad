@@ -1,3 +1,4 @@
+# api/ia_api/docker-compose.yml
 version: '3.8'
 
 services:
@@ -20,6 +21,8 @@ services:
     container_name: prometheus
     volumes:
       - ./prometheus/prometheus.local.yml:/etc/prometheus/prometheus.yml
+      # On ajoute le fichier de règles au volume
+      - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--web.enable-lifecycle'
@@ -33,23 +36,36 @@ services:
       - monitoring_net
   
   grafana:
-    
     build:
       context: ./grafana     
       dockerfile: Dockerfile
     container_name: grafana
     ports:
       - "3000:3000"
-    
     volumes:
       - grafana-storage:/var/lib/grafana
       - ./grafana/provisioning/datasources/prometheus.local.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml
-
-    
     depends_on:
       - prometheus
     networks:
       - monitoring_net
+
+  # ===================================================================
+  # ===> AJOUTEZ TOUTE CETTE SECTION "alertmanager" <===
+  # ===================================================================
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    volumes:
+      # On monte le fichier de configuration créé à l'étape 1
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+    ports:
+      - "9093:9093" # On expose le port pour pouvoir y accéder depuis notre navigateur
+    networks:
+      - monitoring_net
+  # ===================================================================
 
 volumes:
   grafana-storage:
@@ -57,4 +73,3 @@ volumes:
 networks:
   monitoring_net:
     driver: bridge
-

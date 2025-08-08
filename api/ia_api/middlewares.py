@@ -10,7 +10,8 @@ from prometheus_client import Counter, Histogram
 from .routers.monitoring import (
     REQUEST_COUNT,
     REQUEST_LATENCY,
-    DATA_DRIFT_INPUT_LENGTH
+    DATA_DRIFT_INPUT_LENGTH,
+    HTTP_ERRORS_5XX_TOTAL  # L'import est déjà présent, c'est parfait
 )
 
 # Configuration du logger
@@ -22,6 +23,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # Middleware 1 : Ajout de headers de sécurité HTTP
 # ────────────────────────────────────────────────────────────────────────────────
 async def add_security_headers(request: Request, call_next):
+    # ... (Ce middleware ne change pas)
     response: Response = await call_next(request)
     path = request.url.path
 
@@ -29,7 +31,6 @@ async def add_security_headers(request: Request, call_next):
         "/docs", "/docs/oauth2-redirect", "/openapi", "/redoc",
         "/favicon.ico", "/static"
     )):
-        # Swagger UI & assets externes (dev friendly)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
@@ -40,7 +41,6 @@ async def add_security_headers(request: Request, call_next):
             "frame-ancestors 'none';"
         )
     else:
-        # Production : sécurité renforcée
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none';"
@@ -52,27 +52,24 @@ async def add_security_headers(request: Request, call_next):
 # Middleware 2 : Limitation stricte de la taille du corps de requête
 # ────────────────────────────────────────────────────────────────────────────────
 async def limit_body_size(request: Request, call_next):
-    max_bytes = 10 * 1024  # 10 KB
+    # ... (Ce middleware ne change pas)
+    max_bytes = 10 * 1024
     content_length = request.headers.get("content-length")
-
     if content_length and int(content_length) > max_bytes:
         return FastAPIResponse("Payload trop volumineux", status_code=413)
-
     return await call_next(request)
 
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Middleware 3 : Monitoring Prometheus & logging (durée, drift, etc.)
+# Middleware 3 : Monitoring Prometheus & logging (durée, drift, etc.) - MIS À JOUR
 # ────────────────────────────────────────────────────────────────────────────────
 async def monitoring_middleware(request: Request, call_next):
     start_time = datetime.now()
     method = request.method
     endpoint = request.url.path
 
-    # ➤ Incrémenter le compteur de requêtes
     REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
 
-    # ➤ Surveiller la longueur du texte en entrée pour POST /generer
     if method == "POST" and endpoint == "/generer":
         try:
             body = await request.body()
@@ -84,19 +81,26 @@ async def monitoring_middleware(request: Request, call_next):
         except Exception as e:
             logger.warning(f"[Monitoring] Erreur parsing drift : {e}")
 
-    # ➤ Appel réel
     try:
         response = await call_next(request)
+  
+        # ➤ On vérifie le code de statut de la réponse. Si c'est une erreur serveur...
+        if response.status_code >= 500:
+            # ... on incrémente le compteur d'erreurs 5xx.
+            HTTP_ERRORS_5XX_TOTAL.labels(method=method, endpoint=endpoint).inc()
+     
     except Exception as e:
+    
+        # ➤ Si une exception non gérée se produit, c'est une erreur 500.
+        # On l'enregistre aussi avant de propager l'exception.
+        HTTP_ERRORS_5XX_TOTAL.labels(method=method, endpoint=endpoint).inc()
+  
         logger.error(f"[Monitoring] Échec de la requête {method} {endpoint} - {e}")
-        raise
+        raise # On propage l'exception pour que FastAPI génère la réponse 500
 
-    # ➤ Mesurer le temps de traitement
     duration = (datetime.now() - start_time).total_seconds()
     REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(duration)
 
     logger.info(f"{method} {endpoint} - {response.status_code} - {duration:.3f}s")
 
     return response
-
-

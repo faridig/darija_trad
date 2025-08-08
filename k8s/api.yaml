@@ -1,3 +1,5 @@
+# Fichier : k8s/api.yaml
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,9 +16,33 @@ spec:
     spec:
       containers:
       - name: ia-api-container
-        image: iaapi.azurecr.io/darija-api:1.0.2
+        image: iaapi.azurecr.io/darija-api:latest # Ce tag sera mis à jour par la CI/CD
         ports:
         - containerPort: 8001
+        
+        # --- DÉBUT DE LA CONFIGURATION ÉTAPE 1 ---
+        resources:
+          # C'est la réservation garantie pour votre pod.
+          # L'autoscaler se basera sur ces valeurs.
+          requests:
+            cpu: "250m"       # On réserve 0.25 cœur CPU
+            memory: "512Mi"   # On réserve 512 Mebibytes de RAM
+          
+          # C'est le plafond maximum.
+          # Empêche un pod de faire planter tout le Nœud.
+          limits:
+            cpu: "1"          # Limité à 1 cœur CPU
+            memory: "1Gi"     # Limité à 1 Gigabyte de RAM
+        
+        # On ajoute aussi la sonde de santé, c'est une bonne pratique.
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 20
+          periodSeconds: 30
+        # --- FIN DE LA CONFIGURATION ÉTAPE 1 ---
+          
         envFrom:
         - secretRef:
             name: api-secrets

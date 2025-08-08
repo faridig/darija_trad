@@ -1,4 +1,19 @@
-# api/ia_api/prometheus/prometheus.local.yml (Pour Docker Compose)
+# api/ia_api/prometheus/prometheus.local.yml
+
+rule_files:
+  - "alert.rules.yml"
+
+# ===================================================================
+# ===> AJOUTEZ LA SECTION CI-DESSOUS <===
+# ===================================================================
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+      # On utilise le nom du service Docker Compose et son port interne.
+      - "alertmanager:9093"
+# ===================================================================
+
 scrape_configs:
   - job_name: "darija_api"
     metrics_path: /metrics
@@ -6,5 +21,4 @@ scrape_configs:
       - targets: ["app:8001"] # Nom du service Docker Compose
     basic_auth:
       username: admin
-      # En local, on peut lire le mot de passe depuis une variable d'env
       password: '${ADMIN_PASSWORD}' 

@@ -52,6 +52,12 @@ DATA_DRIFT_INPUT_LENGTH = Histogram(
     )
 )
 
+HTTP_ERRORS_5XX_TOTAL = Counter(
+    'api_http_errors_5xx_total',
+    'Total number of internal server errors (5xx)',
+    ['method', 'endpoint']
+)
+
 
 
 @router.get("/health")

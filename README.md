@@ -104,7 +104,7 @@ Les services suivants seront accessibles :
 *   **API d'IA :** `http://localhost:8001`
 *   **Documentation (Swagger) :** `http://localhost:8001/docs`
 *   **Prometheus :** `http://localhost:9090`
-*   **Grafana :** `http://localhost:3000` (login: `admin`/`admin`)
+*   **Grafana :** `http://localhost:3000`
 
 ### 2. Exécuter les tests
 
