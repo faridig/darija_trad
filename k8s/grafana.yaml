@@ -1,6 +1,6 @@
 # k8s/grafana.yaml
 
-# 1. On crée d'abord la demande de stockage (PVC)
+# 1. La demande de stockage (PVC) ne change pas. Elle est correcte.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -12,7 +12,7 @@ spec:
     requests:
       storage: 1Gi      # On demande 1 Giga-octet de stockage
 ---
-# 2. Ensuite, on modifie le Deployment pour utiliser ce PVC
+# 2. On modifie le Deployment pour ajouter un conteneur d'initialisation.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,26 +27,46 @@ spec:
       labels:
         app: grafana
     spec:
+      # On conserve le securityContext, c'est une bonne pratique.
       securityContext:
         fsGroup: 472
         runAsUser: 472
         runAsGroup: 472
+      
+      # ================================================================
+      # ===> AJOUT DE LA CORRECTION ICI <===============================
+      # ================================================================
+      # Ce conteneur s'exécute AVANT le conteneur Grafana principal.
+      initContainers:
+      - name: fix-permissions
+        # On utilise une image Linux minimale pour cette tâche.
+        image: busybox:latest
+        # Sa seule mission : changer le propriétaire du volume pour l'utilisateur Grafana (ID 472).
+        command: ["sh", "-c", "chown -R 472:472 /var/lib/grafana"]
+        # Il doit monter le même volume pour pouvoir le modifier.
+        volumeMounts:
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+      # ================================================================
+      # ===> FIN DE LA CORRECTION <=====================================
+      # ================================================================
+      
       containers:
       - name: grafana-container
         image: iaapi.azurecr.io/darija-api-grafana:latest
         ports:
         - containerPort: 3000
-        volumeMounts: # <-- ON AJOUTE CECI
+        volumeMounts:
         - name: grafana-storage # Nom du montage
           mountPath: /var/lib/grafana # Chemin dans le conteneur
-      volumes: # <-- ET CECI
+      volumes:
       - name: grafana-storage # Doit correspondre au nom du montage
         persistentVolumeClaim:
           claimName: grafana-pvc # On lie ce volume à notre PVC
       imagePullSecrets:
       - name: acr-secret
 ---
-# Le Service reste inchangé
+# Le Service reste inchangé. Il est correct.
 apiVersion: v1
 kind: Service
 metadata:
