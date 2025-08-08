@@ -10,6 +10,7 @@ on:
       - 'database/**'
       - 'requirements.txt' # Surveille le nouveau fichier de dépendances racine
       - '.github/workflows/ci-cd-ia-api.yml'
+      
   
   pull_request:
     branches: [ master ]
