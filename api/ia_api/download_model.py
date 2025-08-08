@@ -2,7 +2,7 @@
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import sys
 
-# Le nom de votre modèle final et fusionné sur le Hub
+# Le nom de votre modèle final et fusionné sur le Hub.
 MERGED_MODEL_ID = "Farid59/nllb-darija-fr_eng"
 
 def main():

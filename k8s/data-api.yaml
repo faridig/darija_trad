@@ -27,7 +27,7 @@ spec:
       containers:
       - name: data-api-container
         # L'image qui sera construite et pushée par le script 1
-        image: iaapi.azurecr.io/darija-data-api:4049800
+        image: iaapi.azurecr.io/darija-data-api:441668d
         imagePullPolicy: Always 
         ports:
         - containerPort: 8000
