@@ -64,7 +64,6 @@ jobs:
   # JOB 2 : CONSTRUIRE L'IMAGE DOCKER ET LA POUSSER SUR ACR
   # ====================================================================
   build-and-push-image:
-    # MODIFICATION : Renommé et ajout de la dépendance 'needs'
     name: 2 - Build et Push de l'image Frontend
     runs-on: ubuntu-latest
     needs: test-frontend # <-- NE SE LANCE QUE SI LES TESTS RÉUSSISSENT
@@ -98,11 +97,10 @@ jobs:
   # JOB 3 : DÉPLOYER L'APPLICATION SUR AKS
   # =====================================================================
   deploy-to-aks:
-    # MODIFICATION : Renommé
     name: 3 - Déploiement du Frontend sur AKS
     runs-on: self-hosted # Ou ubuntu-latest
     needs: build-and-push-image
-    # Le 'if' du job précédent garantit que celui-ci ne s'exécute aussi que sur un push vers master/main..
+    # Le 'if' du job précédent garantit que celui-ci ne s'exécute aussi que sur un push vers master/main.
 
     steps:
       - name: Checkout du code
@@ -123,12 +121,16 @@ jobs:
         run: |
           kubectl delete secret api-secrets --ignore-not-found=true
 
-      - name: Créer/Mettre à jour le secret pour l'API
+      # ================================================================
+      # ===> MODIFICATION APPLIQUÉE ICI <===============================
+      # ================================================================
+      - name: Créer/Mettre à jour le secret unifié pour les APIs
         run: |
           kubectl create secret generic api-secrets \
             --from-literal=ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
             --from-literal=ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
             --from-literal=SUPABASE_URL='${{ secrets.SUPABASE_URL }}' \
+            --from-literal=JWT_SECRET='${{ secrets.JWT_SECRET }}' \
             --from-literal=BASE_URL='${{ secrets.BASE_URL }}' \
             --from-literal=VITE_DATA_API_BASE_URL='${{ secrets.VITE_DATA_API_BASE_URL }}' \
             --from-literal=VITE_IA_API_BASE_URL='${{ secrets.VITE_IA_API_BASE_URL }}' \

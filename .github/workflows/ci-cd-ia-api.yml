@@ -41,14 +41,12 @@ jobs:
       - name: Installer les dépendances depuis le fichier racine
         run: |
           python -m pip install --upgrade pip
-          # CHANGEMENT CLÉ : On utilise le fichier requirements.txt à la racine
           pip install -r requirements.txt
 
       - name: Lancer les tests et vérifier la couverture de l'API IA
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-
         run: |
           rm -rf ~/.cache/huggingface/hub
           export PYTHONPATH=$(pwd)
@@ -63,7 +61,6 @@ jobs:
 
   # ===================================================================
   # JOB 2 : CONSTRUIRE ET DÉPLOYER LES IMAGES DOCKER
-  # (Aucun changement ici, mais attention au Dockerfile - voir ci-dessous)
   # ===================================================================
   build-and-deploy-images:
     name: 2 - Déploiement des images vers ACR
@@ -114,31 +111,20 @@ jobs:
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-grafana:latest
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-grafana:${{ github.sha }}
 
-# ====================================================================
+  # ====================================================================
   # JOB 3 : DÉPLOYER SUR AZURE KUBERNETES SERVICE (AKS)
   # ===================================================================
   deploy-to-aks:
     name: 3 - Déploiement sur AKS via Self-Hosted Runner
-    
-    # --- LA MODIFICATION CLÉ EST ICI ---
-    runs-on: self-hosted # Ou [self-hosted, linux, x64] si vous avez plusieurs types de runners
-    
+    runs-on: self-hosted # Ou [self-hosted, linux, x64]
     needs: build-and-deploy-images
 
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      # --- L'AUTHENTIFICATION N'EST PROBABLEMENT PLUS NÉCESSAIRE ---
-      # Si votre runner tourne sur une VM Azure avec une Identité Managée
-      # qui a les droits sur le cluster, vous n'avez même plus besoin de vous logger.
-      # Sinon, la méthode KUBE_CONFIG est la plus sûre.
-
       - name: Installation et configuration de kubectl
         run: |
-          # Cette étape suppose que kubectl est déjà installé sur votre runner
-          # ou qu'il peut être installé.
-          # On configure le kubeconfig comme avant.
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
           chmod 600 ~/.kube/config
@@ -150,22 +136,24 @@ jobs:
 
       - name: Supprimer le secret existant (ignore si non trouvé)
         run: |
-          kubectl delete secret api-secrets || true
+          # Utilisation de --ignore-not-found=true pour éviter une erreur si le secret n'existe pas
+          kubectl delete secret api-secrets --ignore-not-found=true
 
-      - name: Créer/Mettre à jour le secret pour l'API
+      # ================================================================
+      # ===> MODIFICATION APPLIQUÉE ICI <===============================
+      # ================================================================
+      - name: Créer/Mettre à jour le secret unifié pour les APIs
         run: |
           kubectl create secret generic api-secrets \
             --from-literal=ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
             --from-literal=ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
             --from-literal=SUPABASE_URL='${{ secrets.SUPABASE_URL }}' \
+            --from-literal=JWT_SECRET='${{ secrets.JWT_SECRET }}' \
             --from-literal=BASE_URL='${{ secrets.BASE_URL }}' \
             --from-literal=VITE_DATA_API_BASE_URL='${{ secrets.VITE_DATA_API_BASE_URL }}' \
             --from-literal=VITE_IA_API_BASE_URL='${{ secrets.VITE_IA_API_BASE_URL }}' \
             --dry-run=client -o yaml | kubectl apply -f -
       
-      # Dans le job deploy-to-aks:
-# ... (après l'étape de configuration de kubectl)
-
       - name: Mettre à jour le tag de l'image dans les manifestes
         run: |
           IMAGE_TAG=${{ github.sha }}
@@ -173,23 +161,21 @@ jobs:
           
           echo "Mise à jour des manifestes avec le tag : $IMAGE_TAG"
           
-          # Commande magique : 'sed' remplace le tag de l'image
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api:.*|image: $ACR_NAME.azurecr.io/darija-api:$IMAGE_TAG|g" k8s/api.yaml
-          
-          # Répétez pour les autres fichiers comme prometheus.yaml et grafana.yaml
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api-prometheus:.*|image: $ACR_NAME.azurecr.io/darija-api-prometheus:$IMAGE_TAG|g" k8s/prometheus.yaml
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api-grafana:.*|image: $ACR_NAME.azurecr.io/darija-api-grafana:$IMAGE_TAG|g" k8s/grafana.yaml
           
           echo "Contenu de k8s/api.yaml après modification :"
-          cat k8s/api.yaml # Pour le débogage
+          cat k8s/api.yaml
 
       - name: Déployer les manifestes Kubernetes
         run: |
-          # Applique les fichiers YAML qui viennent d'être modifiés
+          # Applique tous les fichiers YAML de la stack IA et monitoring
+          # L'option -k (kustomize) n'est pas utilisée ici, on applique le dossier
           kubectl apply -f k8s/
-
+      
       - name: Vérifier l'état du déploiement
         run: |
           kubectl rollout status deployment/ia-api-deployment
           kubectl rollout status deployment/prometheus-deployment
-          kubectl rollout status deployment/grafana-deployment          
+          kubectl rollout status deployment/grafana-deployment
