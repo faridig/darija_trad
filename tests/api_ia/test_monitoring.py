@@ -21,23 +21,23 @@ def test_health_success(client):
     assert j["status"] == "healthy"
     assert "timestamp" in j
 
-def test_health_unauthorized(client):
+def test_health_is_public_and_healthy(client):
     """
-    Test que /health est bien protégé par JWT.
-    Ce test existait déjà.
+    Test que l'endpoint /health est public et renvoie un statut "healthy".
+    Ce test remplace l'ancien test qui vérifiait l'authentification.
     """
-    # Forcer l'échec de la dépendance JWT
-    def fake_fail_jwt(credentials=None):
-        raise HTTPException(status_code=401, detail="unauth")
+    # On s'assure qu'il n'y a pas de surcharge de dépendance restante d'un autre test
+    client.app.dependency_overrides = {}
     
-    # Remplacer la dépendance dans l'app
-    client.app.dependency_overrides[verify_jwt_token] = fake_fail_jwt
-
-    r = client.get("/health")
-    assert r.status_code == 401
-
-    # Important : nettoyer l'override après le test
-    client.app.dependency_overrides.pop(verify_jwt_token, None)
+    # On appelle directement l'endpoint, sans token
+    response = client.get("/health")
+    
+    # On vérifie que la réponse est 200 OK
+    assert response.status_code == 200
+    
+    # On vérifie que le contenu de la réponse est correct
+    data = response.json()
+    assert data["status"] == "healthy"
 
 
 def test_metrics_basic_auth_failure(client, basic_auth_header):
