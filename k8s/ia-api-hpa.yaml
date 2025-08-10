@@ -39,3 +39,39 @@ spec:
         type: Utilization
         # "Si l'utilisation moyenne de la RAM dépasse 80% de ce qui a été demandé dans 'requests' (80% de 512Mi), agis !"
         averageUtilization: 80
+
+  # ================================================================
+  # ===> PARTIE 4 : LE COMPORTEMENT (AJOUT IMPORTANT) <=============
+  # C'est ici que nous rendons le HPA plus intelligent et plus patient.
+  # ================================================================
+  behavior:
+    # --- Comportement pour l'augmentation du nombre de pods (scale-up) ---
+    scaleUp:
+      # C'est la ligne la plus importante :
+      # Le HPA attendra 5 minutes (300 secondes) après un scale-up avant
+      # d'envisager d'en faire un autre. Cela laisse le temps aux nouveaux pods
+      # de démarrer, de charger leur modèle et de se stabiliser.
+      stabilizationWindowSeconds: 300
+      policies:
+      # On autorise une augmentation agressive si nécessaire
+      - type: Percent
+        value: 100 # Peut doubler le nombre de pods
+        periodSeconds: 60
+      - type: Pods
+        value: 4 # Peut ajouter jusqu'à 4 pods
+        periodSeconds: 60
+      selectPolicy: Max # Choisit la politique qui ajoute le plus de pods
+
+    # --- Comportement pour la réduction du nombre de pods (scale-down) ---
+    scaleDown:
+      # Le HPA attendra 10 minutes (600 secondes) de faible charge avant
+      # de commencer à supprimer des pods. Cela évite le "flapping"
+      # (ajouter/supprimer des pods sans arrêt).
+      stabilizationWindowSeconds: 600
+      policies:
+      # On est plus prudent en réduction : on ne supprime qu'un pod à la fois
+      - type: Pods
+        value: 1
+        periodSeconds: 120 # Toutes les 2 minutes
+      selectPolicy: Max # (Ici, il n'y a qu'une politique, donc c'est elle qui est choisie)
+  

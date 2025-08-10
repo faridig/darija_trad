@@ -20,7 +20,7 @@ def generer_texte(
     utilisateur=Depends(verify_jwt_token)
 ):
     
-        # =================================================================
+        # ==================================================================
     # ===> AJOUT POUR SIMULER UN BUG <================================
     # Si le texte en entrée contient le mot "bug", on lève une exception.
     # FastAPI la transformera en une erreur HTTP 500 Internal Server Error.
