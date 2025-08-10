@@ -1,18 +1,18 @@
 # k8s/grafana.yaml
 
-# 1. La demande de stockage (PVC) ne change pas. Elle est correcte.
+# Le PVC ne change pas.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: grafana-pvc
 spec:
   accessModes:
-    - ReadWriteOnce  # Le disque peut être monté en lecture/écriture par un seul pod à la fois
+    - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi      # On demande 1 Giga-octet de stockage
+      storage: 1Gi
 ---
-# 2. On modifie le Deployment pour ajouter le securityContext à l'initContainer.
+# On modifie le Deployment pour utiliser la politique de changement de groupe.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,26 +27,19 @@ spec:
       labels:
         app: grafana
     spec:
-      # Ce contexte de sécurité s'appliquera au conteneur Grafana principal.
+      # ================================================================
+      # ===> CORRECTION APPLIQUÉE ICI <=================================
+      # ================================================================
       securityContext:
         fsGroup: 472
         runAsUser: 472
         runAsGroup: 472
-      
-      # Ce conteneur s'exécute AVANT le conteneur Grafana principal.
-      initContainers:
-      - name: fix-permissions
-        # On utilise une image Linux minimale pour cette tâche.
-        image: busybox:latest
-        # Sa seule mission : changer le propriétaire du volume pour l'utilisateur Grafana (ID 472).
-        command: ["sh", "-c", "chown -R 472:472 /var/lib/grafana"]
-        securityContext:
-          runAsUser: 0
-        # ================================================================
-        # Il doit monter le même volume pour pouvoir le modifier.
-        volumeMounts:
-        - name: grafana-storage
-          mountPath: /var/lib/grafana
+        # Cette politique demande à Kubernetes de corriger les permissions du volume
+        # si le propriétaire est 'root', ce qui est le cas lors du premier montage.
+        fsGroupChangePolicy: "OnRootMismatch"
+      # ================================================================
+
+      # On a supprimé la section 'initContainers' qui causait le crash.
       
       containers:
       - name: grafana-container
@@ -54,16 +47,16 @@ spec:
         ports:
         - containerPort: 3000
         volumeMounts:
-        - name: grafana-storage # Nom du montage
-          mountPath: /var/lib/grafana # Chemin dans le conteneur
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
       volumes:
-      - name: grafana-storage # Doit correspondre au nom du montage
+      - name: grafana-storage
         persistentVolumeClaim:
-          claimName: grafana-pvc # On lie ce volume à notre PVC
+          claimName: grafana-pvc
       imagePullSecrets:
       - name: acr-secret
 ---
-# Le Service reste inchangé. Il est correct.
+# Le Service ne change pas.
 apiVersion: v1
 kind: Service
 metadata:
