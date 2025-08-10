@@ -1,74 +1,71 @@
-# Fichier : k8s/api.yaml
+# k8s/grafana.yaml
 
+# Le PVC ne change pas.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# On modifie le Deployment pour utiliser la politique de changement de groupe.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ia-api-deployment
+  name: grafana-deployment
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ia-api
+      app: grafana
   template:
     metadata:
       labels:
-        app: ia-api
+        app: grafana
     spec:
+      # ================================================================
+      # ===> CORRECTION APPLIQUÉE ICI <=================================
+      # ================================================================
+      securityContext:
+        fsGroup: 472
+        runAsUser: 472
+        runAsGroup: 472
+        # Cette politique demande à Kubernetes de corriger les permissions du volume
+        # si le propriétaire est 'root', ce qui est le cas lors du premier montage.
+        fsGroupChangePolicy: "OnRootMismatch"
+      # ================================================================
+
+      # On a supprimé la section 'initContainers' qui causait le crash.
+      
       containers:
-      - name: ia-api-container
-        image: iaapi.azurecr.io/darija-api:latest
+      - name: grafana-container
+        image: iaapi.azurecr.io/darija-api-grafana:latest
         ports:
-        - containerPort: 8001
-        
-        resources:
-          requests:
-            cpu: "500m"
-            memory: "4Gi"
-          limits:
-            cpu: "2"
-            memory: "8Gi"
-        
-        startupProbe:
-          httpGet:
-            path: /health
-            port: 8001
-          failureThreshold: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8001
-          initialDelaySeconds: 15
-          periodSeconds: 30
-          timeoutSeconds: 5
-          failureThreshold: 3
-
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8001
-          initialDelaySeconds: 5
-          periodSeconds: 20
-          timeoutSeconds: 5
-          failureThreshold: 3
-          
-        envFrom:
-        - secretRef:
-            name: api-secrets
+        - containerPort: 3000
+        volumeMounts:
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+      volumes:
+      - name: grafana-storage
+        persistentVolumeClaim:
+          claimName: grafana-pvc
       imagePullSecrets:
       - name: acr-secret
 ---
+# Le Service ne change pas.
 apiVersion: v1
 kind: Service
 metadata:
-  name: ia-api-service
+  name: grafana-service
 spec:
-  type: LoadBalancer 
+  type: LoadBalancer
   selector:
-    app: ia-api
+    app: grafana
   ports:
   - protocol: TCP
-    port: 8001
-    targetPort: 8001
+    port: 3000 
+    targetPort: 3000

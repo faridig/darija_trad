@@ -7,13 +7,8 @@ on:
       - 'api/**'
       - 'database/**'
       - 'requirements.txt'
-      # ================================================================
-      # ===> CORRECTION APPLIQUÉE ICI <=================================
-      # ================================================================
-      # On surveille TOUS les fichiers de configuration Kubernetes.
-      # Si on modifie l'HPA, Alertmanager, etc., le pipeline doit se lancer.
+      # On surveille maintenant toutes les configurations Kubernetes
       - 'k8s/**'
-      # ================================================================
       - '.github/workflows/ci-cd-ia-api.yml'
   
   pull_request:
@@ -22,17 +17,10 @@ on:
       - 'api/**'
       - 'database/**'
       - 'requirements.txt'
-      # ================================================================
-      # ===> CORRECTION APPLIQUÉE ICI <=================================
-      # ================================================================
       - 'k8s/**'
-      # ================================================================
 
   workflow_dispatch:
 
-# --- JOBS ---
-# Le reste de votre fichier (les jobs) est parfaitement correct et n'a pas besoin de changer.
-# ... (jobs: test-api, build-and-deploy-images, deploy-to-aks) ...
 jobs:
   # ====================================================================
   # JOB 1 : TESTER L'API (Intégration Continue)
@@ -40,7 +28,6 @@ jobs:
   test-api:
     name: 1 - Test de l'API IA
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
@@ -79,7 +66,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: test-api
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
@@ -124,31 +110,21 @@ jobs:
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-grafana:${{ github.sha }}
 
   # ====================================================================
-  # JOB 3 : DÉPLOYER SUR AZURE KUBERNETES SERVICE (AKS)
+  # JOB 3 : DÉPLOYER SUR AZURE KUBERNETES SERVICE (AKS) - LOGIQUE AMÉLIORÉE
   # ===================================================================
   deploy-to-aks:
     name: 3 - Déploiement sur AKS via Self-Hosted Runner
-    runs-on: self-hosted # Ou [self-hosted, linux, x64]
+    runs-on: self-hosted
     needs: build-and-deploy-images
-
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      - name: Installation et configuration de kubectl
+      - name: Configuration de kubectl
         run: |
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
           chmod 600 ~/.kube/config
-
-      - name: Vérifier la connexion kubectl
-        run: |
-          kubectl cluster-info
-          kubectl get nodes
-
-      - name: Supprimer le secret existant (ignore si non trouvé)
-        run: |
-          kubectl delete secret api-secrets --ignore-not-found=true
 
       - name: Créer/Mettre à jour le secret unifié pour les APIs
         run: |
@@ -162,27 +138,34 @@ jobs:
             --from-literal=VITE_IA_API_BASE_URL='${{ secrets.VITE_IA_API_BASE_URL }}' \
             --dry-run=client -o yaml | kubectl apply -f -
       
-      - name: Mettre à jour le tag de l'image dans les manifestes
+      - name: Mettre à jour les tags des images dans les manifestes
         run: |
           IMAGE_TAG=${{ github.sha }}
           ACR_NAME=${{ secrets.ACR_NAME }}
-          
-          echo "Mise à jour des manifestes avec le tag : $IMAGE_TAG"
-          
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api:.*|image: $ACR_NAME.azurecr.io/darija-api:$IMAGE_TAG|g" k8s/api.yaml
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api-prometheus:.*|image: $ACR_NAME.azurecr.io/darija-api-prometheus:$IMAGE_TAG|g" k8s/prometheus.yaml
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api-grafana:.*|image: $ACR_NAME.azurecr.io/darija-api-grafana:$IMAGE_TAG|g" k8s/grafana.yaml
-          
-          echo "Contenu de k8s/api.yaml après modification :"
-          cat k8s/api.yaml
 
-      - name: Déployer les manifestes Kubernetes
+      - name: Étape 1 - Déployer les composants principaux (SANS l'HPA)
         run: |
-          # Applique tous les fichiers YAML de la stack IA et monitoring
-          kubectl apply -f k8s/
+          echo "Déploiement de tous les services, ConfigMaps, etc..."
+          # On applique tous les fichiers YAML sauf celui de l'HPA.
+          find k8s -name "*.yaml" ! -name "ia-api-hpa.yaml" -exec kubectl apply -f {} \;
       
-      - name: Vérifier l'état du déploiement
+      - name: Étape 2 - Attendre la stabilisation des déploiements
         run: |
-          kubectl rollout status deployment/ia-api-deployment
-          kubectl rollout status deployment/prometheus-deployment
-          kubectl rollout status deployment/grafana-deployment
+          echo "Attente de la stabilisation de l'API IA (peut prendre jusqu'à 15 minutes)..."
+          # On augmente le timeout pour correspondre à la startupProbe.
+          kubectl rollout status deployment/ia-api-deployment --timeout=15m
+          
+          echo "Attente de la stabilisation de Prometheus..."
+          kubectl rollout status deployment/prometheus-deployment --timeout=2m
+
+          echo "Attente de la stabilisation de Grafana..."
+          kubectl rollout status deployment/grafana-deployment --timeout=2m
+
+      - name: Étape 3 - Activer l'Autoscaler (HPA) sur un service stable
+        if: success() # Ne s'exécute que si les déploiements sont stables
+        run: |
+          echo "Les déploiements sont stables. Activation de l'HPA pour l'API IA."
+          kubectl apply -f k8s/ia-api-hpa.yaml
