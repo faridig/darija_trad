@@ -1,71 +1,74 @@
-# k8s/grafana.yaml
+# Fichier : k8s/api.yaml
 
-# Le PVC ne change pas.
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: grafana-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
----
-# On modifie le Deployment pour utiliser la politique de changement de groupe.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: grafana-deployment
+  name: ia-api-deployment
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: grafana
+      app: ia-api
   template:
     metadata:
       labels:
-        app: grafana
+        app: ia-api
     spec:
-      # ================================================================
-      # ===> CORRECTION APPLIQUÉE ICI <=================================
-      # ================================================================
-      securityContext:
-        fsGroup: 472
-        runAsUser: 472
-        runAsGroup: 472
-        # Cette politique demande à Kubernetes de corriger les permissions du volume
-        # si le propriétaire est 'root', ce qui est le cas lors du premier montage.
-        fsGroupChangePolicy: "OnRootMismatch"
-      # ================================================================
-
-      # On a supprimé la section 'initContainers' qui causait le crash.
-      
       containers:
-      - name: grafana-container
-        image: iaapi.azurecr.io/darija-api-grafana:latest
+      - name: ia-api-container
+        image: iaapi.azurecr.io/darija-api:latest
         ports:
-        - containerPort: 3000
-        volumeMounts:
-        - name: grafana-storage
-          mountPath: /var/lib/grafana
-      volumes:
-      - name: grafana-storage
-        persistentVolumeClaim:
-          claimName: grafana-pvc
+        - containerPort: 8001
+        
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "4Gi"
+          limits:
+            cpu: "2"
+            memory: "6Gi"
+        
+        # ================================================================
+        # ===> CORRECTION APPLIQUÉE ICI <=================================
+        # ================================================================
+        # Sonde de vivacité : pour savoir si le pod doit être redémarré.
+        # On lui donne BEAUCOUP de temps pour démarrer.
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 120  # On attend 2 minutes avant le premier check.
+          periodSeconds: 30       # On vérifie toutes les 30 secondes ensuite.
+          timeoutSeconds: 5         # On attend jusqu'à 5 secondes pour une réponse.
+          failureThreshold: 3       # On tolère 3 échecs avant de redémarrer.
+
+        # Sonde de préparation : pour savoir si le pod peut accepter du trafic.
+        # C'est la sonde la plus importante pour un démarrage en douceur.
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 90   # On attend 90 secondes avant de le considérer "prêt".
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # ================================================================
+          
+        envFrom:
+        - secretRef:
+            name: api-secrets
       imagePullSecrets:
       - name: acr-secret
 ---
-# Le Service ne change pas.
 apiVersion: v1
 kind: Service
 metadata:
-  name: grafana-service
+  name: ia-api-service
 spec:
-  type: LoadBalancer
+  type: LoadBalancer 
   selector:
-    app: grafana
+    app: ia-api
   ports:
   - protocol: TCP
-    port: 3000 
-    targetPort: 3000
+    port: 8001
+    targetPort: 8001
