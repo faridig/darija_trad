@@ -24,10 +24,10 @@ spec:
         resources:
           requests:
             cpu: "500m"
-            memory: "4Gi"
+            memory: "1Gi"
           limits:
             cpu: "2"
-            memory: "8Gi"
+            memory: "6Gi"
         
         # --- SONDES MISES À JOUR POUR UN DÉLAI DE 15 MINUTES ---
         # 1. Sonde de DÉMARRAGE :

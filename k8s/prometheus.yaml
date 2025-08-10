@@ -1,7 +1,8 @@
+# k8s/prometheus.yaml (Version complète et corrigée)
+
 # ===================================================================
-# Étape 1 : Créer un ConfigMap pour contenir nos fichiers de configuration
-# C'est ce qui manquait. Ce ConfigMap rendra les fichiers de configuration
-# disponibles à l'intérieur du pod.
+# 1. Configuration de Prometheus via un ConfigMap
+#    Contient la configuration principale ET les règles d'alerte complètes.
 # ===================================================================
 apiVersion: v1
 kind: ConfigMap
@@ -33,11 +34,13 @@ data:
           username_file: /etc/prometheus/prometheus_username.secret
           password_file: /etc/prometheus/prometheus_password.secret
 
-  # Clé 2 : le contenu de votre fichier de règles d'alerte
+  # Clé 2 : le contenu COMPLET de votre fichier de règles d'alerte
   alert.rules.yml: |
     groups:
     - name: API-IA-Alerts
       rules:
+
+      # Règle n°1 : L'API est-elle en panne ? (Fiabilité la plus critique)
       - alert: ApiDown
         expr: up{job="darija_api"} == 0
         for: 1m
@@ -45,7 +48,9 @@ data:
           severity: critical
         annotations:
           summary: "L'API IA est inaccessible (instance down)"
-          description: "Prometheus n'arrive pas à scraper l'endpoint /metrics de l'API IA depuis plus d'une minute."
+          description: "Prometheus n'arrive pas à scraper l'endpoint /metrics de l'API IA depuis plus d'une minute. Le service est probablement en panne ou le réseau est inaccessible."
+
+      # Règle n°2 : L'API génère-t-elle trop d'erreurs ? (Fiabilité)
       - alert: HighErrorRate5xx
         expr: (sum(rate(api_http_errors_5xx_total{endpoint="/generer"}[5m])) by (endpoint) / sum(rate(api_requests_total{endpoint="/generer"}[5m])) by (endpoint)) * 100 > 2
         for: 2m
@@ -53,10 +58,31 @@ data:
           severity: critical
         annotations:
           summary: "Taux d'erreurs 5xx élevé (> 2%)"
-          description: "L'API génère un nombre anormalement élevé d'erreurs serveur."
+          description: "L'API génère un nombre anormalement élevé d'erreurs serveur sur l'endpoint /generer. Un incident est probablement en cours."
+
+      # Règle n°3 : L'API est-elle trop lente ? (Performance)
+      - alert: HighApiLatency
+        expr: histogram_quantile(0.95, sum(rate(api_request_latency_seconds_bucket{endpoint="/generer"}[5m])) by (le, endpoint)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latence API élevée (P95 > 1s)"
+          description: "La latence du endpoint /generer est supérieure à 1s depuis plus de 5 minutes. Le service risque de paraître lent pour les utilisateurs."
+
+      # Règle n°4 : Le modèle est-il toujours pertinent ? (MLOps)
+      - alert: DataDriftDetected
+        expr: histogram_quantile(0.75, sum(rate(data_drift_text_length_bucket[5m])) by (le)) > 14
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Signal de Data Drift détecté (longueur des textes)"
+          description: "La longueur des textes en entrée (P75) est supérieure à 14 mots depuis 1 heure. Le modèle reçoit des données qui pourraient différer de son corpus d'entraînement. Un réentraînement est à considérer."
 ---
 # ===================================================================
-# Étape 2 : Mettre à jour le déploiement pour utiliser le ConfigMap
+# 2. Déploiement de Prometheus
+#    Utilise les configurations et secrets définis ci-dessus.
 # ===================================================================
 apiVersion: apps/v1
 kind: Deployment
@@ -74,8 +100,7 @@ spec:
     spec:
       containers:
       - name: prometheus-container
-        image: iaapi.azurecr.io/darija-api-prometheus:latest
-        # On dit à Prometheus d'utiliser le fichier de config qu'on lui fournit via le volume
+        image: iaapi.azurecr.io/darija-api-prometheus:latest # Assurez-vous que le tag est correct ou géré par votre CI/CD
         args:
           - "--config.file=/etc/prometheus-config/prometheus.yml"
         ports:
@@ -117,7 +142,10 @@ spec:
           - key: ADMIN_USERNAME
             path: "username.txt"
 ---
-# Le Service ne change pas. Il est correct.
+# ===================================================================
+# 3. Service pour Prometheus
+#    Permet aux autres services du cluster de communiquer avec Prometheus.
+# ===================================================================
 apiVersion: v1
 kind: Service
 metadata:

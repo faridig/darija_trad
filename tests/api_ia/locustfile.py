@@ -10,81 +10,70 @@ import requests
 load_dotenv()
 
 # ==============================================================================
-# === LECTURE DES VARIABLES D'ENVIRONNEMENT ===
+# === LECTURE DES VARIABLES D'ENVIRONNEMENT (INCHANGÉ) ===
 # ==============================================================================
 USERNAME = os.getenv("ADMIN_USERNAME")
 PASSWORD = os.getenv("ADMIN_PASSWORD")
-
-# On lit l'URL de l'API de données depuis la même variable que le frontend
 DATA_API_HOST = os.getenv("VITE_DATA_API_BASE_URL")
 
-# Vérification : on s'assure que les variables nécessaires sont bien chargées
 if not all([USERNAME, PASSWORD, DATA_API_HOST]):
-    print("❌ ERREUR : Une ou plusieurs variables d'environnement sont manquantes.")
-    print("   Veuillez vérifier votre fichier .env et vous assurer qu'il contient :")
-    print("   - ADMIN_USERNAME")
-    print("   - ADMIN_PASSWORD")
-    print("   - VITE_DATA_API_BASE_URL")
-    exit(1) # On arrête le script si la configuration est incomplète
+    print("❌ ERREUR : Variables d'environnement manquantes (ADMIN_USERNAME, ADMIN_PASSWORD, VITE_DATA_API_BASE_URL).")
+    exit(1)
 # ==============================================================================
 
-# Liste de phrases de test pour simuler une charge réaliste
-TEST_PHRASES = [
-    "Bonjour, comment ça va aujourd'hui ?",
-    "Je voudrais un café s'il vous plaît.",
-    "Où se trouve la gare la plus proche ?",
-    "Quel temps fait-il dehors ?",
-    "Merci beaucoup pour votre aide.",
-    "Pourriez-vous m'indiquer le chemin pour aller au musée d'art moderne et contemporain ?",
-    "Je cherche un bon restaurant qui sert des spécialités locales pas trop chères.",
-    "Nous prévoyons de partir en vacances la semaine prochaine si la météo le permet.",
-    "Le rapport analyse en détail les fluctuations du marché financier au cours du dernier trimestre.",
-    "N'oubliez pas de vérifier que toutes les fenêtres sont bien fermées avant de quitter la maison.",
-    "La conférence sur l'intelligence artificielle abordera les dernières avancées en matière de traitement du langage naturel.",
+
+# === MODIFICATION : ON GARDE UNIQUEMENT LES PHRASES LONGUES ===
+# Ces phrases, toutes de plus de 14 mots, sont conçues pour
+# simuler un "data drift" en s'écartant des données d'entraînement courtes.
+DRIFT_PHRASES = [
+    "Pourriez-vous m'indiquer le chemin le plus rapide pour me rendre au musée d'art moderne et contemporain de la ville ?",
+    "Le rapport financier analyse en détail les fluctuations importantes du marché des actions au cours du dernier trimestre fiscal de l'année.",
+    "N'oubliez surtout pas de vérifier que toutes les lumières et les fenêtres sont bien fermées avant de quitter définitivement la maison.",
+    "La conférence sur l'intelligence artificielle abordera les dernières avancées en matière de traitement avancé du langage naturel et de la vision par ordinateur.",
+    "L'optimisation des chaînes logistiques mondiales représente un défi majeur pour les entreprises multinationales face aux tensions géopolitiques actuelles.",
+    "Je suis à la recherche d'une solution logicielle capable d'intégrer de manière transparente notre système de gestion de la relation client avec notre plateforme d'e-commerce.",
+    "Veuillez prendre en considération les implications éthiques et légales avant de déployer tout système de reconnaissance faciale dans les espaces publics.",
+    "La mission spatiale a pour objectif principal d'étudier la composition atmosphérique des exoplanètes situées dans la zone habitable de leur étoile.",
 ]
+# ==============================================================================
+
 
 class UserBehavior(HttpUser):
-    wait_time = between(1, 2)
+    wait_time = between(1, 3) # J'ai légèrement augmenté le temps d'attente
     token = None
 
     def on_start(self):
-        """
-        S'exécute une fois par utilisateur virtuel au démarrage.
-        S'authentifie via l'API de Données pour obtenir un token JWT.
-        """
+        """S'authentifie pour obtenir un token JWT (INCHANGÉ)."""
         print(f"Tentative de login sur la DATA-API à l'adresse : {DATA_API_HOST}")
         try:
             response = requests.post(
                 f"{DATA_API_HOST}/login",
-                data={
-                    "username": USERNAME,
-                    "password": PASSWORD
-                },
+                data={"username": USERNAME, "password": PASSWORD},
                 timeout=10
             )
-            response.raise_for_status()  
-            
+            response.raise_for_status()
             self.token = response.json()["access_token"]
             print("✅ Login sur la data-api réussi, token obtenu.")
-
         except requests.exceptions.RequestException as e:
             print(f"❌ Échec de login sur la data-api : {e}")
             self.token = None
 
+    # === MODIFICATION : UNE SEULE TÂCHE FOCALISÉE SUR LE DATA DRIFT ===
     @task
-    def generate_translation(self):
+    def generate_drift_translation(self):
         """
-        Tâche principale exécutée en boucle par chaque utilisateur virtuel.
-        Envoie des requêtes de traduction à l'API d'IA (définie par --host).
+        Tâche unique : envoie en continu des requêtes avec des textes plus longs
+        que la moyenne d'entraînement pour tester l'alerte DataDriftDetected.
         """
         if not self.token:
             print("Token manquant — requête de traduction sautée")
             return
 
-        random_text = random.choice(TEST_PHRASES)
+        # On choisit aléatoirement une phrase longue
+        random_long_text = random.choice(DRIFT_PHRASES)
 
         payload = {
-            "texte": random_text,
+            "texte": random_long_text,
             "src_lang": "fra_Latn",
             "tgt_lang": "ary_Arab"
         }
@@ -94,4 +83,5 @@ class UserBehavior(HttpUser):
             "Content-Type": "application/json"
         }
 
-        self.client.post("/generer", json=payload, headers=headers, name="/generer")
+        # On envoie la requête à l'API d'IA (définie par --host)
+        self.client.post("/generer", json=payload, headers=headers, name="/generer [Drift]")
