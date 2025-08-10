@@ -61,9 +61,7 @@ HTTP_ERRORS_5XX_TOTAL = Counter(
 
 
 @router.get("/health")
-async def health_check(
-    token: dict = Depends(verify_jwt_token),
-):
+async def health_check:
     """Endpoint de vérification de santé"""
     try:
         test_text = "Test santé"
