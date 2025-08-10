@@ -1,3 +1,63 @@
+# ===================================================================
+# Étape 1 : Créer un ConfigMap pour contenir nos fichiers de configuration
+# C'est ce qui manquait. Ce ConfigMap rendra les fichiers de configuration
+# disponibles à l'intérieur du pod.
+# ===================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+data:
+  # Clé 1 : le contenu du fichier de configuration principal de Prometheus
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+
+    # On indique à Prometheus de charger les règles depuis le chemin où nous allons les monter
+    rule_files:
+      - "/etc/prometheus-config/alert.rules.yml"
+
+    alerting:
+      alertmanagers:
+      - static_configs:
+        - targets:
+          - "alertmanager-service:9093" # Utilise le service Kubernetes d'Alertmanager
+
+    scrape_configs:
+      - job_name: "darija_api"
+        metrics_path: /metrics
+        static_configs:
+          - targets: ["ia-api-service:8001"] # Utilise le service Kubernetes de l'API IA
+        basic_auth:
+          # On indique les chemins où les secrets seront montés
+          username_file: /etc/prometheus/prometheus_username.secret
+          password_file: /etc/prometheus/prometheus_password.secret
+
+  # Clé 2 : le contenu de votre fichier de règles d'alerte
+  alert.rules.yml: |
+    groups:
+    - name: API-IA-Alerts
+      rules:
+      - alert: ApiDown
+        expr: up{job="darija_api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "L'API IA est inaccessible (instance down)"
+          description: "Prometheus n'arrive pas à scraper l'endpoint /metrics de l'API IA depuis plus d'une minute."
+      - alert: HighErrorRate5xx
+        expr: (sum(rate(api_http_errors_5xx_total{endpoint="/generer"}[5m])) by (endpoint) / sum(rate(api_requests_total{endpoint="/generer"}[5m])) by (endpoint)) * 100 > 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Taux d'erreurs 5xx élevé (> 2%)"
+          description: "L'API génère un nombre anormalement élevé d'erreurs serveur."
+---
+# ===================================================================
+# Étape 2 : Mettre à jour le déploiement pour utiliser le ConfigMap
+# ===================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,32 +75,49 @@ spec:
       containers:
       - name: prometheus-container
         image: iaapi.azurecr.io/darija-api-prometheus:latest
+        # On dit à Prometheus d'utiliser le fichier de config qu'on lui fournit via le volume
+        args:
+          - "--config.file=/etc/prometheus-config/prometheus.yml"
         ports:
         - containerPort: 9090
-        # --- DÉBUT DE LA CORRECTION ---
         volumeMounts:
-        - name: prometheus-password-volume  # Un nom pour le montage
-          # Le chemin où le fichier doit apparaître DANS le conteneur
+        # 1. Montage des fichiers de configuration depuis le ConfigMap
+        - name: prometheus-config-volume
+          mountPath: /etc/prometheus-config
+        # 2. Montage du secret pour le mot de passe
+        - name: prometheus-password-volume
           mountPath: "/etc/prometheus/prometheus_password.secret"
-          # Le nom du fichier qui sera créé dans le volume
           subPath: "password.txt"
           readOnly: true
-        # --- FIN DE LA CORRECTION ---
+        # 3. Montage du secret pour le nom d'utilisateur
+        - name: prometheus-username-volume
+          mountPath: "/etc/prometheus/prometheus_username.secret"
+          subPath: "username.txt"
+          readOnly: true
       imagePullSecrets:
       - name: acr-secret
-      # --- DÉBUT DE LA CORRECTION ---
       volumes:
-      - name: prometheus-password-volume # Doit correspondre au nom du volumeMount
+      # Définition de la source pour chaque montage
+      # 1. Le volume pour la config vient du ConfigMap
+      - name: prometheus-config-volume
+        configMap:
+          name: prometheus-config
+      # 2. Le volume pour le mot de passe vient du Secret
+      - name: prometheus-password-volume
         secret:
-          # Le nom du secret Kubernetes qui contient la donnée
           secretName: api-secrets
           items:
-          # La clé à extraire du secret 'api-secrets'
           - key: ADMIN_PASSWORD
-            # Le nom du fichier à créer pour le subPath
             path: "password.txt"
-      # --- FIN DE LA CORRECTION ---
+      # 3. Le volume pour le nom d'utilisateur vient aussi du Secret
+      - name: prometheus-username-volume
+        secret:
+          secretName: api-secrets
+          items:
+          - key: ADMIN_USERNAME
+            path: "username.txt"
 ---
+# Le Service ne change pas. Il est correct.
 apiVersion: v1
 kind: Service
 metadata:
