@@ -1,16 +1,20 @@
 name: CI/CD - Stack API IA (App + Monitoring)
 
-# --- DÉCLENCHEURS (MIS À JOUR) ---
-# Se déclenche si le code d'une des API, de la BDD, ou des dépendances change.
 on:
   push:
     branches: [ master ]
     paths:
-      - 'api/**'         # Surveille TOUT ce qui est dans le dossier 'api'
+      - 'api/**'
       - 'database/**'
-      - 'requirements.txt' # Surveille le nouveau fichier de dépendances racine
+      - 'requirements.txt'
+      # ================================================================
+      # ===> CORRECTION APPLIQUÉE ICI <=================================
+      # ================================================================
+      # On surveille TOUS les fichiers de configuration Kubernetes.
+      # Si on modifie l'HPA, Alertmanager, etc., le pipeline doit se lancer.
+      - 'k8s/**'
+      # ================================================================
       - '.github/workflows/ci-cd-ia-api.yml'
-      
   
   pull_request:
     branches: [ master ]
@@ -18,10 +22,17 @@ on:
       - 'api/**'
       - 'database/**'
       - 'requirements.txt'
+      # ================================================================
+      # ===> CORRECTION APPLIQUÉE ICI <=================================
+      # ================================================================
+      - 'k8s/**'
+      # ================================================================
 
   workflow_dispatch:
 
 # --- JOBS ---
+# Le reste de votre fichier (les jobs) est parfaitement correct et n'a pas besoin de changer.
+# ... (jobs: test-api, build-and-deploy-images, deploy-to-aks) ...
 jobs:
   # ====================================================================
   # JOB 1 : TESTER L'API (Intégration Continue)
@@ -137,12 +148,8 @@ jobs:
 
       - name: Supprimer le secret existant (ignore si non trouvé)
         run: |
-          # Utilisation de --ignore-not-found=true pour éviter une erreur si le secret n'existe pas
           kubectl delete secret api-secrets --ignore-not-found=true
 
-      # ================================================================
-      # ===> MODIFICATION APPLIQUÉE ICI <===============================
-      # ================================================================
       - name: Créer/Mettre à jour le secret unifié pour les APIs
         run: |
           kubectl create secret generic api-secrets \
@@ -172,7 +179,6 @@ jobs:
       - name: Déployer les manifestes Kubernetes
         run: |
           # Applique tous les fichiers YAML de la stack IA et monitoring
-          # L'option -k (kustomize) n'est pas utilisée ici, on applique le dossier
           kubectl apply -f k8s/
       
       - name: Vérifier l'état du déploiement
