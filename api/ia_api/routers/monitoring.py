@@ -48,7 +48,7 @@ DATA_DRIFT_INPUT_LENGTH = Histogram(
         0, 3, 6, 9, 12, 15,  # <-- Haute résolution pour le cœur de la distribution (75% des données)
         20, 25, 30,          # <-- Résolution moyenne pour le début de la traîne
         40, 50,              # <-- Résolution plus faible pour les données plus rares
-        75, 100, 150, 200     # <-- Larges seaux pour les outliers jusqu'à la limite max de l'API (200 mots)
+        75, 100, 150, 200     # <--- Larges seaux pour les outliers jusqu'à la limite max de l'API (200 mots)
     )
 )
 
