@@ -20,28 +20,50 @@ spec:
         ports:
         - containerPort: 8001
         
-        # --- DÉBUT DE LA CONFIGURATION ÉTAPE 1 ---
+        # --- CONFIGURATION DES RESSOURCES MISE À JOUR ---
         resources:
-          # C'est la réservation garantie pour votre pod.
-          # L'autoscaler se basera sur ces valeurs.
+          # La réservation garantie pour votre pod.
           requests:
-            cpu: "500m"       # On réserve 0.25 cœur CPU
-            memory: "4Gi"   # On réserve 512 Mebibytes de RAM
+            cpu: "500m"
+            memory: "4Gi"
           
-          # C'est le plafond maximum.
-          # Empêche un pod de faire planter tout le Nœud.
+          # Le plafond maximum, avec une marge pour le démarrage.
           limits:
-            cpu: "2"          # Limité à 1 cœur CPU
-            memory: "6Gi"     # Limité à 1 Gigabyte de RAM
+            cpu: "2"
+            memory: "8Gi" # Augmenté pour gérer le pic de chargement du modèle.
         
-        # On ajoute aussi la sonde de santé, c'est une bonne pratique.
+        # --- CONFIGURATION DES SONDES MISE À JOUR (PLUS ROBUSTE) ---
+        # 1. Sonde de DÉMARRAGE : a la priorité pour les applications lentes.
+        # Kubernetes attendra jusqu'à 5 minutes (30 * 10s) que cette sonde réussisse.
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          failureThreshold: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+
+        # 2. Sonde de VIVACITÉ : ne s'active qu'APRES le succès de la startupProbe.
+        # Vérifie si l'application est toujours en vie une fois démarrée.
         livenessProbe:
           httpGet:
             path: /health
             port: 8001
-          initialDelaySeconds: 20
+          initialDelaySeconds: 15 # Petit délai de grâce après le démarrage réussi.
           periodSeconds: 30
-        # --- FIN DE LA CONFIGURATION ÉTAPE 1 ---
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        # 3. Sonde de PRÉPARATION : ne s'active qu'APRES le succès de la startupProbe.
+        # Indique quand le pod est prêt à recevoir du trafic.
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 5 # Petit délai de grâce après le démarrage réussi.
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
           
         envFrom:
         - secretRef:
