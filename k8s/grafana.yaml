@@ -26,33 +26,33 @@ spec:
             memory: "4Gi"
           limits:
             cpu: "2"
-            memory: "6Gi"
+            memory: "8Gi"
         
-        # ================================================================
-        # ===> CORRECTION APPLIQUÉE ICI <=================================
-        # ================================================================
-        # Sonde de vivacité : pour savoir si le pod doit être redémarré.
-        # On lui donne BEAUCOUP de temps pour démarrer.
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          failureThreshold: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+
         livenessProbe:
           httpGet:
             path: /health
             port: 8001
-          initialDelaySeconds: 120  # On attend 2 minutes avant le premier check.
-          periodSeconds: 30       # On vérifie toutes les 30 secondes ensuite.
-          timeoutSeconds: 5         # On attend jusqu'à 5 secondes pour une réponse.
-          failureThreshold: 3       # On tolère 3 échecs avant de redémarrer.
+          initialDelaySeconds: 15
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
 
-        # Sonde de préparation : pour savoir si le pod peut accepter du trafic.
-        # C'est la sonde la plus importante pour un démarrage en douceur.
         readinessProbe:
           httpGet:
             path: /health
             port: 8001
-          initialDelaySeconds: 90   # On attend 90 secondes avant de le considérer "prêt".
+          initialDelaySeconds: 5
           periodSeconds: 20
           timeoutSeconds: 5
           failureThreshold: 3
-        # ================================================================
           
         envFrom:
         - secretRef:
