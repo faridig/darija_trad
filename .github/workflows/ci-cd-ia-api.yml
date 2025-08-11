@@ -1,3 +1,5 @@
+# .github/workflows/ci-cd-ia-api.yml
+
 name: CI/CD - Stack API IA (App + Monitoring)
 
 on:
@@ -7,7 +9,6 @@ on:
       - 'api/**'
       - 'database/**'
       - 'requirements.txt'
-      # On surveille maintenant toutes les configurations Kubernetes
       - 'k8s/**'
       - '.github/workflows/ci-cd-ia-api.yml'
   
@@ -23,7 +24,7 @@ on:
 
 jobs:
   # ====================================================================
-  # JOB 1 : TESTER L'API (Intégration Continue)
+  # JOB 1 : TESTER L'API (Intégration Continue) - INCHANGÉ
   # ====================================================================
   test-api:
     name: 1 - Test de l'API IA
@@ -59,7 +60,7 @@ jobs:
           path: htmlcov/
 
   # ===================================================================
-  # JOB 2 : CONSTRUIRE ET DÉPLOYER LES IMAGES DOCKER
+  # JOB 2 : CONSTRUIRE ET DÉPLOYER LES IMAGES DOCKER - INCHANGÉ
   # ===================================================================
   build-and-deploy-images:
     name: 2 - Déploiement des images vers ACR
@@ -110,11 +111,11 @@ jobs:
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-grafana:${{ github.sha }}
 
   # ====================================================================
-  # JOB 3 : DÉPLOYER SUR AZURE KUBERNETES SERVICE (AKS) - LOGIQUE AMÉLIORÉE
+  # JOB 3 : DÉPLOYER SUR AKS (LOGIQUE SÉQUENTIELLE AMÉLIORÉE)
   # ===================================================================
   deploy-to-aks:
-    name: 3 - Déploiement sur AKS via Self-Hosted Runner
-    runs-on: self-hosted
+    name: 3 - Déploiement Séquentiel sur AKS
+    runs-on: self-hosted # ou ubuntu-latest
     needs: build-and-deploy-images
     steps:
       - name: Checkout du code
@@ -145,27 +146,43 @@ jobs:
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api:.*|image: $ACR_NAME.azurecr.io/darija-api:$IMAGE_TAG|g" k8s/api.yaml
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api-prometheus:.*|image: $ACR_NAME.azurecr.io/darija-api-prometheus:$IMAGE_TAG|g" k8s/prometheus.yaml
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api-grafana:.*|image: $ACR_NAME.azurecr.io/darija-api-grafana:$IMAGE_TAG|g" k8s/grafana.yaml
+          # Note: Pas besoin de sed pour Alertmanager car on utilise une image publique.
 
-      - name: Étape 1 - Déployer les composants principaux (SANS l'HPA)
+      # ==================================================================
+      # ===> DÉBUT DES MODIFICATIONS : DÉPLOIEMENT SÉQUENTIEL <===========
+      # ==================================================================
+
+      - name: Étape 1 - Déployer l'API IA uniquement
         run: |
-          echo "Déploiement de tous les services, ConfigMaps, etc..."
-          # On applique tous les fichiers YAML sauf celui de l'HPA.
-          find k8s -name "*.yaml" ! -name "ia-api-hpa.yaml" -exec kubectl apply -f {} \;
+          echo "Déploiement du composant le plus critique : l'API IA..."
+          kubectl apply -f k8s/api.yaml
       
-      - name: Étape 2 - Attendre la stabilisation des déploiements
+      - name: Étape 2 - Attendre la stabilisation de l'API IA
         run: |
           echo "Attente de la stabilisation de l'API IA (peut prendre jusqu'à 15 minutes)..."
-          # On augmente le timeout pour correspondre à la startupProbe.
+          # Le timeout est crucial car le chargement du modèle est long.
           kubectl rollout status deployment/ia-api-deployment --timeout=15m
-          
+
+      - name: Étape 3 - Déployer les composants de monitoring
+        run: |
+          echo "L'API IA est stable. Déploiement des composants de monitoring..."
+          kubectl apply -f k8s/prometheus.yaml
+          kubectl apply -f k8s/grafana.yaml
+          kubectl apply -f k8s/alertmanager.yaml
+
+      - name: Étape 4 - Attendre la stabilisation du monitoring
+        run: |
           echo "Attente de la stabilisation de Prometheus..."
           kubectl rollout status deployment/prometheus-deployment --timeout=2m
 
           echo "Attente de la stabilisation de Grafana..."
           kubectl rollout status deployment/grafana-deployment --timeout=2m
+          
+          echo "Attente de la stabilisation d'Alertmanager..."
+          kubectl rollout status deployment/alertmanager-deployment --timeout=1m
 
-      - name: Étape 3 - Activer l'Autoscaler (HPA) sur un service stable
-        if: success() # Ne s'exécute que si les déploiements sont stables
+      - name: Étape 5 - Activer l'Autoscaler (HPA) sur un service stable
+        if: success() # Ne s'exécute que si TOUS les déploiements précédents sont stables
         run: |
-          echo "Les déploiements sont stables. Activation de l'HPA pour l'API IA."
+          echo "Tous les déploiements sont stables. Activation de l'HPA pour l'API IA."
           kubectl apply -f k8s/ia-api-hpa.yaml

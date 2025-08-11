@@ -57,7 +57,7 @@ app.add_middleware(
     allow_headers=["*"]   # Autorise TOUS les en-têtes (comme Authorization, Content-Type)
 )
 
-# 3) Limitation stricte de la taille du body (ex: max 10 KB)
+# 3) Liimitation stricte de la taille du body (ex: max 10 KB)
 app.middleware("http")(limit_body_size)
 
 # 4) Middleware de monitoring (Prometheus + logging)

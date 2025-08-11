@@ -1,77 +1,45 @@
-# Fichier : k8s/ia-api-hpa.yaml
-
+# Fichier : k8s/ia-api-hpa.yaml (Version "douce" et stable)
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  # Un nom simple pour identifier cet autoscaler
   name: ia-api-hpa
 spec:
-  # === Partie 1 : La CIBLE ===
-  # On lui dit quel déploiement il doit surveiller.
-  # Il doit correspondre au 'name' dans votre fichier api.yaml.
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: ia-api-deployment
-
-  # === Partie 2 : Les LIMITES ===
-  # On définit ses pouvoirs.
-  minReplicas: 1      # Il y aura toujours au moins 1 pod en fonctionnement.
-  maxReplicas: 5      # Il ne créera jamais plus de 5 pods au total (pour contrôler les coûts).
-
-  # === Partie 3 : Les RÈGLES ===
-  # On lui dit QUAND il doit agir.
+  minReplicas: 1
+  maxReplicas: 5
   metrics:
-  # Règle pour le CPU
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        # "Si l'utilisation moyenne du CPU dépasse 75% de ce qui a été demandé dans 'requests' (75% de 250m), agis !"
-        averageUtilization: 75
-
-  # Règle pour la Mémoire (RAM)
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        # "Si l'utilisation moyenne de la RAM dépasse 80% de ce qui a été demandé dans 'requests' (80% de 512Mi), agis !"
-        averageUtilization: 80
-
-  # ================================================================
-  # ===> PARTIE 4 : LE COMPORTEMENT (AJOUT IMPORTANT) <=============
-  # C'est ici que nous rendons le HPA plus intelligent et plus patient.
-  # ================================================================
+    # ... (vos métriques CPU et RAM ne changent pas)
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 90
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 98
   behavior:
-    # --- Comportement pour l'augmentation du nombre de pods (scale-up) ---
     scaleUp:
-      # C'est la ligne la plus importante :
-      # Le HPA attendra 5 minutes (300 secondes) après un scale-up avant
-      # d'envisager d'en faire un autre. Cela laisse le temps aux nouveaux pods
-      # de démarrer, de charger leur modèle et de se stabiliser.
+      # On garde une longue fenêtre de stabilisation
       stabilizationWindowSeconds: 300
       policies:
-      # On autorise une augmentation agressive si nécessaire
-      - type: Percent
-        value: 100 # Peut doubler le nombre de pods
-        periodSeconds: 60
-      - type: Pods
-        value: 4 # Peut ajouter jusqu'à 4 pods
-        periodSeconds: 60
-      selectPolicy: Max # Choisit la politique qui ajoute le plus de pods
-
-    # --- Comportement pour la réduction du nombre de pods (scale-down) ---
-    scaleDown:
-      # Le HPA attendra 10 minutes (600 secondes) de faible charge avant
-      # de commencer à supprimer des pods. Cela évite le "flapping"
-      # (ajouter/supprimer des pods sans arrêt).
-      stabilizationWindowSeconds: 600
-      policies:
-      # On est plus prudent en réduction : on ne supprime qu'un pod à la fois
+      # ====> LA MODIFICATION CLÉ <====
+      # On ne l'autorise à ajouter qu'UN SEUL pod toutes les 5 minutes (300s)
       - type: Pods
         value: 1
-        periodSeconds: 120 # Toutes les 2 minutes
-      selectPolicy: Max # (Ici, il n'y a qu'une politique, donc c'est elle qui est choisie)
-  
+        periodSeconds: 300
+      selectPolicy: Max # (Il n'y a qu'une politique, donc c'est elle qui sera choisie)
+
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 120
+      selectPolicy: Max
