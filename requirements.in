@@ -1,24 +1,32 @@
 # Fichier: requirements.in
-# Listez ici vos dépendances directes.
-# Exécutez 'pip-compile' pour générer requirements.txt
+# Ce fichier a été mis à jour pour un déploiement d'API léger,
+# car l'inférence du modèle est maintenant gérée par un Endpoint Hugging Face externe.
+# Exécutez 'pip-compile' pour générer le nouveau requirements.txt.
 
 # --- Core ML & Deep Learning ---
-torch==2.3.1
-transformers
-accelerate
-peft
-datasets
-evaluate
-sacrebleu
-triton==2.3.1 
+# Ces dépendances ne sont plus nécessaires car le modèle n'est plus chargé localement.
+# L'API ne fait plus que des appels HTTP.
+# -----------------------------------------------------------------------------------
+# transformers
+# accelerate
+# peft
+# datasets
+# evaluate
+# sacrebleu
+# triton==2.3.1
+# torch==2.3.1 # S'il était actif, il faudrait le supprimer aussi.
 
 # --- Data Science & Utilities ---
+# Ces bibliothèques sont principalement utilisées pour l'entraînement et l'analyse.
+# Elles ne sont probablement pas nécessaires pour les API de production.
+# Gardons pandas et numpy qui peuvent être utiles, mais les autres sont à supprimer.
+# -----------------------------------------------------------------------------------
 pandas
 numpy
-scikit-learn
-scipy
-seaborn
-matplotlib
+# scikit-learn
+# scipy
+# seaborn
+# matplotlib
 
 # --- Backend API (FastAPI) & Authentification ---
 fastapi[all]
@@ -27,29 +35,35 @@ python-dotenv
 python-multipart
 slowapi
 gunicorn
-httpx
+# httpx # Remplacé par 'requests' pour correspondre au nouveau code de 'model.py'
+requests  # Nécessaire pour appeler l'API Hugging Face
 python-jose[cryptography]
 passlib[bcrypt]
 
-
 # --- Monitoring & Métriques API ---
+# Ces dépendances restent inchangées car le monitoring est toujours actif.
 prometheus-fastapi-instrumentator
 prometheus-client
 
 # --- Base de Données ---
+# Inchangé, toujours nécessaire pour la data-api.
 SQLAlchemy
 psycopg2-binary
 alembic
 
 # --- Monitoring Expériences ML ---
-mlflow
+# MLflow n'est utilisé que pour le pipeline d'entraînement, pas dans l'API.
+# -------------------------------------------------------------------------
+# mlflow
 
 # --- Testing & Qualité ---
+# Inchangé, toujours nécessaire pour les tests CI/CD de l'API.
 pytest
 pytest-cov
 locust
 
 # --- Outils de Développement ---
+# Inchangé.
 ipython
 setuptools
 pip-tools

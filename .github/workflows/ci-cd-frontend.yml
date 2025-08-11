@@ -134,6 +134,8 @@ jobs:
             --from-literal=BASE_URL='${{ secrets.BASE_URL }}' \
             --from-literal=VITE_DATA_API_BASE_URL='${{ secrets.VITE_DATA_API_BASE_URL }}' \
             --from-literal=VITE_IA_API_BASE_URL='${{ secrets.VITE_IA_API_BASE_URL }}' \
+            --from-literal=HF_TOKEN='${{ secrets.HF_TOKEN_AI }}' \
+            --from-literal=HF_INFERENCE_ENDPOINT_URL='${{ secrets.HF_INFERENCE_ENDPOINT_URL }}' \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Mettre à jour le tag de l'image dans le manifeste Frontend

@@ -79,7 +79,10 @@ kubectl create secret generic api-secrets \
   --from-literal=JWT_SECRET="$JWT_SECRET" \
   --from-literal=BASE_URL="$BASE_URL" \
   --from-literal=VITE_DATA_API_BASE_URL="$VITE_DATA_API_BASE_URL" \
+  --from-literal=HF_TOKEN="$HF_TOKEN_AI" \
+  --from-literal=HF_INFERENCE_ENDPOINT_URL="$HF_INFERENCE_ENDPOINT_URL" \
   --from-literal=VITE_IA_API_BASE_URL="$VITE_IA_API_BASE_URL"
+  
 echo -e "${GREEN}Le secret 'api-secrets' a été créé/mis à jour.${NC}\n"
 
 # Étape 3 : Mise à jour dynamique du manifeste Kubernetes

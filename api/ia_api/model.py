@@ -1,47 +1,74 @@
-# api/ia_api/model.py (VERSION FINALE - pour charger un modèle complet fusionné)
+# api/ia_api/model.py (Version MISE À JOUR pour l'inférence via API Hugging Face)
 
-# On a besoin de 'pipeline' pour l'inférence
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
-import torch
+import requests
+import os
+from dotenv import load_dotenv
+
+# Charge les variables d'environnement (ex: .env) pour le développement local
+load_dotenv()
 
 class LLMTranslator:
-    def __init__(
-        self,
-        # Le chemin pointe maintenant vers le modèle complet et autonome sur le Hub
-        model_id: str = "Farid59/nllb-darija-fr_eng"
-    ):
-        print(f"Chargement du modèle de traduction COMPLET depuis : {model_id}")
+    def __init__(self):
+        """
+        Initialise le traducteur pour qu'il communique avec l'API d'inférence
+        de Hugging Face au lieu de charger un modèle localement.
+        """
+        # 1) On récupère l'URL de l'endpoint et le token depuis les variables d'environnement.
+        #    Ces variables seront fournies par le secret Kubernetes en production.
+        self.api_url = os.getenv("HF_INFERENCE_ENDPOINT_URL")
+        self.api_token = os.getenv("HF_TOKEN_AI")
 
-        # 1) Charger directement le tokenizer et le modèle final.
-        #    Plus besoin de PeftModel ou de charger un modèle de base.
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
+        # 2) Vérification critique : si les secrets ne sont pas configurés, l'application ne peut pas fonctionner.
+        if not self.api_url or not self.api_token:
+            raise ValueError("Configuration manquante : les variables d'environnement HF_INFERENCE_ENDPOINT_URL et HF_TOKEN sont requises.")
+            
+        print(f"INFO: Le traducteur est configuré pour utiliser l'endpoint Hugging Face.")
         
-        print("Modèle complet chargé avec succès.")
+        # 3) On prépare l'en-tête d'autorisation qui sera utilisé pour chaque requête.
+        self.headers = {"Authorization": f"Bearer {self.api_token}"}
 
-        # 2) Déterminer le device (GPU si disponible, sinon CPU)
-        device = 0 if torch.cuda.is_available() else -1
-        print(f"Utilisation du device d'inférence : {'cuda:0' if device == 0 else 'cpu'}")
-
-        # 3) Créer la pipeline de traduction de Hugging Face
-        #    C'est une manière propre et optimisée de gérer l'inférence.
-        self.translator = pipeline(
-            "translation",
-            model=model,
-            tokenizer=tokenizer,
-            device=device
-        )
+    def _query_api(self, payload: dict) -> dict:
+        """
+        Méthode privée qui envoie la requête POST à l'API de Hugging Face.
+        """
+        # On utilise la bibliothèque 'requests' pour faire l'appel HTTP.
+        # Un timeout est essentiel pour éviter que notre API ne reste bloquée indéfiniment.
+        response = requests.post(self.api_url, headers=self.headers, json=payload, timeout=30)
+        
+        # Cette ligne est très importante : elle lèvera une exception (HTTPError)
+        # si l'API de Hugging Face renvoie une erreur (ex: 401, 404, 500, 503).
+        response.raise_for_status()
+        
+        return response.json()
 
     def traiter(self, texte: str, src_lang: str, tgt_lang: str) -> str:
         """
-        Traduit un texte d'une langue source à une langue cible.
+        Traduit un texte en appelant l'API d'inférence distante de Hugging Face.
         """
-        # 4) Appel simple de la pipeline en passant les langues dynamiquement
-        outputs = self.translator(
-            texte,
-            src_lang=src_lang,
-            tgt_lang=tgt_lang,
-            max_new_tokens=100
-        )
-        # 5) Extraire et retourner le texte traduit
-        return outputs[0]["translation_text"]
+        # 4) On construit le payload JSON dans le format attendu par l'API d'inférence.
+        payload = {
+            "inputs": texte,
+            "parameters": {
+                "src_lang": src_lang,
+                "tgt_lang": tgt_lang
+            }
+        }
+        
+        try:
+            result = self._query_api(payload)
+            
+            # 5) On traite la réponse. L'API renvoie généralement une liste de résultats.
+            #    On vérifie que la réponse est bien une liste non vide.
+            if isinstance(result, list) and result:
+                translation = result[0].get("translation_text")
+                if translation is not None:
+                    return translation
+            
+            # Si le format de la réponse est inattendu, on lève une erreur claire.
+            print(f"AVERTISSEMENT: Format de réponse inattendu de l'API HF: {result}")
+            raise ConnectionError("Format de réponse inattendu du service de traduction.")
+            
+        except requests.exceptions.RequestException as e:
+            # 6) Gestion robuste des erreurs réseau (connexion impossible, timeout, erreur HTTP...).
+            print(f"ERREUR: Échec de l'appel à l'API Hugging Face : {e}")
+            raise ConnectionError("Le service de traduction externe est actuellement indisponible.") from e
