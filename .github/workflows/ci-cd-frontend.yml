@@ -121,7 +121,7 @@ jobs:
         run: |
           kubectl delete secret api-secrets --ignore-not-found=true
 
-      # ================================================================
+      # =================================================================
       # ===> MODIFICATION APPLIQUÉE ICI <===============================
       # ================================================================
       - name: Créer/Mettre à jour le secret unifié pour les APIs
