@@ -56,7 +56,7 @@ def test_traiter_http_error(mock_post, mock_env):
     translator = LLMTranslator()
     
     # On met à jour le message pour qu'il corresponde exactement
-    with pytest.raises(ConnectionError, match="Le service de traduction est actuellement indisponible."):
+    with pytest.raises(ConnectionError, match="Le service de traduction externe est actuellement indisponible."):
         translator.traiter("test", "fra_Latn", "ary_Arab")
 
 @patch('api.ia_api.model.requests.post')
