@@ -1,9 +1,5 @@
-# k8s/frontend.yaml
+# Fichier : k8s/frontend.yaml (Version Corrigée)
 
-# ===================================================================
-# DÉPLOIEMENT (Deployment)
-# Décrit l'état désiré pour les Pods de l'application frontend.
-# ===================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -20,43 +16,42 @@ spec:
       labels:
         app: frontend
     spec:
+      # Secret pour s'authentifier auprès du registre d'images privé (ACR).
+      imagePullSecrets:
+      - name: acr-secret
+      
       containers:
       - name: frontend-container
-        # L'image Docker à utiliser.
-        # Le tag ':latest' est un placeholder qui sera dynamiquement remplacé 
-        # par le SHA du commit lors du déploiement via le pipeline CI/CD.
+        # L'image sera mise à jour par le pipeline CI/CD.
         image: iaapi.azurecr.io/darija-frontend:latest
-        
-        # Toujours télécharger la nouvelle version de l'image, même si une version
-        # avec le même tag existe déjà sur le nœud. Crucial pour les mises à jour.
         imagePullPolicy: Always
         
         ports:
-        # Le port sur lequel le conteneur Nginx écoute à l'intérieur du Pod.
         - containerPort: 80
           protocol: TCP
 
+        # Sonde pour vérifier que Nginx est prêt à recevoir du trafic.
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+        # Injection des variables d'environnement pour le script d'entrée du conteneur.
         env:
           - name: VITE_DATA_API_BASE_URL
             valueFrom:
               secretKeyRef:
-                name: api-secrets # Le nom de votre secret Kubernetes
-                key: VITE_DATA_API_BASE_URL # La clé à lire dans le secret
+                name: api-secrets
+                key: VITE_DATA_API_BASE_URL
 
           - name: VITE_IA_API_BASE_URL
             valueFrom:
               secretKeyRef:
-                name: api-secrets # Le nom de votre secret Kubernetes
-                key: VITE_IA_API_BASE_URL # La clé à lire dans le secret
-.
-      imagePullSecrets:
-      - name: acr-secret
-
+                name: api-secrets
+                key: VITE_IA_API_BASE_URL
 ---
-# ===================================================================
-# SERVICE
-# Expose le déploiement sur internet via une adresse IP publique.
-# ===================================================================
 apiVersion: v1
 kind: Service
 metadata:
@@ -64,19 +59,11 @@ metadata:
   labels:
     app: frontend
 spec:
-  # 'LoadBalancer' demande au fournisseur cloud (Azure) de créer
-  # un équilibreur de charge avec une adresse IP publique.
   type: LoadBalancer
-
-  # Lie ce service aux Pods qui ont le label 'app: frontend'.
   selector:
     app: frontend
-    
   ports:
   - name: http
     protocol: TCP
-    # Le port exposé publiquement par le Load Balancer.
     port: 80
-    # Le port sur lequel le service redirige le trafic à l'intérieur du cluster.
-    # Il doit correspondre au 'containerPort' du déploiement.
     targetPort: 80
