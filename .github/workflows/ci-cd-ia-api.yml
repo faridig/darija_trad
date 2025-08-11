@@ -47,8 +47,8 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          HF_INFERENCE_ENDPOINT_URL: "https://dummy.api.huggingface.co"
-          HF_TOKEN: "hf_dummy_token_for_testing"
+          HF_INFERENCE_ENDPOINT_URL: ${{ secrets.HF_INFERENCE_ENDPOINT_URL }}
+          HF_TOKEN_AI: ${{ secrets.HF_TOKEN_AI }}
         run: |
           rm -rf ~/.cache/huggingface/hub
           export PYTHONPATH=$(pwd)
