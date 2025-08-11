@@ -8,7 +8,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-# Test de déclenchement du pipeline CI/CD
+# Test de déclenchement du pipelinee CI/CD
 
 # Routes
 from api.ia_api.routers import generation, monitoring
