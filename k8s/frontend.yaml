@@ -36,14 +36,6 @@ spec:
         - containerPort: 80
           protocol: TCP
 
-        # ===================================================================
-        # ===> MODIFICATION AJOUTÉE <===
-        # ===================================================================
-        # Cette section injecte des variables d'environnement dans le conteneur.
-        # C'est comme si, au démarrage du conteneur, on lui disait :
-        # "Voici l'adresse de l'API de données" et "Voici l'adresse de l'API d'IA".
-        # Les valeurs sont récupérées depuis le secret 'api-secrets' que votre
-        # pipeline GitHub Actions crée déjà.
         env:
           - name: VITE_DATA_API_BASE_URL
             valueFrom:
@@ -56,12 +48,7 @@ spec:
               secretKeyRef:
                 name: api-secrets # Le nom de votre secret Kubernetes
                 key: VITE_IA_API_BASE_URL # La clé à lire dans le secret
-        # ===================================================================
-        # ===> FIN DE LA MODIFICATION <===
-        # ===================================================================
-
-      # Secret Kubernetes contenant les identifiants pour se connecter 
-      # à Azure Container Registry (ACR) et télécharger l'image privée.
+.
       imagePullSecrets:
       - name: acr-secret
 

@@ -40,23 +40,23 @@ spec:
         # Même pour une API externe, on garde un délai raisonnable pour la première connexion.
         startupProbe:
           httpGet:
-            path: /health
+            path: /healthz
             port: 8001
-          # Laisse jusqu'à 2 minutes pour le premier démarrage réussi (12 * 10s).
-          failureThreshold: 12
-          periodSeconds: 10
+          
+          failureThreshold: 6
+          periodSeconds: 5
 
         # Sonde de VIVACITÉ (Liveness):
         # S'active après le succès de la startupProbe.
         # Redémarre le pod s'il ne répond plus du tout.
         livenessProbe:
           httpGet:
-            path: /health
+            path: /healthz
             port: 8001
           # Commence à vérifier 15s après le démarrage réussi.
           initialDelaySeconds: 15
           periodSeconds: 20
-          timeoutSeconds: 15
+          timeoutSeconds: 5
           # Redémarre après 3 échecs consécutifs (1 minute de panne).
           failureThreshold: 3
 
@@ -65,7 +65,7 @@ spec:
         # Détermine si le pod est prêt à recevoir du trafic.
         readinessProbe:
           httpGet:
-            path: /health
+            path: /healthz
             port: 8001
           # Commence à vérifier 5s après le démarrage réussi.
           initialDelaySeconds: 5

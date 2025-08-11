@@ -58,7 +58,14 @@ HTTP_ERRORS_5XX_TOTAL = Counter(
     ['method', 'endpoint']
 )
 
-
+@router.get("/healthz", status_code=200)
+async def liveness_check():
+    """
+    Sonde de vivacité/préparation simple.
+    Ne vérifie aucune dépendance externe.
+    Retourne 200 OK si le serveur FastAPI est en cours d'exécution.
+    """
+    return {"status": "ok"}
 
 @router.get("/health")
 async def health_check():
