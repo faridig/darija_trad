@@ -4,7 +4,7 @@ import requests
 import os
 from dotenv import load_dotenv
 
-# Charge les variables d'environnement (ex: .env) pour le développement local
+# Charge les variables d'environnement (ex: .env) pour le développement locall
 load_dotenv()
 
 class LLMTranslator:
