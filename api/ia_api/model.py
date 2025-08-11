@@ -32,7 +32,7 @@ class LLMTranslator:
         Méthode privée qui envoie la requête POST à l'API de Hugging Face.
         """
         # On utilise la bibliothèque 'requests' pour faire l'appel HTTP.
-        # Un timeout est essentiel pour éviter que notre API ne reste bloquée indéfiniment..
+        # Un timeout est essentiel pour éviter que notre API ne reste bloquée indéfiniment.
         response = requests.post(self.api_url, headers=self.headers, json=payload, timeout=30)
         
         # Cette ligne est très importante : elle lèvera une exception (HTTPError)
