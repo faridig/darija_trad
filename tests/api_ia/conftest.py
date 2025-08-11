@@ -3,6 +3,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch
+import requests
 
 from api.ia_api.main import app
 import database.core.auth as core_auth
