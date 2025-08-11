@@ -50,7 +50,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",      # Pour le développement local
         "http://127.0.0.1:5173",
-        "http://4.178.216.44"       # L''IP de votre frontend déployé
+        "http://4.178.216.44"       # L''IP de votre frontend déployéé
     ],
     allow_credentials=True,
     allow_methods=["*"],  # Autorise TOUTES les méthodes (GET, POST, OPTIONS, etc.)

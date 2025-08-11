@@ -56,7 +56,7 @@ spec:
           # Commence à vérifier 15s après le démarrage réussi.
           initialDelaySeconds: 15
           periodSeconds: 20
-          timeoutSeconds: 5
+          timeoutSeconds: 15
           # Redémarre après 3 échecs consécutifs (1 minute de panne).
           failureThreshold: 3
 
@@ -70,7 +70,7 @@ spec:
           # Commence à vérifier 5s après le démarrage réussi.
           initialDelaySeconds: 5
           periodSeconds: 10
-          timeoutSeconds: 5
+          timeoutSeconds: 15
           # Retire le pod du service après 3 échecs consécutifs (30s de panne).
           failureThreshold: 3
           
