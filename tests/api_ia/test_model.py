@@ -13,7 +13,7 @@ DUMMY_TOKEN = "hf_faketoken"
 def mock_env(monkeypatch):
     """Fixture pour simuler les variables d'environnement nécessaires."""
     monkeypatch.setenv("HF_INFERENCE_ENDPOINT_URL", DUMMY_URL)
-    monkeypatch.setenv("HF_TOKEN", DUMMY_TOKEN)
+    monkeypatch.setenv("HF_TOKEN_AI", DUMMY_TOKEN)
 
 def test_translator_initialization_success(mock_env):
     """Vérifie que le traducteur s'initialise correctement avec les variables d'env."""
