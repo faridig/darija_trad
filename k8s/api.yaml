@@ -1,4 +1,4 @@
-# Fichier : k8s/api.yaml
+# Fichier : k8s/api.yaml (Version finale et robuste)
 
 apiVersion: apps/v1
 kind: Deployment
@@ -16,49 +16,62 @@ spec:
     spec:
       containers:
       - name: ia-api-container
-        image: iaapi.azurecr.io/darija-api:latest # Ce tag sera mis à jour par la CI/CD
+        # Ce tag sera mis à jour dynamiquement par votre pipeline CI/CD
+        image: iaapi.azurecr.io/darija-api:latest 
         ports:
         - containerPort: 8001
         
-        # Les ressources restent inchangées, elles sont correctes.
+        # Les ressources sont adaptées pour le cas "API externe" (léger)
+        # Si vous revenez à un modèle local, il faudra les ré-augmenter.
         resources:
           requests:
-            cpu: "500m"
-            memory: "1Gi"
+            cpu: "100m"
+            memory: "128Mi"
           limits:
-            cpu: "1.5"
-            memory: "3.5Gi"
+            cpu: "500m"
+            memory: "512Mi"
         
-        # --- SONDES MISES À JOUR POUR UN DÉLAI DE 15 MINUTES ---
-        # 1. Sonde de DÉMARRAGE :
-        #    Kubernetes attendra maintenant jusqu'à 15 minutes (30 échecs * 30s)
-        #    que cette sonde réussisse avant de considérer le pod comme échoué.
+        # ================================================================
+        # ===> CONFIGURATION DES SONDES AFFINÉE <=========================
+        # ================================================================
+
+        # Sonde de DÉMARRAGE (Startup):
+        # Donne à l'application le temps de démarrer avant que les autres sondes ne s'activent.
+        # Même pour une API externe, on garde un délai raisonnable pour la première connexion.
         startupProbe:
           httpGet:
             path: /health
             port: 8001
-          failureThreshold: 30
-          periodSeconds: 30 # Augmenté pour vérifier moins souvent
-          timeoutSeconds: 10 # Légère augmentation pour plus de tolérance
+          # Laisse jusqu'à 2 minutes pour le premier démarrage réussi (12 * 10s).
+          failureThreshold: 12
+          periodSeconds: 10
 
-        # 2. Sonde de VIVACITÉ : ne s'active qu'après le succès de la startupProbe.
+        # Sonde de VIVACITÉ (Liveness):
+        # S'active après le succès de la startupProbe.
+        # Redémarre le pod s'il ne répond plus du tout.
         livenessProbe:
           httpGet:
             path: /health
             port: 8001
+          # Commence à vérifier 15s après le démarrage réussi.
           initialDelaySeconds: 15
-          periodSeconds: 30
+          periodSeconds: 20
           timeoutSeconds: 5
+          # Redémarre après 3 échecs consécutifs (1 minute de panne).
           failureThreshold: 3
 
-        # 3. Sonde de PRÉPARATION : ne s'active qu'après le succès de la startupProbe.
+        # Sonde de PRÉPARATION (Readiness):
+        # S'active après le succès de la startupProbe.
+        # Détermine si le pod est prêt à recevoir du trafic.
         readinessProbe:
           httpGet:
             path: /health
             port: 8001
+          # Commence à vérifier 5s après le démarrage réussi.
           initialDelaySeconds: 5
-          periodSeconds: 20
+          periodSeconds: 10
           timeoutSeconds: 5
+          # Retire le pod du service après 3 échecs consécutifs (30s de panne).
           failureThreshold: 3
           
         envFrom:
