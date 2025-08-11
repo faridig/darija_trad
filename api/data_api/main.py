@@ -30,8 +30,8 @@ app.add_middleware(
         "http://4.178.216.44", #fronted azuree
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"], # Autorisez toutes les méthodes que vous utilisez
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["*"], # Autorisez toutes les méthodes que vous utilisez
+    allow_headers=["*"],
 )
 
 # Rate limiting

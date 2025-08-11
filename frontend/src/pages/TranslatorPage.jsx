@@ -1,10 +1,12 @@
+// Fichier : frontend/src/pages/TranslatorPage.jsx (Version Confirmée)
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { iaApi } from '../services/api';
 import { authService } from '../services/authService';
 import './TranslatorPage.css';
 
-// Composant pour l'icône SVG
+// Composant pour l'icône SVG (inchangé)
 const SwapIcon = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M6.99 11L3 15L6.99 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -14,36 +16,42 @@ const SwapIcon = () => (
     </svg>
 );
 
-// Source de vérité pour les noms et codes de langue
+// =========================================================================
+// === POINT CLÉ : Définition des codes de langue pour l'API NLLB =========
+// =========================================================================
+// Ces codes (`fra_Latn`, `ary_Arab`) sont spécifiques au modèle NLLB et
+// doivent être envoyés tels quels au backend.
 const languageMap = {
   fra_Latn: 'Français',
   eng_Latn: 'Anglais',
   ary_Arab: 'Darija',
 };
 
-// Liste complète des langues pour le menu source
+// On génère la liste des options pour les menus déroulants à partir de la map
 const allLanguages = Object.keys(languageMap).map(code => ({ code, name: languageMap[code] }));
+// =========================================================================
 
 function TranslatorPage() {
   const navigate = useNavigate();
 
-  // Déclaration de tous les états du composant
+  // États du composant
   const [inputText, setInputText] = useState('');
   const [outputText, setOutputText] = useState('');
+  // Les états initiaux utilisent bien les codes NLLB corrects
   const [sourceLang, setSourceLang] = useState('fra_Latn');
   const [targetLang, setTargetLang] = useState('ary_Arab');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [targetLanguages, setTargetLanguages] = useState([]);
 
-  // Effet pour protéger la route
+  // Effet pour s'assurer que l'utilisateur est authentifié
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       navigate('/login', { state: { message: "Veuillez vous connecter pour accéder au traducteur." } });
     }
   }, [navigate]);
 
-  // Effet pour gérer la logique des menus
+  // Effet pour mettre à jour dynamiquement les options du menu de la langue cible
   useEffect(() => {
     let newTargetOptions = [];
     if (sourceLang === 'fra_Latn' || sourceLang === 'eng_Latn') {
@@ -55,19 +63,22 @@ function TranslatorPage() {
       ];
     }
     setTargetLanguages(newTargetOptions);
+
+    // Si la langue cible actuelle n'est plus une option valide, on sélectionne la première par défaut
     if (!newTargetOptions.some(lang => lang.code === targetLang)) {
       if (newTargetOptions.length > 0) {
         setTargetLang(newTargetOptions[0].code);
       }
     }
-  }, [sourceLang, targetLang]);
+  }, [sourceLang, targetLang]); // Ce hook se redéclenche à chaque changement de sourceLang ou targetLang
 
-  // Gestionnaires pour les interactions utilisateur
+  // Gestionnaires d'événements (inchangés)
   const handleInputChange = (event) => setInputText(event.target.value);
   const handleSourceLangChange = (event) => setSourceLang(event.target.value);
   const handleTargetLangChange = (event) => setTargetLang(event.target.value);
   
   const handleSwapLanguages = () => {
+    // La logique d'inversion est possible uniquement si le Darija est l'une des deux langues
     if (sourceLang === 'ary_Arab' || targetLang === 'ary_Arab') {
       setSourceLang(targetLang);
       setTargetLang(sourceLang);
@@ -76,23 +87,24 @@ function TranslatorPage() {
     }
   };
   
-  // NOUVEAU: Gestionnaire pour la déconnexion
   const handleLogout = () => {
     authService.logout();
     navigate('/login');
   };
 
-  // Logique d'appel à l'API de traduction
+  // Logique d'appel à l'API de traduction (inchangée)
   const handleTranslate = async () => {
     if (!inputText.trim()) return;
     setIsLoading(true);
     setError('');
     setOutputText('');
     try {
+      // Le payload envoyé au backend contient bien les codes de langue stockés dans les états
       const payload = { texte: inputText, src_lang: sourceLang, tgt_lang: targetLang };
       const response = await iaApi.post('/generer', payload);
       setOutputText(response.data.reponse);
     } catch (err) {
+      // Gestion des erreurs
       if (err.response && err.response.status === 401) {
         authService.logout();
         navigate('/login', { state: { message: "Votre session a expiré. Veuillez vous reconnecter." } });
@@ -105,10 +117,9 @@ function TranslatorPage() {
     }
   };
 
-  // Rendu du composant JSX
+  // Rendu JSX du composant (inchangé)
   return (
     <div className="translator-page-layout">
-      {/* MODIFICATION: Ajout du bouton de déconnexion */}
       <header className="translator-header">
         <h1>Traducteur Darija</h1>
         <button onClick={handleLogout} className="logout-button">Déconnexion</button>
