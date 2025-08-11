@@ -1,23 +1,42 @@
-# Fichier : tests/api_ia/conftest.py (Correction finale)
+# Fichier : tests/api_ia/conftest.py (La version qui fonctionne)
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from api.ia_api.main import app
 import database.core.auth as core_auth
 
-@pytest.fixture(autouse=True, scope="session")
-def mock_llm_translator_globally():
+@pytest.fixture(autouse=True)
+def prevent_network_calls(monkeypatch):
     """
-    Patche la classe LLMTranslator à sa source pour TOUS les tests de la session.
+    Fixture auto-exécutée qui empêche TOUT appel réseau sortant
+    en simulant la méthode `post` de la librairie `requests`.
+    C'est la méthode la plus robuste pour isoler les tests.
     """
-    # --- LA CORRECTION EST ICI ---
-    # On patche la classe là où elle est définie ('api.ia_api.model') et non où elle est importée.
-    with patch('api.ia_api.model.LLMTranslator') as MockedTranslator:
-        instance = MockedTranslator.return_value
-        instance.traiter.return_value = "traduction simulée réussie"
-        yield
+    # On simule une réponse de succès générique
+    class MockResponse:
+        def __init__(self, json_data, status_code):
+            self.json_data = json_data
+            self.status_code = status_code
+
+        def json(self):
+            return self.json_data
+            
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise requests.exceptions.HTTPError(f"Error {self.status_code}")
+
+    def mock_post(*args, **kwargs):
+        # Pour le test de traduction, on retourne une réponse formatée
+        if "inputs" in kwargs.get("json", {}):
+            return MockResponse([{"translation_text": "traduction simulée réussie"}], 200)
+        # Pour d'autres appels post, on peut retourner autre chose
+        return MockResponse(None, 200)
+
+    # On remplace `requests.post` par notre fonction simulée
+    monkeypatch.setattr(requests, "post", mock_post)
+
 
 @pytest.fixture
 def client():

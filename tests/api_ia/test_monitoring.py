@@ -1,24 +1,27 @@
-# Fichier : tests/api_ia/test_monitoring.py (Simplifié)
-
 import pytest
 from unittest.mock import patch
 from fastapi import status
-# Note: On a plus besoin de LLMTranslator ici
+import requests # Importez requests pour monkeypatcher
 
 def test_health_success(client):
-    """Vérifie le cas nominal de /health. Le mock global gère la simulation."""
+    """Vérifie le cas nominal de /health."""
     response = client.get("/health")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["status"] == "healthy"
 
-def test_health_failure_on_model_error(client):
-    """Vérifie que /health renvoie 500 si le traducteur échoue."""
-    # On surcharge le mock global juste pour ce test pour simuler une erreur
-    with patch('api.ia_api.model.LLMTranslator.traiter', side_effect=Exception("Erreur modèle simulée")):
-        response = client.get("/health")
-        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert response.json() == {"detail": "Service unavailable"}
+def test_health_failure_on_model_error(client, monkeypatch):
+    """Vérifie que /health renvoie 500 si l'appel réseau échoue."""
+    # On surcharge le mock global pour simuler une erreur réseau
+    def mock_post_error(*args, **kwargs):
+        raise requests.exceptions.RequestException("Erreur réseau simulée")
+    
+    monkeypatch.setattr(requests, "post", mock_post_error)
+    
+    response = client.get("/health")
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.json() == {"detail": "Service unavailable"}
+
 
 def test_metrics_basic_auth_failure(client, basic_auth_header):
     """Vérifie que /metrics rejette les mauvais identifiants."""

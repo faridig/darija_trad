@@ -13,7 +13,7 @@ class LLMTranslator:
         Initialise le traducteur pour qu'il communique avec l'API d'inférence
         de Hugging Face au lieu de charger un modèle localement.
         """
-        # 1) On récupère l'URL de l'endpoint et le token depuis les variables d'environnement.
+        # 1) On récupère l'URL de l'endpoint et le token depuis les variables d'environnement..
         #    Ces variables seront fournies par le secret Kubernetes en production.
         self.api_url = os.getenv("HF_INFERENCE_ENDPOINT_URL")
         self.api_token = os.getenv("HF_TOKEN_AI")

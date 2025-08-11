@@ -1,5 +1,3 @@
-# Fichier : tests/api_ia/test_generation.py (Simplifié)
-
 import pytest
 from fastapi import status
 
