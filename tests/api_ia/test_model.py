@@ -77,7 +77,7 @@ def test_traiter_http_error(mock_post, mock_env):
 def test_traiter_unexpected_response_format(mock_post, mock_env):
     """Vérifie que le traducteur gère un format de réponse JSON inattendu."""
     mock_response = Mock()
-    mock_response.json.return_value = [{"wrong_key": "some_value"}] # Format incorrectt
+    mock_response.json.return_value = [{"wrong_key": "some_value"}] # Format incorrect
     mock_response.raise_for_status.return_value = None
     mock_post.return_value = mock_response
 
