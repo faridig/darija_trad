@@ -20,7 +20,7 @@ class LLMTranslator:
 
         # 2) Vérification critique : si les secrets ne sont pas configurés, l'application ne peut pas fonctionner.
         if not self.api_url or not self.api_token:
-            raise ValueError("Configuration manquante : les variables d'environnement HF_INFERENCE_ENDPOINT_URL et HF_TOKEN sont requises.")
+            raise ValueError("Configuration manquante : les variables d'environnement HF_INFERENCE_ENDPOINT_URL et HF_TOKEN_AI sont requises.")
             
         print(f"INFO: Le traducteur est configuré pour utiliser l'endpoint Hugging Face.")
         
