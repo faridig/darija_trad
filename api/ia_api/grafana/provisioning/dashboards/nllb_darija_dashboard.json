@@ -28,7 +28,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
-      "description": "Ce graphique montre le volume de requêtes que l'API reçoit chaque seconde, ventilé par *endpoint* (ex: `/generer`, `/health`).\n\n**Comment l'interpréter ?**\n- **Activité :** Confirme que l'API est en service et utilisée.\n- **Charge :** Permet d'identifier les pics d'utilisation.",
+      "description": "Ce graphique montre le volume de requêtes que l'API reçoit chaque seconde, ventilé par *endpoint* (ex: `/generer`, `/health`, `/metrics`).\n\n**Comment l'interpréter ?**\n- **Activité :** Confirme que l'API est en service et utilisée.\n- **Charge :** Permet d'identifier les pics d'utilisation.",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
       "id": 1,
       "options": {
@@ -38,7 +38,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "sum(rate(api_requests_total{endpoint=~\"/generer|/health\"}[2m])) by (endpoint)",
+          "expr": "sum(rate(api_requests_total{endpoint=~\"/generer|/health|/metrics\"}[2m])) by (endpoint)",
           "legendFormat": "{{endpoint}}",
           "refId": "A"
         }
@@ -127,11 +127,11 @@
       },
       "targets": [
         {
-            "datasource": { "type": "prometheus", "uid": "Prometheus" },
-            "expr": "( (sum(rate(api_http_errors_5xx_total{endpoint=\"/generer\"}[5m])) by (endpoint) or on(endpoint) vector(0)) / sum(rate(api_requests_total{endpoint=\"/generer\"}[5m])) by (endpoint) ) * 100",
-            "legendFormat": "Taux d'erreurs sur {{endpoint}}",
-            "refId": "A"
-          }
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "( (sum(rate(api_http_errors_5xx_total{endpoint=\"/generer\"}[5m])) by (endpoint) or on(endpoint) vector(0)) / sum(rate(api_requests_total{endpoint=\"/generer\"}[5m])) by (endpoint) ) * 100",
+          "legendFormat": "Taux d'erreurs sur {{endpoint}}",
+          "refId": "A"
+        }
       ],
       "title": "Taux d'Erreurs Serveur (5xx)",
       "type": "timeseries"
@@ -193,6 +193,6 @@
   "timezone": "browser",
   "title": "NLLB-Darija API - Tableau de Bord Opérationnel",
   "uid": "nllb-darija-api-final-compatible",
-  "version": 14,
+  "version": 15,
   "weekStart": ""
 }

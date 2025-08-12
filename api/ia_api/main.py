@@ -53,7 +53,7 @@ app.add_middleware(
         "http://4.178.216.44"       # L'IP de votre frontend déployé
     ],
     allow_credentials=True,
-    allow_methods=["*"],  # Autorise TOUTES les méthodes (GET, POST, OPTIONS, etc.)
+    allow_methods=["*"],  # Autorise TOUTES les méthodes (GET, POST, OPTIONS, etc..)
     allow_headers=["*"]   # Autorise TOUS les en-têtes (comme Authorization, Content-Type)
 )
 
