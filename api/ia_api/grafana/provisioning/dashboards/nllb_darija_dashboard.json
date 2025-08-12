@@ -127,11 +127,11 @@
       },
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "(sum(rate(api_http_errors_5xx_total{endpoint=\"/generer\"}[5m])) by (endpoint) / sum(rate(api_requests_total{endpoint=\"/generer\"}[5m])) by (endpoint)) * 100 or on(endpoint) vector(0)",
-          "legendFormat": "Taux d'erreurs sur /generer",
-          "refId": "A"
-        }
+            "datasource": { "type": "prometheus", "uid": "Prometheus" },
+            "expr": "( (sum(rate(api_http_errors_5xx_total{endpoint=\"/generer\"}[5m])) by (endpoint) or on(endpoint) vector(0)) / sum(rate(api_requests_total{endpoint=\"/generer\"}[5m])) by (endpoint) ) * 100",
+            "legendFormat": "Taux d'erreurs sur {{endpoint}}",
+            "refId": "A"
+          }
       ],
       "title": "Taux d'Erreurs Serveur (5xx)",
       "type": "timeseries"
