@@ -22,18 +22,10 @@ if not all([USERNAME, PASSWORD, DATA_API_HOST]):
 # ==============================================================================
 
 
-# === MODIFICATION : ON GARDE UNIQUEMENT LES PHRASES LONGUES ===
-# Ces phrases, toutes de plus de 14 mots, sont conçues pour
-# simuler un "data drift" en s'écartant des données d'entraînement courtes.
-DRIFT_PHRASES = [
-    "Pourriez-vous m'indiquer le chemin le plus rapide pour me rendre au musée d'art moderne et contemporain de la ville ?",
-    "Le rapport financier analyse en détail les fluctuations importantes du marché des actions au cours du dernier trimestre fiscal de l'année.",
-    "N'oubliez surtout pas de vérifier que toutes les lumières et les fenêtres sont bien fermées avant de quitter définitivement la maison.",
-    "La conférence sur l'intelligence artificielle abordera les dernières avancées en matière de traitement avancé du langage naturel et de la vision par ordinateur.",
-    "L'optimisation des chaînes logistiques mondiales représente un défi majeur pour les entreprises multinationales face aux tensions géopolitiques actuelles.",
-    "Je suis à la recherche d'une solution logicielle capable d'intégrer de manière transparente notre système de gestion de la relation client avec notre plateforme d'e-commerce.",
-    "Veuillez prendre en considération les implications éthiques et légales avant de déployer tout système de reconnaissance faciale dans les espaces publics.",
-    "La mission spatiale a pour objectif principal d'étudier la composition atmosphérique des exoplanètes situées dans la zone habitable de leur étoile.",
+PHRASES = [
+    "Pourriez-vous m'indiquer " ,
+    "Le rapport financier ",
+    "N'oubliez surtout ",
 ]
 # ==============================================================================
 
@@ -70,7 +62,7 @@ class UserBehavior(HttpUser):
             return
 
         # On choisit aléatoirement une phrase longue
-        random_long_text = random.choice(DRIFT_PHRASES)
+        random_long_text = random.choice(PHRASES)
 
         payload = {
             "texte": random_long_text,

@@ -46,6 +46,20 @@ spec:
         image: iaapi.azurecr.io/darija-api-grafana:latest
         ports:
         - containerPort: 3000
+        env:
+          # Variable pour le nom d'utilisateur admin de Grafana
+          - name: GF_SECURITY_ADMIN_USER
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: ADMIN_USERNAME
+          
+          # Variable pour le mot de passe admin de Grafana
+          - name: GF_SECURITY_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: api-secrets
+                key: ADMIN_PASSWORD
         volumeMounts:
         - name: grafana-storage
           mountPath: /var/lib/grafana
