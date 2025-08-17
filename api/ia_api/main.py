@@ -48,7 +48,7 @@ Cette API utilise un modèle d'IA pour traduire du texte. Elle est sécurisée p
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",      # Pour le développement local
+        "http://localhost:5173",      # Pour le développement locall
         "http://127.0.0.1:5173",
         "http://4.178.216.44"       # L'IP de votre frontend déployé
     ],

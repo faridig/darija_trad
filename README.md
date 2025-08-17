@@ -1,135 +1,134 @@
-# Projet MLOps de Traduction Français/Anglais ↔ Darija Marocain
+# Traducteur Darija : Application Complète avec MLOps
 
-Ce projet met en œuvre un système de traduction de bout en bout basé sur le modèle NLLB-600M de Facebook, fine-tuné pour le darija marocain. Il implémente un cycle de vie MLOps complet, de la collecte des données au déploiement et au monitoring en production d'une API d'inférence, en passant par l'entraînement et la validation automatisés du modèle.
+Ce projet est une application web complète de traduction Français/Anglais ↔ Darija Marocain. Il couvre l'intégralité du cycle de vie du produit, depuis la collecte et la préparation des données jusqu'au fine-tuning d'un modèle de LLM, son déploiement via une API monitorée, et sa consommation par une interface utilisateur moderne.
 
-## ✨ Caractéristiques Principales
+L'ensemble de l'écosystème est automatisé via des pipelines CI/CD robustes, illustrant une approche MLOps de bout en bout.
 
-*   **🤖 Modèle d'IA :** Fine-tuning du modèle `facebook/nllb-200-distilled-600M` avec des adaptateurs LoRA pour une traduction performante et bidirectionnelle.
-*   **🚀 Pipeline MLOps Automatisé :** Un workflow GitHub Actions gère l'entraînement, l'évaluation et le déploiement conditionnel du modèle sur Hugging Face Hub.
-*   **✔️ Validation Gate :** Un nouveau modèle n'est déployé que si son score BLEU sur un jeu de test est supérieur à celui en production, garantissant une amélioration continue.
-*   **📦 API d'Inférence Robuste :** Une API FastAPI conteneurisée expose le modèle via un endpoint sécurisé (JWT, headers de sécurité, rate limiting, validation Pydantic).
-*   **📊 Monitoring Avancé :** Une stack complète Prometheus + Grafana surveille les performances de l'API, la latence et la dérive des données (*data drift*).
-*   **⚙️ CI/CD pour l'Application :** Un second workflow GitHub Actions assure les tests, la construction et le déploiement des images Docker de l'API et de la stack de monitoring vers Azure Container Registry (ACR).
-*   **🗃️ Gestion des Données Structurée :** Collecte de données multi-sources (scraping, synthétique via GPT, datasets publics), nettoyage avec PySpark, et gestion via une base de données PostgreSQL et une API CRUD dédiée.
+## ✨ Fonctionnalités Clés
+
+* **Application Frontend (React)** : Une interface utilisateur réactive pour l'inscription, l'authentification et la traduction en temps réel.
+* **API d'Inférence (FastAPI)** : Un service léger et performant qui expose le modèle de traduction via un endpoint sécurisé.
+* **API de Données (FastAPI)** : Un service CRUD pour gérer le corpus de traduction et l'authentification des utilisateurs.
+* **Pipeline de Données** : Scripts automatisés pour la collecte de données (scraping, API), le nettoyage (PySpark) et la normalisation.
+* **Pipeline MLOps** : Fine-tuning d'un modèle NLLB avec **LoRA**, suivi des expériences avec **MLflow**, et déploiement conditionnel sur **Hugging Face Hub**.
+* **Monitoring & Alerting** : Une stack complète **Prometheus + Grafana + Alertmanager** pour surveiller la performance de l'API IA, la fiabilité et le *data drift*.
+* **Infrastructure sur Azure** : Déploiement conteneurisé sur **Azure Kubernetes Service (AKS)**, avec gestion des images sur **Azure Container Registry (ACR)**.
+* **CI/CD (GitHub Actions)** : Trois pipelines d'automatisation distincts pour le Frontend, l'API IA, et le modèle ML, garantissant la qualité et la livraison continue.
 
 ## 🏛️ Architecture Globale
 
-Le projet est divisé en deux boucles d'automatisation principales :
-
-1.  **Le Cycle de Vie du Modèle (ML Pipeline) :** Dédié à la création, la validation et la publication du meilleur modèle possible.
-2.  **Le Cycle de Vie de l'Application (CI/CD API) :** Dédié à la mise à disposition fiable et monitorée du modèle via une API.
+Le projet est divisé en modules indépendants mais interconnectés, chacun ayant un rôle précis :
 
 ```mermaid
 graph TD
-    subgraph "Phase 1: Gestion des Données (Compétences E1)"
-        D1[Scraping Web] --> N
-        D2[Génération Synthétique] --> N
-        D3[Dataset Public HuggingFace] --> N
-        N[Normalisation & Nettoyage] --> DB[(PostgreSQL)]
-        DB <--> API_DATA[API CRUD Données]
+    subgraph "CI/CD (GitHub Actions)"
+        W_ML[ML Pipeline] --> M_HF[Modèle sur Hugging Face]
+        W_API[API IA Pipeline] --> C_AKS_API[API IA sur AKS]
+        W_FE[Frontend Pipeline] --> C_AKS_FE[Frontend sur AKS]
     end
 
-    subgraph "Phase 2: Pipeline MLOps - Entraînement (GitHub Actions - Runner GPU)"
-        API_DATA -- Export --> PREP[Préparation Datasets]
-        PREP --> TEST_DATA[Tests Qualité Données]
-        TEST_DATA --> TRAIN[Fine-Tuning LoRA + MLflow]
-        TRAIN --> EVAL[Évaluation Modèle (BLEU)]
-        PROD_MODEL[Modèle en Prod (HF Hub)] --> COMPARE{Validation Gate}
-        EVAL --> COMPARE
-        COMPARE -- "Si score > prod" --> DEPLOY_MODEL[Déploiement sur Hugging Face Hub]
-    end
-
-    subgraph "Phase 3: Pipeline CI/CD - API (GitHub Actions)"
-        CODE[Code de l'API IA] -- Push sur master --> TEST_API[Tests Pytest & Couverture > 85%]
-        TEST_API --> BUILD[Build Images Docker]
-        BUILD --> PUSH[Push vers Azure Container Registry]
+    subgraph "Utilisateur Final"
+        User[Utilisateur] --> AppFE[Application Frontend]
     end
     
-    subgraph "Phase 4: Déploiement Production (ex: Kubernetes)"
-        DEPLOY_MODEL --> PULL_MODEL[API IA charge le modèle]
-        PULL_MODEL <--> PROM[Prometheus]
-        PROM <--> GRAFANA[Grafana Dashboard]
-        PUSH --> K8S[Déploiement K8s]
-        K8S --> PULL_MODEL
-        USER[Utilisateur Final] --> PULL_MODEL
+    subgraph "Cloud (Azure + Supabase)"
+        AppFE -- "HTTPS" --> C_AKS_API
+        AppFE -- "HTTPS" --> C_AKS_DATA[Data API sur AKS]
+        
+        C_AKS_API -- "Inférence" --> M_HF
+        C_AKS_DATA -- "CRUD" --> DB[(Supabase/PostgreSQL)]
+        C_AKS_API -- "Auth" --> C_AKS_DATA
     end
+
+    style W_ML fill:#d4edda
+    style W_API fill:#d4edda
+    style W_FE fill:#d4edda
 ```
+
+Le Pipeline MLOps entraîne, valide et déploie le modèle de traduction sur Hugging Face Hub.  
+L'Application Frontend (React) est l'interface client. Elle communique avec les deux APIs backend.  
+L'API IA (FastAPI) reçoit les demandes de traduction du frontend, les authentifie auprès de la Data API, et appelle le modèle sur Hugging Face pour effectuer l'inférence.  
+L'API de Données (FastAPI) gère la base de données PostgreSQL (hébergée sur Supabase) pour l'authentification et le stockage du corpus.  
+Les Pipelines CI/CD automatisent les tests, le build des images Docker et le déploiement de l'API IA et du Frontend sur Azure Kubernetes Service (AKS).  
 
 ## 📂 Structure du Projet
 
-```
-.
-├── .github/workflows/      # Workflows CI/CD & MLOps
-│   ├── ci-cd-ia-api.yml    # Pipeline pour l'API et le monitoring
-│   └── ml_pipeline.yml     # Pipeline pour l'entraînement du modèle
-├── api/
-│   ├── data_api/           # API CRUD pour gérer le corpus de traductions
-│   └── ia_api/             # API d'inférence pour le modèle de traduction
-│       ├── grafana/        # Configuration Grafana (provisioning)
-│       ├── prometheus/     # Configuration Prometheus
-│       └── ...
-├── data/                   # Scripts de collecte et nettoyage des données
-├── database/               # Gestion de la BDD (modèles, migrations, scripts)
-├── docs/                   # Documentation du projet (MLOps, BDD, etc.)
-├── llm/                    # Scripts pour l'entraînement et l'évaluation du modèle
-├── tests/                  # Tests automatisés
-│   ├── api_crud/           # Tests pour l'API de données
-│   ├── api_ia/             # Tests pour l'API d'IA (incluant test de charge)
-│   ├── data/               # Tests de qualité des données
-│   └── database/           # Tests des requêtes SQL
-├── mlruns/                 # Données de tracking MLflow (local)
-├── *.yaml                  # Fichiers de déploiement Kubernetes
-├── requirements.txt        # Dépendances Python
-└── README.md
-```
+| Dossier | Description | Documentation Détaillée |
+| :--- | :--- | :--- |
+| `.github/workflows/` | Contient les 3 pipelines CI/CD (Frontend, API IA, Modèle ML). | Guide CI/CD |
+| `api/` | Contient le code des deux backends FastAPI. | |
+| `api/data_api/` | Gère les données du corpus et l'authentification des utilisateurs. | README |
+| `api/ia_api/` | Expose le modèle d'IA et intègre la stack de monitoring. | README |
+| `data/` | Pipeline complet d'acquisition et de nettoyage des données brutes. | README |
+| `database/` | Gère le schéma, les migrations, et la maintenance de la base de données PostgreSQL. | README |
+| `docs/` | Documentation technique et de conformité du projet. | |
+| `frontend/` | Application React (Vite) constituant l'interface utilisateur. | README |
+| `k8s/` | Manifestes Kubernetes pour le déploiement sur AKS. | |
+| `llm/` | Pipeline MLOps pour le fine-tuning, l'évaluation et la gestion du modèle. | README |
+| `tests/` | Tests unitaires et d'intégration pour les différents modules. | |
 
-## 🚀 Installation et Utilisation Locale
+## 🚀 Démarrage Rapide (Développement Local)
 
 ### Prérequis
+- Docker & Docker Compose  
+- Node.js v18+ et npm  
+- Python 3.11+ et pip  
+- Azure CLI (`az`), `kubectl` (pour le déploiement)  
+- Un compte Supabase, Hugging Face et Azure.
 
-*   Docker & Docker Compose
-*   Python 3.11+
-*   Un fichier `.env` à la racine du projet, configuré avec les secrets nécessaires (base de données, API keys, etc.).
-
-### 1. Lancer l'API d'Inférence et le Monitoring
-
-Depuis la racine du projet, le fichier `docker-compose.yml` est configuré pour lancer la stack de l'API IA.
-
+### 1. Configuration Initiale
+Clonez le dépôt :
 ```bash
-# Dans le dossier api/ia_api/
-docker-compose up --build -d
+git clone <URL_DU_PROJET>
+cd darija_app_final
 ```
 
-Les services suivants seront accessibles :
-*   **API d'IA :** `http://localhost:8001`
-*   **Documentation (Swagger) :** `http://localhost:8001/docs`
-*   **Prometheus :** `http://localhost:9090`
-*   **Grafana :** `http://localhost:3000`
-
-### 2. Exécuter les tests
-
-Assurez-vous d'avoir installé les dépendances :
+Configurez l'environnement :
 ```bash
+cp .env.example .env
+nano .env
+```
+
+Installez les dépendances :
+```bash
+# Dépendances Python (pour les APIs et le LLM)
 pip install -r requirements.txt
+
+# Dépendances JavaScript (pour le Frontend)
+cd frontend && npm install && cd ..
 ```
 
-Lancez tous les tests avec la couverture :
+### 2. Lancer la Base de Données
+Si vous travaillez en local, mettez en place la base de données PostgreSQL :
 ```bash
-pytest --cov
+bash database/install_postgresql.sh
 ```
+Suivez les invites interactives à la fin du script.
 
-Pour lancer les tests d'un module spécifique (ex: API IA) :
+### 3. Lancer les Services
+Lancer l'IA API et sa stack de monitoring :
 ```bash
-pytest tests/api_ia/ --cov=api/ia_api
+cd api/ia_api/
+docker-compose up --build
+```
+- API IA disponible sur [http://localhost:8001](http://localhost:8001)  
+- Grafana sur [http://localhost:3000](http://localhost:3000)  
+
+Lancer la Data API :
+```bash
+uvicorn api.data_api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## ✅ Compétences Couvertes (Référentiel RNCP37827)
+Lancer le Frontend :
+```bash
+cd frontend/
+npm run dev
+```
+Application disponible sur [http://localhost:5173](http://localhost:5173)
 
-Ce projet a été conçu pour couvrir de manière exhaustive les blocs de compétences du titre "Développeur en Intelligence Artificielle".
+## ☁️ Déploiement sur Azure
 
-| Bloc de Compétences                                      | Compétences Clés Démontrées                                                                                                                                                                                             | Fichiers de Preuve Principaux                                                                                                 |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **E1 : Gestion des données** <br/> (C1, C3, C4, C5)       | **C1:** Extraction multi-sources (scraping, API, datasets).<br/>**C3:** Agrégation et nettoyage avec PySpark.<br/>**C4:** Création d'une BDD PostgreSQL avec migrations.<br/>**C5:** Développement d'une API REST pour les données. | `data/`, `database/`, `api/data_api/`                                                                                         |
-| **E3 : Mettre à disposition l’IA** <br/> (C9, C11, C12, C13) | **C9:** API d'inférence sécurisée avec FastAPI.<br/>**C11:** Monitoring complet (Prometheus/Grafana) avec détection de data drift.<br/>**C12:** Tests automatisés du modèle ("Validation Gate").<br/>**C13:** Chaînes CI/CD/MLOps complètes. | `api/ia_api/`, `.github/workflows/`, `llm/evaluate_model.py`, `tests/`                                                       |
+Le déploiement en production est entièrement géré par les pipelines CI/CD de GitHub Actions.  
+Un push sur la branche `main` déclenchera automatiquement les tests, le build des images et le déploiement sur AKS.  
 
-Ce projet sert de démonstration pratique et approfondie des compétences requises pour l'industrialisation de solutions d'intelligence artificielle dans un environnement de production.
+Pour plus de détails sur le fonctionnement des pipelines, consultez le **Guide CI/CD & MLOps**.

@@ -1,12 +1,75 @@
-# React + Vite
+# 🚀 Frontend - Interface de Traduction Darija
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Ce module contient l'application frontend de l'outil de traduction, développée avec **React** et **Vite**. Elle fournit une interface utilisateur moderne, réactive et sécurisée pour interagir avec les APIs de données et d'intelligence artificielle.
 
-Currently, two official plugins are available:
+## ✨ Fonctionnalités Clés
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+* **Stack Moderne** : **React 19** + **Vite**.
+* **Routing Côté Client** : **React Router DOM** pour navigation fluide.
+* **Authentification Sécurisée** : Gestion complète JWT, stockage dans `localStorage`.
+* **Tests Complets** : **Vitest** + **React Testing Library**.
+* **Configuration Dynamique** : `entrypoint.sh` injecte les URLs d'API à l'exécution.
+* **Design Élégant** : Palette sombre, UX optimisée.
 
-## Expanding the ESLint configuration
+## 🏗️ Architecture du Frontend
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+* **`/src`**
+  * **`/pages`** : `LoginPage`, `RegisterPage`, `TranslatorPage`.
+  * **`/services`** :
+    * `api.js` : Instances Axios (`dataApi`, `iaApi`).
+    * `authService.js` : Login, register, logout, gestion token.
+  * `main.jsx` : Point d'entrée + routage.
+  * `App.jsx` : Layout principal.
+  * `setupTests.js` : Config tests.
+
+## 🧪 Tests
+
+* **Outils** : Vitest, JSDOM, React Testing Library.
+* **Couverture** : ≥ 80%.
+* **Cas testés** :
+  * Rendu des composants.
+  * Interactions utilisateur (clics, saisies).
+  * Mock API pour succès/erreurs.
+  * Redirections.
+
+Lancement :
+```bash
+npm test
+npm run coverage
+```
+
+## 🚀 Démarrage et Déploiement
+
+### Local
+
+**Prérequis** : Node.js + npm.  
+**Config** : `.env` avec :
+```
+VITE_DATA_API_BASE_URL=http://localhost:8000
+VITE_IA_API_BASE_URL=http://localhost:8001
+```
+
+Installer dépendances :
+```bash
+npm install
+```
+
+Démarrer :
+```bash
+npm run dev
+```
+Accès : [http://localhost:5173](http://localhost:5173)
+
+### Production
+
+Build Docker multi-étapes basé sur Nginx :
+```bash
+docker build -t mon-frontend:latest .
+```
+
+Config dynamique à l'exécution :
+```bash
+docker run -d -p 8080:80   -e VITE_DATA_API_BASE_URL="http://prod-data-api-url.com"   -e VITE_IA_API_BASE_URL="http://prod-ia-api-url.com"   mon-frontend:latest
+```
+
+Idéal pour Kubernetes avec ConfigMaps/Secrets.

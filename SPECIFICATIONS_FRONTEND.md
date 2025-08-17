@@ -68,18 +68,17 @@ Chaque spécification fonctionnelle couvre le contexte, les scénarios d’utili
 
 Les wireframes ci-dessous présentent une vue simplifiée des écrans principaux de l'application.
 
-### Écran de Connexion (Mis à jour)
-
-![Écran de Connexion](./docs/wireframes/login-screen.jpg)
+### Écran de Connexion 
+![Écran de Connexion](docs/wireframes/login-screen.png)
 
 > Parcours : L'utilisateur arrive sur cet écran, saisit ses identifiants et clique sur "Se connecter". S'il n'a pas de compte, il peut cliquer sur le lien pour s'inscrire.  
 > Modification : Ajout d'un lien "Créer un compte" en bas du formulaire, qui redirige vers le nouvel écran d'inscription.
 
 ---
 
-### Écran d'Inscription (Nouveau)
+### Écran d'Inscription 
 
-![Écran d'Inscription](./docs/wireframes/register-screen.jpg)
+![Écran d'Inscription](docs/wireframes/inscription.png)
 
 > Parcours : L'utilisateur accède à cet écran depuis la page de connexion. Il remplit les champs requis. Après une création réussie, il est renvoyé à la page de connexion pour s'identifier.
 
@@ -95,7 +94,7 @@ Les wireframes ci-dessous présentent une vue simplifiée des écrans principaux
 
 ### Écran de Traduction
 
-![Écran de Traduction](./docs/wireframes/translator-screen.jpg)
+![Écran de Traduction](docs/wireframes/translator-screen.png)
 
 > Parcours : Après une connexion réussie, l'utilisateur accède à cet écran. Il peut sélectionner les langues, saisir son texte, et obtenir la traduction.
 

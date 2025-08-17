@@ -1,170 +1,115 @@
-# 🗃️ Base de Données – Gestion de Traductions Multilingues avec Authentification
+# 🗃️ Module `database` - Gestion de la Base de Données et Authentification
 
-Ce module fournit une base de données PostgreSQL pour gérer un corpus de traductions multilingues (français, anglais, darija) avec un système d'authentification JWT et une interface de migration vers Supabase.
+Ce module gère le stockage persistant du corpus de traduction dans une base de données **PostgreSQL**. Il inclut un système de migration, le peuplement des données, un modèle d'authentification utilisateur basé sur **JWT**, des scripts de maintenance, et des utilitaires pour l'installation locale et le déploiement sur **Supabase**.
 
----
+## 🧱 Structure du Module
 
-## 🧱 Structure du projet
+- **`/core`**: Le cœur logique de l'application.
+    - `db.py`: Configure la connexion à la base de données avec **SQLAlchemy** et gère les sessions. Gère intelligemment les environnements local et de production (`Supabase`).
+    - `auth.py`: Implémente la logique d'authentification, incluant le hachage de mot de passe (`bcrypt`), la création et la validation de tokens **JWT**.
+    - `models.py`: Définit les modèles ORM (`User`) avec SQLAlchemy.
+- **`/maintenance`**: Contient les scripts pour les tâches de maintenance récurrentes.
+    - `cleanup_inactive_users.py`: Supprime les comptes utilisateurs inactifs conformément à la politique de conservation des données.
+    - `run_cleanup_task.sh`: Script lanceur pour l'automatisation via des planificateurs de tâches (ex: cron, Planificateur de tâches Windows).
+- **`/migrations`**: Contient les scripts SQL pour faire évoluer le schéma de la base.
+    - `00X_...sql`: Fichiers de migration numérotés, écrits pour être **idempotents**.
+    - `run_migrations.py`: Orchestrateur Python qui exécute les migrations dans l'ordre, puis lance le peuplement des données et la création de l'admin.
+- **`insert_data.py`**: Script qui importe les données nettoyées depuis le module `data` et les insère dans la table `translations`.
+- **`insert_admin.py`**: Crée un utilisateur administrateur initial à partir des variables d'environnement.
+- **`queries.py`**: Une classe `TranslationQueries` qui encapsule des requêtes SQL optimisées pour les opérations CRUD sur les traductions.
+- **`install_postgresql.sh`**: Script d'automatisation pour installer et configurer PostgreSQL en local.
+- **`migrate_to_supabase.sh`**: Script pour exporter la base locale et l'importer dans une instance Supabase.
 
-database/
-├── core/
-│ ├── init.py
-│ ├── db.py # Connexion à la base et session SQLAlchemy
-│ ├── auth.py # Authentification JWT, gestion des tokens
-│ ├── models.py # ORM des tables : User
-├── models/
-│ ├── mcd.txt # Modèle conceptuel de données
-│ └── mpd.sql # Modèle physique de données
-├── migrations/
-│ ├── 001_create_translations.sql
-│ ├── 002_create_users_table.sql
-│ ├── 003_add_unique_constraint.sql
-│ ├── 004_add_timestamps_users.sql
-│ └── run_migrations.py
-├── insert_admin.py # Ajout d’un compte admin
-├── insert_data.py # Injection des traductions
-├── queries.py # Requêtes SQL encapsulées (CRUD)
-├── explore_translations.ipynb
-├── install_postgresql.sh # Installation locale de PostgreSQL
-└── migrate_to_supabase.sh # Export vers Supabase
-└── requirements.txt
+## 📝 Modèle de Données
 
-## 🔐 Authentification
+### Table `translations`
+| Champ | Type | Description |
+| :--- | :--- | :--- |
+| `id` | SERIAL | Clé primaire auto-incrémentée |
+| `source_lang` | VARCHAR(10) | Code de la langue source (ex: 'fr', 'en', 'dr') |
+| `source_text` | TEXT | Texte original |
+| `target_lang` | VARCHAR(10) | Code de la langue cible |
+| `target_text` | TEXT | Texte traduit |
+| **Contrainte** | UNIQUE | `(source_lang, source_text, target_lang, target_text)` |
 
-Le système utilise FastAPI + JWT avec `passlib` et `python-jose` pour gérer :
-- Hachage des mots de passe (`bcrypt`)
-- Création et validation de tokens (`HS256`)
-- Dépendance `verify_jwt_token` pour protéger les routes
+### Table `users`
+| Champ | Type | Description |
+| :--- | :--- | :--- |
+| `id` | SERIAL | Clé primaire auto-incrémentée |
+| `username` | VARCHAR(50) | Nom d'utilisateur (unique) |
+| `hashed_password` | TEXT | Mot de passe haché avec bcrypt |
+| `is_admin` | BOOLEAN | Statut administrateur |
+| `created_at` | TIMESTAMPTZ | Date de création du compte (conforme RGPD) |
+| `last_login` | TIMESTAMPTZ | Date de la dernière connexion (utilisé pour la politique de conservation des données) |
 
-### Exemple `.env` (⚠️ à personnaliser)
+## ⚙️ Installation et Configuration Locale
 
-```env
-DB_USER=postgres
-DB_PASSWORD=yourpassword
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=darija_db
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
-JWT_SECRET=your-secret-key
-SUPABASE_URL=postgres://user:pass@host:port/db
-PG_LOCAL_PASSWORD=yourpassword
+1. **Prérequis** : PostgreSQL doit être accessible sur votre système.
 
-## 🧪 Migrations SQL
-Les migrations sont exécutées en Python via run_migrations.py, dans l'ordre défini :
+2. **Variables d'environnement** : Assurez-vous que votre fichier `.env` contient :
+    ```env
+    DB_USER=votre_user
+    DB_PASSWORD=votre_mot_de_passe
+    DB_HOST=localhost
+    DB_PORT=5432
+    DB_NAME=darija_db
+    PG_LOCAL_PASSWORD=votre_mot_de_passe_postgres_system
+    ADMIN_USERNAME=admin
+    ADMIN_PASSWORD=admin_password
+    JWT_SECRET=une_cle_secrete_tres_longue_et_aleatoire
+    SUPABASE_URL="postgres://..."
+    ```
 
-Création de la table translations
+3. **Lancer le script d'installation** :
+    ```bash
+    bash database/install_postgresql.sh
+    ```
 
-Création de la table users
+## 🔄 Migrations et Peuplement
 
-Ajout de contrainte UNIQUE (source_lang, source_text, ...)
-
-Ajout des timestamps RGPD (created_at, last_login)
-
-Les scripts sont idempotents ✅.
-
-## 🧑‍💼 Utilisateur Admin
-Créé automatiquement via :
-
-python3 database/insert_admin.py
-Ou exécuté en fin de run_migrations.py.
-
-## 📊 Analyse & Exploration
-Le fichier explore_translations.ipynb permet d’explorer la base :
-
-Top langues traduites
-
-Détection de doublons
-
-Statistiques de volume
-
-Exemples : 
-
-SELECT COUNT(*) FROM translations;
-SELECT * FROM translations LIMIT 10;
-
-## Migration vers Supabase
-Le script migrate_to_supabase.sh :
-
-Exporte la base locale avec pg_dump
-
-Importe dans Supabase via psql
-
-Supprime les fichiers temporaires
-
-📌 Assurez-vous d’avoir SUPABASE_URL dans .env.
-
-## ⚙️ Installation PostgreSQL locale
-
-bash database/install_postgresql.sh
-
+```bash
+python -m database.migrations.run_migrations
+```
 Ce script :
+1. Exécute les migrations SQL depuis `/migrations`.
+2. Appelle `insert_data.py`.
+3. Appelle `insert_admin.py`.
 
-Installe PostgreSQL via apt
+## 🧹 Maintenance et Automatisation
 
-Configure pg_hba.conf pour le mode md5
+### Suppression des Utilisateurs Inactifs
+- **Script** : `database/maintenance/cleanup_inactive_users.py`
+- Supprime les comptes inactifs depuis plus de 3 ans.
+- Protège le compte admin.
 
-Crée la base, l’utilisateur
+**Exécution manuelle** :
+```bash
+python -m database.maintenance.cleanup_inactive_users
+```
 
-Propose l’exécution de run_migrations.py et la migration vers Supabase
+Automatisation : via `run_cleanup_task.sh` (cron, Planificateur de tâches).
 
-## 📂 Modèle de Données
+## 🚀 Migration vers Supabase
 
-Table translations
+```bash
+bash database/migrate_to_supabase.sh
+```
 
-Champ	                        Type	                        Description
-id	                            SERIAL	                        Clé primaire
-source_lang	                    VARCHAR(10)	                    Langue source (fr, en, dr)
-source_text	                    TEXT	                        Texte à traduire
-target_lang	                    VARCHAR(10)	                    Langue cible
+## 🔐 Utilisation (Requêtes et Authentification)
 
+```python
+from database.core.db import get_db
+from database.queries import TranslationQueries
 
-Table users
-Champ	                        Type	                        Description
-id	                            SERIAL	                        Clé primaire
-username	                    VARCHAR(50)	                    Identifiant unique
-hashed_password	                TEXT	                        Mot de passe haché
-is_admin	                    BOOLEAN	                        Utilisateur admin ?
-created_at	                    TIMESTAMPTZ	                    Date de création
-last_login	                    TIMESTAMPTZ	                    Dernière connexion
+db = next(get_db())
+all_translations = TranslationQueries.get_all(db, source_lang='fr')
+```
 
+```python
+from fastapi import Depends
+from database.core.auth import verify_jwt_token
 
-## ✅ Requêtes SQL disponibles
-Les requêtes SQL sont encapsulées dans la classe TranslationQueries :
-
-get_all (avec filtre sur langues)
-
-get_by_id
-
-create
-
-update
-
-delete
-
-Toutes les requêtes sont journalisées avec temps d’exécution et erreurs.
-
-## 📦 Dépendances
-
-requirements.txt 
-
-## 📌 Lancement rapide 
-
-# Installation PostgreSQL locale
-bash database/install_postgresql.sh
-
-# Exécution des migrations (manuel)
-python3 database/migrations/run_migrations.py
-
-# Exploration
-jupyter notebook database/explore_translations.ipynb
-
-
-## 🛡️ Sécurité
-JWT avec expiration configurable (ACCESS_TOKEN_EXPIRE_MINUTES)
-
-Mots de passe hachés avec bcrypt
-
-Contraintes UNIQUE SQL pour éviter les doublons
-
-Migrations safe/idempotentes
+@app.get("/protected")
+def protected_route(current_user: dict = Depends(verify_jwt_token)):
+    return {"message": "Welcome!", "user": current_user}
+```
