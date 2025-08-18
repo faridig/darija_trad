@@ -12,7 +12,7 @@ Le pipeline est un processus en plusieurs étapes qui garantit la robustesse et 
 
 2.  **Source B : Dataset Public (Darija-SFT-Mixture)**
     *   `parquet_downloader.py` : Télécharge le dataset `MBZUAI-Paris/Darija-SFT-Mixture` depuis Hugging Face et le transfère directement sur **Azure Blob Storage**.
-    *   `nettoyage_csv.py` : Utilise **PySpark** pour lire les fichiers Parquet depuis Azure. Il nettoie en profondeur le texte (suppression d'artefacts, normalisation) et extrait des paires de traduction structurées à partir des formats de conversation. Le résultat est stocké dans `traductions_processed.json`.
+    *   `nettoyage_sft.py` : Utilise **PySpark** pour lire les fichiers Parquet depuis Azure. Il nettoie en profondeur le texte (suppression d'artefacts, normalisation) et extrait des paires de traduction structurées à partir des formats de conversation. Le résultat est stocké dans `traductions_processed.json`.
 
 3.  **Étape Finale : Consolidation et Validation**
     *   `normalise_data.py` : Le cœur du module. Il fusionne les données des deux sources, normalise les codes de langue (ex: `darija` -> `dr`), supprime les doublons exacts et exécute une batterie de tests de qualité pour garantir la cohérence du dataset final.
@@ -89,7 +89,7 @@ Pour exécuter le pipeline complet de ce module :
     python -m data.darija_sft_mixture.parquet_download.parquet_downloader
 
     # Étape 3b : Nettoyer les données avec Spark
-    python -m data.darija_sft_mixture.nettoyage.nettoyage_csv
+    python -m data.darija_sft_mixture.nettoyage.nettoyage_sft
     ```
 
 Le script `normalise_data.py` est conçu pour être appelé par le module `database` lors du peuplement, mais peut être exécuté manuellement pour inspection :

@@ -1,4 +1,4 @@
--- Modèle Physique de Données (MPD) mis à jour pour RGPD
+-- Modèle Physique de Données (MPD) 
 
 CREATE TABLE translations (
     id SERIAL PRIMARY KEY,
