@@ -90,7 +90,7 @@ async def all_exception_handler(request: Request, exc: Exception):
             content={"detail": str(exc)}
         )
     raise exc
-    # Note : Le code après 'raise exc' ne sera jamais atteint...
+    # Note : Le code après 'raise exc' ne sera jamais atteint..
     # return JSONResponse(
     #     status_code=500,
     #     content={"detail": "Internal Server Error"}

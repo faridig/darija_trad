@@ -69,21 +69,21 @@ echo -e "${YELLOW}1. Connexion à Azure et configuration de kubectl...${NC}"
 az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$AKS_NAME" --overwrite-existing
 echo -e "${GREEN}Connecté au cluster AKS '$AKS_NAME'.${NC}\n"
 
-# Étape 2 : Suppression et recréation du secret 'api-secrets'
-echo -e "${YELLOW}2. Mise à jour du secret 'api-secrets'...${NC}"
-kubectl delete secret api-secrets --ignore-not-found=true
-kubectl create secret generic api-secrets \
-  --from-literal=ADMIN_USERNAME="$ADMIN_USERNAME" \
-  --from-literal=ADMIN_PASSWORD="$ADMIN_PASSWORD" \
-  --from-literal=SUPABASE_URL="$SUPABASE_URL" \
-  --from-literal=JWT_SECRET="$JWT_SECRET" \
-  --from-literal=BASE_URL="$BASE_URL" \
-  --from-literal=VITE_DATA_API_BASE_URL="$VITE_DATA_API_BASE_URL" \
-  --from-literal=HF_TOKEN="$HF_TOKEN_AI" \
-  --from-literal=HF_INFERENCE_ENDPOINT_URL="$HF_INFERENCE_ENDPOINT_URL" \
-  --from-literal=VITE_IA_API_BASE_URL="$VITE_IA_API_BASE_URL"
+# # Étape 2 : Suppression et recréation du secret 'api-secrets'
+# echo -e "${YELLOW}2. Mise à jour du secret 'api-secrets'...${NC}"
+# kubectl delete secret api-secrets --ignore-not-found=true
+# kubectl create secret generic api-secrets \
+#   --from-literal=ADMIN_USERNAME="$ADMIN_USERNAME" \
+#   --from-literal=ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+#   --from-literal=SUPABASE_URL="$SUPABASE_URL" \
+#   --from-literal=JWT_SECRET="$JWT_SECRET" \
+#   --from-literal=BASE_URL="$BASE_URL" \
+#   --from-literal=VITE_DATA_API_BASE_URL="$VITE_DATA_API_BASE_URL" \
+#   --from-literal=HF_TOKEN="$HF_TOKEN_AI" \
+#   --from-literal=HF_INFERENCE_ENDPOINT_URL="$HF_INFERENCE_ENDPOINT_URL" \
+#   --from-literal=VITE_IA_API_BASE_URL="$VITE_IA_API_BASE_URL"
   
-echo -e "${GREEN}Le secret 'api-secrets' a été créé/mis à jour.${NC}\n"
+# echo -e "${GREEN}Le secret 'api-secrets' a été créé/mis à jour.${NC}\n"
 
 # Étape 3 : Mise à jour dynamique du manifeste Kubernetes
 echo -e "${YELLOW}3. Mise à jour du tag de l'image dans ${K8S_CONFIG_FILE}...${NC}"
