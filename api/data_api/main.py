@@ -37,7 +37,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",  # Pour le développement local du frontend
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",# Pour le développement local du frontend
         "http://12.34.56.78",     # Mettez ici l'IP publique de votre frontend déployé
     ],
     allow_credentials=True,
