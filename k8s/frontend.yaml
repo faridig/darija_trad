@@ -16,7 +16,7 @@ spec:
       labels:
         app: frontend
     spec:
-      # Secret pour s'authentifier auprès du registre d'images privé (ACR).
+      # Secret pour s''authentifier auprès du registre d'images privé (ACR).
       imagePullSecrets:
       - name: acr-secret
       
