@@ -17,7 +17,7 @@ const iaApi = axios.create({
   baseURL: IA_API_URL,
 });
 
-// Intercepteur pour l'instance de l'API d'IA
+// Intercepteur pour l'instance de l'API d''IA
 iaApi.interceptors.request.use(
   (config) => {
     // CORRECTION : On lit depuis localStorage pour être cohérent avec authService.js
