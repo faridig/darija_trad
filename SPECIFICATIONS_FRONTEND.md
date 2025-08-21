@@ -15,7 +15,7 @@
 
 Chaque spécification fonctionnelle couvre le contexte, les scénarios d’utilisation et les critères de validation.
 
-### US-1 : Authentification de l'utilisateur (Mis à jour)
+### US-1 : Authentification de l'utilisateur 
 
 **En tant que** visiteur,  
 **Je veux** pouvoir me connecter avec un nom d'utilisateur et un mot de passe,  
@@ -25,7 +25,7 @@ Chaque spécification fonctionnelle couvre le contexte, les scénarios d’utili
 - Un formulaire de connexion est présent avec des champs "Nom d'utilisateur" et "Mot de passe".
 - Si les identifiants sont corrects (validés par l'endpoint `POST /login` de l'API), l'utilisateur est redirigé vers la page de traduction.
 - Si les identifiants sont incorrects, un message d'erreur clair est affiché.
-- (Nouveau) Le formulaire de connexion inclut un lien bien visible "Vous n'avez pas de compte ? S'inscrire" qui redirige vers la page d'inscription.
+- Le formulaire de connexion inclut un lien bien visible "Vous n'avez pas de compte ? S'inscrire" qui redirige vers la page d'inscription.
 - (**Accessibilité O1, O4**) Les champs du formulaire, le bouton et le lien sont accessibles et activables au clavier. Chaque champ de saisie est associé à une balise `<label>`.
 
 ---

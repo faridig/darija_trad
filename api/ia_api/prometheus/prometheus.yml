@@ -10,7 +10,7 @@ alerting:
   alertmanagers:
   - static_configs:
     - targets:
-      # On utilise le nom du service Kubernetes que nous avons défini à l'étape 3.
+      # On utilise le nom du service Kubernetes
       - "alertmanager-service:9093"
 
 scrape_configs:

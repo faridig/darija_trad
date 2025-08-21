@@ -20,7 +20,7 @@ spec:
       containers:
       - name: data-api-container
         # Cette image sera mise à jour dynamiquement par votre pipeline CI/CD
-        image: iaapi.azurecr.io/darija-data-api:64eca22
+        image: iaapi.azurecr.io/darija-data-api:1ebbfb5
         imagePullPolicy: Always 
         ports:
         - containerPort: 8000

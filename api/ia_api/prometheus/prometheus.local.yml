@@ -3,9 +3,6 @@
 rule_files:
   - "alert.rules.yml"
 
-# ===================================================================
-# ===> AJOUTEZ LA SECTION CI-DESSOUS <===
-# ===================================================================
 alerting:
   alertmanagers:
   - static_configs:

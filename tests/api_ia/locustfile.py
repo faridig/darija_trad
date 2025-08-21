@@ -23,9 +23,9 @@ if not all([USERNAME, PASSWORD, DATA_API_HOST]):
 
 
 PHRASES = [
-    "Pourriez-vous m'indiquer le chemin pour aller à la gare" ,
+    "Pourriez-vous m'indiquer le chemin pour aller à la gare, Pourriez-vous m'indiquer le chemin pour aller à la gare" ,
     "Le rapport financier est correct ",
-    "N'oubliez surtout de prendre vos clefs ",
+    "N'oubliez surtout de prendre vos clefs de prendre vos clefs ",
 ]
 # ==============================================================================
 
