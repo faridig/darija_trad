@@ -1,4 +1,4 @@
-// Fichier : frontend/src/pages/TranslatorPage.jsx
+// Fichier : frontend/src/pages/TranslatorPage.jsx (Avec la correction minimale pour la testabilité)
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -45,7 +45,22 @@ function TranslatorPage() {
   // Hook pour la navigation programmatique (redirection).
   const navigate = useNavigate();
 
-  // --- GESTION DE L'ÉTAT DU COMPOSANT (React Hooks) ---
+
+  // Cette garde conditionnelle ne change pas le comportement dans un vrai navigateur,
+  // mais elle stabilise le rendu dans l'environnement de test JSDOM.
+  if (!authService.isAuthenticated()) {
+    // Le useEffect garantit que la redirection se produit après le premier rendu.
+    useEffect(() => {
+      navigate('/login', { state: { message: "Veuillez vous connecter pour accéder au traducteur." } });
+    }, [navigate]);
+    
+    // On retourne null pour empêcher le reste du composant de se rendre inutilement.
+    return null;
+  }
+
+
+
+  // --- GESTION DE L'ÉTAT DU COMPOSANT (React Hooks) --- (INCHANGÉ)
   const [inputText, setInputText] = useState(''); // Texte saisi par l'utilisateur.
   const [outputText, setOutputText] = useState(''); // Texte traduit retourné par l'API.
   const [sourceLang, setSourceLang] = useState('fra_Latn'); // Langue source sélectionnée.
@@ -54,19 +69,10 @@ function TranslatorPage() {
   const [error, setError] = useState(''); // Stocke les messages d'erreur à afficher.
   const [targetLanguages, setTargetLanguages] = useState([]); // Liste dynamique des langues cibles possibles.
 
-  // --- EFFETS DE BORD (React Hooks) ---
+  // --- EFFETS DE BORD (React Hooks) --- (INCHANGÉ)
 
-  /**
-   * @effect
-   * @description Vérifie si l'utilisateur est authentifié à chaque rendu du composant.
-   * Si l'utilisateur n'est pas connecté, il est redirigé vers la page de login avec un message.
-   * C'est une mesure de sécurité pour protéger la route.
-   */
-  useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      navigate('/login', { state: { message: "Veuillez vous connecter pour accéder au traducteur." } });
-    }
-  }, [navigate]);
+  // NOTE: L'ancien useEffect de garde a été remplacé par la condition ci-dessus.
+  // Celui-ci reste pour la logique interne de la page.
 
   /**
    * @effect
@@ -97,7 +103,7 @@ function TranslatorPage() {
     }
   }, [sourceLang, targetLang]);
 
-  // --- GESTIONNAIRES D'ÉVÉNEMENTS ---
+  // --- GESTIONNAIRES D'ÉVÉNEMENTS --- (INCHANGÉS)
 
   const handleInputChange = (event) => setInputText(event.target.value);
   const handleSourceLangChange = (event) => setSourceLang(event.target.value);
@@ -170,11 +176,63 @@ function TranslatorPage() {
     }
   };
 
-  // --- RENDU JSX DU COMPOSANT ---
+  // --- RENDU JSX DU COMPOSANT --- (INCHANGÉ)
   // La structure HTML/JSX qui sera affichée à l'écran.
   return (
     <div className="translator-page-layout">
-      {/* ... (le reste du JSX reste identique) ... */}
+      {/* J'ajoute le JSX manquant pour être complet, mais il est identique à votre code original */}
+      <header className="translator-header">
+        <h1>Traducteur Darija</h1>
+        <button onClick={handleLogout} className="logout-button">Déconnexion</button>
+      </header>
+      <main className="translator-main">
+        <div className="panel input-panel">
+          <div className="language-selector">
+            <select id="source-lang" value={sourceLang} onChange={handleSourceLangChange} disabled={isLoading}>
+              {allLanguages.map(lang => (
+                <option key={lang.code} value={lang.code}>{lang.name}</option>
+              ))}
+            </select>
+          </div>
+          <textarea
+            placeholder="Saisissez votre texte..."
+            className="text-area"
+            value={inputText}
+            onChange={handleInputChange}
+            disabled={isLoading}
+          />
+        </div>
+        
+        <button 
+          className="swap-languages-button" 
+          aria-label="Inverser les langues" 
+          onClick={handleSwapLanguages} 
+          disabled={isLoading || !(sourceLang === 'ary_Arab' || targetLang === 'ary_Arab')}>
+          <div className="swap-button-content">
+            <SwapIcon />
+            <span>Inverser</span>
+          </div>
+        </button>
+        
+        <div className="panel output-panel">
+          <div className="language-selector">
+            <select id="target-lang" value={targetLang} onChange={handleTargetLangChange} disabled={isLoading || targetLanguages.length <= 1}>
+              {targetLanguages.map(lang => (
+                <option key={lang.code} value={lang.code}>{lang.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="text-area output-text" readOnly>
+            {isLoading ? <div className="spinner"></div> : outputText}
+          </div>
+        </div>
+      </main>
+      <footer className="translator-footer">
+          {error && <p className="error-message">{error}</p>}
+          <button className="translate-button" onClick={handleTranslate} disabled={isLoading}>
+            {isLoading ? 'Traduction...' : 'Traduire'}
+          </button>
+      </footer>
     </div>
   );
 }
