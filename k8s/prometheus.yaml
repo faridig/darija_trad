@@ -2,58 +2,82 @@
 
 # ===================================================================
 # 1. Configuration de Prometheus via un ConfigMap
-#    Contient la configuration principale ET les règles d'alerte complètes.
+#    Un ConfigMap est un objet Kubernetes qui stocke des données de configuration
+#    non sensibles sous forme de paires clé-valeur. Ici, il contient la configuration
+#    de Prometheus (prometheus.yml) et ses règles d'alerte (alert.rules.yml).
 # ===================================================================
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: prometheus-config
 data:
-  # Clé 1 : le contenu du fichier de configuration principal de Prometheus
+  # -------------------------------------------------------------------
+  # Clé 1 : Le contenu du fichier de configuration principal de Prometheus
+  # -------------------------------------------------------------------
   prometheus.yml: |
     global:
+      # Définit l'intervalle par défaut pour la collecte (scraping) des métriques.
+      # Prometheus ira chercher les données sur ses cibles toutes les 15 secondes.
       scrape_interval: 15s
 
-    # On indique à Prometheus de charger les règles depuis le chemin où nous allons les monter
+    # Indique à Prometheus de charger des fichiers contenant des règles d'alerte.
+    # Le chemin correspond à l'endroit où nous monterons le ConfigMap dans le pod.
     rule_files:
       - "/etc/prometheus-config/alert.rules.yml"
 
+    # Configure la manière dont Prometheus communique avec Alertmanager.
     alerting:
       alertmanagers:
       - static_configs:
         - targets:
-          - "alertmanager-service:9093" # Utilise le service Kubernetes d'Alertmanager
+          # C'est l'adresse de service de notre Alertmanager dans le cluster Kubernetes.
+          # Le nom 'alertmanager-service' est résolu par le DNS interne de Kubernetes.
+          - "alertmanager-service:9093"
 
+    # Définit les cibles que Prometheus doit surveiller.
     scrape_configs:
+      # Job n°1 : Surveillance spécifique de notre API d'IA.
       - job_name: "darija_api"
+        # Le chemin sur lequel l'API expose ses métriques.
         metrics_path: /metrics
+        # Configuration statique, car nous avons une seule cible bien définie.
         static_configs:
-          - targets: ["ia-api-service:8001"] # Utilise le service Kubernetes de l'API IA
+          # C'est l'adresse du service de l'API IA dans le cluster.
+          - targets: ["ia-api-service:8001"]
+        # Configure l'authentification HTTP Basic pour accéder à l'endpoint /metrics.
         basic_auth:
-          # On indique les chemins où les secrets seront montés
+          # Le nom d'utilisateur et le mot de passe sont lus depuis des fichiers secrets
+          # qui seront montés dans le pod, évitant de les écrire en clair ici.
           username_file: /etc/prometheus/prometheus_username.secret
           password_file: /etc/prometheus/prometheus_password.secret
 
+      # Job n°2 : Découverte automatique des pods Kubernetes à surveiller.
+      # C'est une configuration avancée qui rend Prometheus dynamique.
       - job_name: 'kubernetes-pods'
+        # Utilise la découverte de services native de Kubernetes pour trouver des cibles.
         kubernetes_sd_configs:
-          - role: pod
-        # Relabeling pour ne garder que les pods que l'on veut surveiller
-        # et formater les labels correctement. C'est une configuration standard.
+          - role: pod # On demande à Prometheus de lister tous les pods du cluster.
+        # Le 'relabeling' permet de filtrer et de transformer les labels des cibles découvertes.
         relabel_configs:
+          # Règle 1: Ne garde que les pods qui ont une annotation spécifique 'prometheus.io/scrape: true'.
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
             action: keep
             regex: true
+          # Règle 2: Utilise la valeur de l'annotation 'prometheus.io/path' pour définir le chemin des métriques.
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
             action: replace
             target_label: __metrics_path__
             regex: (.+)
+          # Règle 3: Construit l'adresse de la cible en combinant l'IP du pod et le port spécifié dans l'annotation.
           - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
             action: replace
             regex: ([^:]+)(?::\d+)?;(\d+)
             replacement: $1:$2
             target_label: __address__
+          # Règle 4: Copie tous les labels du pod Kubernetes en tant que labels Prometheus.
           - action: labelmap
             regex: __meta_kubernetes_pod_label_(.+)
+          # Règle 5 & 6: Ajoute des labels utiles pour identifier le namespace et le nom du pod.
           - source_labels: [__meta_kubernetes_namespace]
             action: replace
             target_label: kubernetes_namespace
@@ -61,8 +85,9 @@ data:
             action: replace
             target_label: kubernetes_pod_name
       
-
-  # Clé 2 : le contenu COMPLET de votre fichier de règles d'alerte
+  # -------------------------------------------------------------------
+  # Clé 2 : Le contenu du fichier de règles d'alerte
+  # -------------------------------------------------------------------
   alert.rules.yml: |
     groups:
     - name: API-IA-Alerts
@@ -70,7 +95,10 @@ data:
 
       # Règle n°1 : L'API est-elle en panne ? (Fiabilité la plus critique)
       - alert: ApiDown
+        # expr: L'expression qui déclenche l'alerte. 'up' est une métrique spéciale de Prometheus.
+        # Si 'up' pour le job 'darija_api' est égal à 0, l'API est considérée comme inaccessible.
         expr: up{job="darija_api"} == 0
+        # for: L'alerte ne se déclenche que si la condition est vraie pendant au moins 1 minute en continu.
         for: 1m
         labels:
           severity: critical
@@ -80,6 +108,7 @@ data:
 
       # Règle n°2 : L'API génère-t-elle trop d'erreurs ? (Fiabilité)
       - alert: HighErrorRate5xx
+        # expr: Calcule le taux d'erreurs 5xx sur 5 minutes et vérifie s'il est supérieur à 2%.
         expr: (sum(rate(api_http_errors_5xx_total{endpoint="/generer"}[5m])) by (endpoint) / sum(rate(api_requests_total{endpoint="/generer"}[5m])) by (endpoint)) * 100 > 2
         for: 2m
         labels:
@@ -90,6 +119,8 @@ data:
 
       # Règle n°3 : L'API est-elle trop lente ? (Performance)
       - alert: HighApiLatency
+        # expr: Calcule le 95ème percentile de la latence des requêtes sur 5 minutes.
+        # Si 95% des utilisateurs subissent une latence supérieure à 1 seconde, l'alerte se déclenche.
         expr: histogram_quantile(0.95, sum(rate(api_request_latency_seconds_bucket{endpoint="/generer"}[5m])) by (le, endpoint)) > 1
         for: 5m
         labels:
@@ -100,7 +131,10 @@ data:
 
       # Règle n°4 : Le modèle est-il toujours pertinent ? (MLOps)
       - alert: DataDriftDetected
+        # expr: Calcule le 75ème percentile de la longueur des textes en entrée.
+        # Si 75% des textes soumis dépassent 14 mots (seuil basé sur les données d'entraînement), l'alerte se déclenche.
         expr: histogram_quantile(0.75, sum(rate(data_drift_text_length_bucket[5m])) by (le)) > 14
+        # for: La condition doit être vraie pendant 1 heure pour éviter les faux positifs sur des pics ponctuels.
         for: 1h
         labels:
           severity: warning
@@ -110,7 +144,8 @@ data:
 ---
 # ===================================================================
 # 2. Déploiement de Prometheus
-#    Utilise les configurations et secrets définis ci-dessus.
+#    Un Deployment garantit qu'un nombre spécifié de pods (ici, 1) exécutant
+#    notre conteneur Prometheus est toujours en cours d'exécution.
 # ===================================================================
 apiVersion: apps/v1
 kind: Deployment
@@ -128,41 +163,45 @@ spec:
     spec:
       containers:
       - name: prometheus-container
-        image: iaapi.azurecr.io/darija-api-prometheus:latest # Assurez-vous que le tag est correct ou géré par votre CI/CD
+        # L'image Docker de Prometheus, pré-configurée et stockée sur notre registre privé.
+        image: iaapi.azurecr.io/darija-api-prometheus:latest
+        # Arguments passés au conteneur au démarrage. Ici, on lui dit quel fichier de config utiliser.
         args:
           - "--config.file=/etc/prometheus-config/prometheus.yml"
         ports:
-        - containerPort: 9090
+        - containerPort: 9090 # Le port sur lequel Prometheus écoute à l'intérieur du pod.
+        # Définit comment les volumes (stockage) sont montés dans le système de fichiers du conteneur.
         volumeMounts:
-        # 1. Montage des fichiers de configuration depuis le ConfigMap
+        # 1. Monte le volume contenant la configuration.
         - name: prometheus-config-volume
-          mountPath: /etc/prometheus-config
-        # 2. Montage du secret pour le mot de passe
+          mountPath: /etc/prometheus-config # Le chemin où les fichiers prometheus.yml et alert.rules.yml seront accessibles.
+        # 2. Monte le fichier contenant le mot de passe.
         - name: prometheus-password-volume
-          mountPath: "/etc/prometheus/prometheus_password.secret"
-          subPath: "password.txt"
-          readOnly: true
-        # 3. Montage du secret pour le nom d'utilisateur
+          mountPath: "/etc/prometheus/prometheus_password.secret" # Le chemin exact que prometheus.yml attend.
+          subPath: "password.txt" # Monte uniquement la clé 'ADMIN_PASSWORD' du secret sous le nom 'password.txt'.
+          readOnly: true # Le pod ne peut pas modifier ce fichier.
+        # 3. Monte le fichier contenant le nom d'utilisateur.
         - name: prometheus-username-volume
-          mountPath: "/etc/prometheus/prometheus_username.secret"
-          subPath: "username.txt"
+          mountPath: "/etc/prometheus/prometheus_username.secret" # Le chemin exact que prometheus.yml attend.
+          subPath: "username.txt" # Monte uniquement la clé 'ADMIN_USERNAME' du secret sous le nom 'username.txt'.
           readOnly: true
+      # Secret nécessaire pour permettre à Kubernetes de tirer (pull) l'image depuis un registre privé (Azure ACR).
       imagePullSecrets:
       - name: acr-secret
+      # Définit les sources de données pour les 'volumeMounts' listés ci-dessus.
       volumes:
-      # Définition de la source pour chaque montage
-      # 1. Le volume pour la config vient du ConfigMap
+      # 1. Ce volume est créé à partir de notre ConfigMap 'prometheus-config'.
       - name: prometheus-config-volume
         configMap:
           name: prometheus-config
-      # 2. Le volume pour le mot de passe vient du Secret
+      # 2. Ce volume est créé à partir du Secret Kubernetes 'api-secrets'.
       - name: prometheus-password-volume
         secret:
           secretName: api-secrets
           items:
-          - key: ADMIN_PASSWORD
-            path: "password.txt"
-      # 3. Le volume pour le nom d'utilisateur vient aussi du Secret
+          - key: ADMIN_PASSWORD # On sélectionne la clé 'ADMIN_PASSWORD' dans le secret.
+            path: "password.txt" # Et on la rend disponible sous le nom de fichier 'password.txt'.
+      # 3. Ce volume utilise également le même Secret pour le nom d'utilisateur.
       - name: prometheus-username-volume
         secret:
           secretName: api-secrets
@@ -172,48 +211,20 @@ spec:
 ---
 # ===================================================================
 # 3. Service pour Prometheus
-#    Permet aux autres services du cluster de communiquer avec Prometheus.
+#    Un Service expose le pod Prometheus sur un nom DNS stable à l'intérieur du cluster.
+#    D'autres services (comme Grafana) peuvent ainsi le trouver facilement.
 # ===================================================================
 apiVersion: v1
 kind: Service
 metadata:
   name: prometheus-service
 spec:
+  # ClusterIP signifie que le service n'est accessible que depuis l'intérieur du cluster Kubernetes.
   type: ClusterIP 
+  # Le service redirigera le trafic vers les pods qui ont le label 'app: prometheus'.
   selector:
     app: prometheus
   ports:
   - protocol: TCP
-    port: 9090
-    targetPort: 9090
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    port: 9090 # Le port sur lequel le service écoute.
+    targetPort: 9090 # Le port sur lequel le pod Prometheus écoute.

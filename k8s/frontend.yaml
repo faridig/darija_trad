@@ -1,69 +1,120 @@
-# Fichier : k8s/frontend.yaml (Version Corrigée)
+# ==============================================================================
+# FICHIER DE MANIFESTE KUBERNETES POUR L'APPLICATION FRONTEND
+# ==============================================================================
+# Ce fichier définit deux objets Kubernetes essentiels :
+# 1. Un "Deployment" : Il est responsable de créer et de maintenir en cours
+#    d'exécution les instances (Pods) de notre application frontend. Il gère
+#    les mises à jour, le redémarrage en cas de crash, et la scalabilité.
+# 2. Un "Service" : Il est responsable d'exposer notre application au monde
+#    extérieur en lui fournissant une adresse IP stable et un point d'accès réseau.
+# ==============================================================================
 
-apiVersion: apps/v1
-kind: Deployment
+# --- OBJET 1 : LE DEPLOYMENT ---
+# Définit l'état désiré de notre application.
+
+apiVersion: apps/v1 # Spécifie la version de l'API Kubernetes à utiliser pour cet objet. "apps/v1" est la version stable pour les Deployments.
+kind: Deployment # Spécifie le type d'objet que nous créons.
 metadata:
-  name: frontend-deployment
+  name: frontend-deployment # Nom unique pour notre Deployment dans le cluster.
   labels:
-    app: frontend
+    app: frontend # Étiquette pour identifier et organiser cet objet.
 spec:
-  replicas: 1
+  replicas: 1 # Demande à Kubernetes de s'assurer qu'il y a toujours UNE instance (Pod) de notre application qui tourne.
+
   selector:
+    # Cette section indique au Deployment comment trouver les Pods qu'il doit gérer.
     matchLabels:
-      app: frontend
+      app: frontend # Il gérera tous les Pods ayant l'étiquette "app: frontend".
+
   template:
+    # Cette section est le "plan" ou le "modèle" (template) pour créer chaque Pod.
     metadata:
       labels:
-        app: frontend
+        app: frontend # Chaque Pod créé par ce Deployment portera cette étiquette, ce qui permet au "selector" de le trouver.
     spec:
-      # Secret pour s''authentifier auprès du registre d'images privé (ACR).
+      # C'est ici que l'on définit les détails techniques du Pod, notamment les conteneurs qu'il contient.
+
+      # "imagePullSecrets" est une instruction de sécurité cruciale.
+      # Elle indique au Pod d'utiliser les credentials stockés dans le Secret "acr-secret"
+      # pour s'authentifier auprès de notre registre d'images privé (Azure Container Registry).
+      # Sans cela, Kubernetes ne pourrait pas télécharger l'image.
       imagePullSecrets:
       - name: acr-secret
       
       containers:
-      - name: frontend-container
-        # L'image sera mise à jour par le pipeline CI/CD.
+      # Un Pod peut contenir plusieurs conteneurs. Ici, nous n'en avons qu'un.
+      - name: frontend-container # Un nom pour notre conteneur à l'intérieur du Pod.
+        
+        # C'est l'information la plus importante : l'image Docker à exécuter.
+        # Le tag "latest" est un placeholder. Le pipeline CI/CD remplacera
+        # dynamiquement cette ligne par le tag spécifique du commit (ex: iaapi.azurecr.io/darija-frontend:a1b2c3d).
         image: iaapi.azurecr.io/darija-frontend:latest
-        imagePullPolicy: Always
+        imagePullPolicy: Always # Force Kubernetes à toujours retélécharger l'image depuis le registre,
+                               # garantissant que les mises à jour du pipeline sont bien appliquées.
         
         ports:
-        - containerPort: 80
+        # Informe Kubernetes que notre conteneur écoute sur un port spécifique.
+        - containerPort: 80 # Le conteneur Nginx dans notre image écoute sur le port 80.
           protocol: TCP
 
-        # Sonde pour vérifier que Nginx est prêt à recevoir du trafic.
+        # "readinessProbe" est une sonde de santé. C'est un mécanisme essentiel pour les déploiements sans interruption de service.
+        # Kubernetes utilisera cette sonde pour savoir si le conteneur est prêt à accepter du trafic.
+        # Tant que la sonde échoue, le Service n'enverra aucun utilisateur vers ce Pod.
         readinessProbe:
           httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 5
-          periodSeconds: 10
+            # La sonde effectue une simple requête HTTP GET...
+            path: / # ...sur la racine de notre serveur Nginx...
+            port: 80 # ...sur le port 80. Si elle reçoit une réponse 200 OK, le conteneur est considéré comme "prêt".
+          initialDelaySeconds: 5 # Attend 5 secondes après le démarrage du conteneur avant de commencer les sondes.
+          periodSeconds: 10 # Répète la sonde toutes les 10 secondes.
 
-        # Injection des variables d'environnement pour le script d'entrée du conteneur.
+        # "env" permet d'injecter des variables d'environnement dans le conteneur.
+        # C'est le mécanisme clé pour la configuration dynamique de notre application React.
+        # Ces variables seront utilisées par le script "entrypoint.sh" dans l'image Docker.
         env:
+          # Variable pour l'URL de l'API de Données.
           - name: VITE_DATA_API_BASE_URL
+            # "valueFrom" est une méthode sécurisée pour injecter des valeurs.
+            # Au lieu de coder en dur l'URL ici, on demande à Kubernetes de la récupérer...
             valueFrom:
               secretKeyRef:
-                name: api-secrets
-                key: VITE_DATA_API_BASE_URL
+                name: api-secrets # ...depuis le Secret nommé "api-secrets"...
+                key: VITE_DATA_API_BASE_URL # ...en lisant la valeur de la clé "VITE_DATA_API_BASE_URL".
 
+          # Variable pour l'URL de l'API d'IA, en suivant la même logique sécurisée.
           - name: VITE_IA_API_BASE_URL
             valueFrom:
               secretKeyRef:
                 name: api-secrets
                 key: VITE_IA_API_BASE_URL
 ---
-apiVersion: v1
-kind: Service
+# Le "---" est un séparateur YAML standard, permettant de définir plusieurs objets dans un seul fichier.
+
+# --- OBJET 2 : LE SERVICE ---
+# Définit comment accéder à notre application.
+
+apiVersion: v1 # Utilise l'API core "v1" pour les Services.
+kind: Service # Le type d'objet est un Service.
 metadata:
   name: frontend-service
   labels:
     app: frontend
 spec:
+  # "type: LoadBalancer" est un choix d'architecture majeur pour l'exposition.
+  # Sur un cloud comme Azure, cela demande automatiquement la création d'un
+  # Load Balancer Azure avec une adresse IP publique. C'est ce qui rend notre
+  # application accessible depuis Internet.
   type: LoadBalancer
   selector:
+    # Cette ligne est le lien entre le Service et le Deployment.
+    # Le Service enverra le trafic vers n'importe quel Pod ayant l'étiquette "app: frontend".
     app: frontend
   ports:
   - name: http
     protocol: TCP
+    # "port" est le port sur lequel le Load Balancer externe va écouter.
+    # Les utilisateurs accèderont à l'application via http://<IP_PUBLIQUE>:80
     port: 80
+    # "targetPort" est le port sur lequel les Pods écoutent.
+    # Le Service redirigera le trafic reçu sur son port 80 vers le "containerPort" 80 des Pods.
     targetPort: 80

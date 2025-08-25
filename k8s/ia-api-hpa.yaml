@@ -1,45 +1,124 @@
-# Fichier : k8s/ia-api-hpa.yaml (Version "douce" et stable)
+# =======================================================================================
+# Fichier : k8s/ia-api-hpa.yaml
+# Rôle    : Configure l'autoscaling horizontal pour le déploiement de l'API d'IA.
+#
+# Stratégie ("douce" et stable) :
+# Cet HPA (Horizontal Pod Autoscaler) est délibérément configuré pour être prudent.
+# L'objectif n'est pas de réagir à des pics de charge très soudains, mais de s'adapter
+# à une augmentation de charge soutenue.
+#
+# Pourquoi cette approche ?
+# 1. Stabilité : Le pod de l'API IA peut avoir un temps de démarrage non négligeable
+#    (initialisation du modèle, etc.). Une mise à l'échelle trop agressive
+#    pourrait créer de l'instabilité.
+# 2. Prévisibilité : La politique de mise à l'échelle lente et contrôlée permet de
+#    mieux anticiper les coûts et l'utilisation des ressources du cluster.
+# =======================================================================================
+
+# apiVersion: autoscaling/v2
+# Spécifie la version de l'API Kubernetes à utiliser. La version `v2` est
+# nécessaire pour utiliser le champ `behavior` qui permet de contrôler finement
+# la vitesse de mise à l'échelle.
 apiVersion: autoscaling/v2
+
+# kind: HorizontalPodAutoscaler
+# Indique que nous créons un objet de type HorizontalPodAutoscaler.
 kind: HorizontalPodAutoscaler
+
+# metadata:
+# Informations d'identification de l'objet HPA lui-même.
 metadata:
   name: ia-api-hpa
+
+# spec:
+# C'est ici que toute la configuration de l'autoscaler est définie.
 spec:
+  # scaleTargetRef:
+  # Désigne la "cible" que cet HPA doit surveiller et mettre à l'échelle.
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
+    # Nom du déploiement à contrôler. Il doit correspondre au nom dans `k8s/api.yaml`.
     name: ia-api-deployment
+
+  # Nombre minimum de pods qui doivent toujours être en cours d'exécution.
+  # Garantit qu'il y a toujours au moins une instance de l'API disponible.
   minReplicas: 1
+  # Nombre maximum de pods que l'HPA est autorisé à créer.
+  # C'est une sécurité pour éviter une consommation de ressources incontrôlée.
   maxReplicas: 5
+
+  # metrics:
+  # Les indicateurs que l'HPA va surveiller pour décider s'il doit ajouter ou
+  # supprimer des pods.
   metrics:
-    # ... (vos métriques CPU et RAM ne changent pas)
+    # Première métrique : l'utilisation du CPU.
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
+          # Cible : Seuil de déclenchement.
+          # Si l'utilisation moyenne du CPU sur tous les pods dépasse 90%
+          # des ressources CPU "demandées" (requests), l'HPA commencera à agir.
+          # Le seuil de 90% est élevé, ce qui signifie qu'on pousse les pods
+          # à leur maximum avant d'en ajouter un nouveau.
           averageUtilization: 90
+    # Deuxième métrique : l'utilisation de la mémoire.
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
+          # Cible : Seuil de déclenchement.
+          # Si l'utilisation moyenne de la mémoire dépasse 98% des ressources
+          # "demandées" (requests), l'HPA agira. C'est un seuil très élevé,
+          # utilisé comme une sécurité pour éviter les pannes par manque de mémoire (OOMKilled).
           averageUtilization: 98
+
+  # behavior:
+  # Contrôle la vitesse et le comportement de la mise à l'échelle. C'est la partie
+  # la plus avancée et la plus importante de cette configuration "douce".
   behavior:
+    # scaleUp:
+    # Règle le comportement lors de l'ajout de nouveaux pods.
     scaleUp:
-      # On garde une longue fenêtre de stabilisation
+      # stabilizationWindowSeconds:
+      # Fenêtre de stabilisation. Après une suppression de pod (scaleDown), l'HPA
+      # attendra 300 secondes (5 minutes) avant d'envisager de rajouter des pods,
+      # même si les métriques sont élevées. Cela évite l'effet "yoyo" (flapping).
       stabilizationWindowSeconds: 300
       policies:
       # ====> LA MODIFICATION CLÉ <====
-      # On ne l'autorise à ajouter qu'UN SEUL pod toutes les 5 minutes (300s)
+      # C'est la politique qui rend la mise à l'échelle "douce".
+      # Elle limite la vitesse à laquelle les pods peuvent être ajoutés.
       - type: Pods
+        # Valeur : On ne peut ajouter qu'un seul pod à la fois.
         value: 1
+        # Période : Cette règle s'applique sur une période de 300 secondes (5 minutes).
+        # Combinaison : "Ne pas ajouter plus d'un pod toutes les 5 minutes".
         periodSeconds: 300
-      selectPolicy: Max # (Il n'y a qu'une politique, donc c'est elle qui sera choisie)
+      # selectPolicy: Max
+      # Si plusieurs politiques étaient définies, Kubernetes choisirait celle qui
+      # autorise le plus grand nombre de pods. Ici, avec une seule politique,
+      # elle est sélectionnée par défaut.
+      selectPolicy: Max
 
+    # scaleDown:
+    # Règle le comportement lors de la suppression de pods.
     scaleDown:
+      # Fenêtre de stabilisation. Après un ajout de pod (scaleUp), l'HPA attendra
+      # 600 secondes (10 minutes) avant d'envisager de supprimer des pods.
+      # C'est une longue période pour s'assurer que le pic de charge est bien terminé.
       stabilizationWindowSeconds: 600
       policies:
       - type: Pods
+        # Valeur : On ne peut supprimer qu'un seul pod à la fois.
         value: 1
+        # Période : Cette règle s'applique sur une période de 120 secondes (2 minutes).
+        # Combinaison : "Ne pas supprimer plus d'un pod toutes les 2 minutes".
         periodSeconds: 120
+      # selectPolicy: Max
+      # Idem que pour le scaleUp, Kubernetes choisirait la politique la plus agressive
+      # en matière de suppression.
       selectPolicy: Max

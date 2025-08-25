@@ -1,99 +1,154 @@
-# Fichier : k8s/api.yaml (Version finale et robuste)
+# ==============================================================================
+# Fichier de Manifeste Kubernetes pour l'API d'IA
+# ------------------------------------------------------------------------------
+# Ce fichier décrit deux objets Kubernetes essentiels pour déployer l'API d'IA :
+#
+#   1. Deployment (ia-api-deployment):
+#      - C'est le plan directeur pour créer et gérer les Pods de l'application.
+#      - Il garantit qu'un nombre spécifié de répliques (ici, 1) de notre
+#        application est toujours en cours d'exécution.
+#      - Il gère les mises à jour (rolling updates) et les redémarrages automatiques.
+#      - Il définit les ressources (CPU/Mémoire), les sondes de santé (probes)
+#        et comment l'application obtient ses secrets.
+#
+#   2. Service (ia-api-service):
+#      - C'est le point d'entrée réseau stable pour accéder aux Pods.
+#      - Il expose l'application au monde extérieur via une adresse IP publique
+#        grâce au type "LoadBalancer".
+#      - Il utilise un "selector" pour trouver automatiquement les Pods à qui
+#        envoyer le trafic, même s'ils sont redémarrés ou mis à jour.
+#
+# Les annotations Prometheus permettent au système de monitoring de découvrir
+# et de collecter automatiquement les métriques exposées par cette API.
+# ==============================================================================
 
+# Définit la version de l'API Kubernetes à utiliser pour cet objet. "apps/v1" est la version stable pour les Deployments.
 apiVersion: apps/v1
+# Spécifie le type d'objet Kubernetes que nous créons, ici un "Deployment".
 kind: Deployment
+# Métadonnées pour identifier l'objet.
 metadata:
+  # Nom unique du Deployment dans le namespace.
   name: ia-api-deployment
+# La spécification (le "cahier des charges") du Deployment.
 spec:
+  # Nombre de Pods identiques que Kubernetes doit maintenir en fonctionnement.
   replicas: 1
+  # Le selector définit comment le Deployment trouve les Pods qu'il doit gérer.
   selector:
+    # Il cherchera tous les Pods ayant le label "app: ia-api".
     matchLabels:
       app: ia-api
+  # Le "template" est le modèle utilisé pour créer chaque Pod.
   template:
     metadata:
+      # Les labels à appliquer à chaque Pod créé. Le selector du Deployment doit correspondre.
       labels:
         app: ia-api
-
+      # Les annotations sont des métadonnées supplémentaires, souvent utilisées par d'autres outils.
       annotations:
+        # Indique à Prometheus qu'il doit collecter les métriques de ce Pod.
         prometheus.io/scrape: "true"
-        prometheus.io/port: "8001" # Le port où votre app expose ses propres métriques
+        # Indique à Prometheus sur quel port le Pod expose ses métriques.
+        prometheus.io/port: "8001"
+        # Indique à Prometheus le chemin de l'URL pour accéder aux métriques.
         prometheus.io/path: "/metrics"
+    # La spécification du Pod lui-même.
     spec:
+      # Définit la liste des conteneurs à exécuter dans le Pod.
       containers:
+      # Un seul conteneur est défini ici.
       - name: ia-api-container
-        # Ce tag sera mis à jour dynamiquement par votre pipeline CI/CD
-        image: iaapi.azurecr.io/darija-api:latest 
+        # L'image Docker à utiliser. Le tag ":latest" sera mis à jour dynamiquement par le pipeline CI/CD.
+        image: iaapi.azurecr.io/darija-api:latest
+        # Liste des ports que le conteneur expose.
         ports:
-        - containerPort: 8001
+        - containerPort: 8001 # Le port sur lequel l'application FastAPI écoute à l'intérieur du conteneur.
         
-        # Les ressources sont adaptées pour le cas "API externe" (léger)
-        # Si vous revenez à un modèle local, il faudra les ré-augmenter.
+        # Définit les ressources CPU et mémoire allouées au conteneur.
         resources:
+          # "requests" : La quantité de ressources garantie au conteneur au démarrage.
           requests:
-            cpu: "100m"
-            memory: "128Mi"
+            cpu: "100m"      # 100 millicores (10% d'un vCPU).
+            memory: "128Mi"  # 128 Mebibytes.
+          # "limits" : La quantité maximale de ressources que le conteneur ne peut pas dépasser.
           limits:
-            cpu: "500m"
-            memory: "512Mi"
+            cpu: "500m"      # 500 millicores (50% d'un vCPU).
+            memory: "512Mi"  # 512 Mebibytes.
         
         # ================================================================
-        # ===> CONFIGURATION DES SONDES AFFINÉE <=========================
+        # === CONFIGURATION DES SONDES DE SANTÉ (HEALTH PROBES) ==========
         # ================================================================
 
-        # Sonde de DÉMARRAGE (Startup):
-        # Donne à l'application le temps de démarrer avant que les autres sondes ne s'activent.
-        # Même pour une API externe, on garde un délai raisonnable pour la première connexion.
+        # Sonde de DÉMARRAGE (Startup): Utilisée pour les applications lentes à démarrer.
+        # Kubernetes attendra que cette sonde réussisse avant de lancer les autres.
         startupProbe:
+          # Type de sonde : une requête HTTP GET.
           httpGet:
-            path: /healthz
-            port: 8001
-          
-          failureThreshold: 6
+            path: /healthz # L'endpoint de l'API à interroger. Doit retourner un code 2xx ou 3xx.
+            port: 8001     # Le port sur lequel interroger l'endpoint.
+          # Kubernetes considérera le démarrage comme échoué après 6 tentatives infructueuses.
+          failureThreshold: 6 # (6 tentatives * 5s = 30 secondes max pour démarrer).
+          # Délai en secondes entre chaque tentative de la sonde.
           periodSeconds: 5
 
-        # Sonde de VIVACITÉ (Liveness):
-        # S'active après le succès de la startupProbe.
-        # Redémarre le pod s'il ne répond plus du tout.
+        # Sonde de VIVACITÉ (Liveness): Vérifie si le conteneur est toujours en vie.
+        # Si cette sonde échoue, Kubernetes redémarrera le conteneur.
         livenessProbe:
           httpGet:
             path: /healthz
             port: 8001
-          # Commence à vérifier 15s après le démarrage réussi.
+          # Délai avant que la première sonde de vivacité ne soit lancée (après le succès de la startupProbe).
           initialDelaySeconds: 15
+          # Fréquence de vérification.
           periodSeconds: 20
+          # Temps maximum alloué pour que la sonde reçoive une réponse.
           timeoutSeconds: 5
-          # Redémarre après 3 échecs consécutifs (1 minute de panne).
+          # Le conteneur sera redémarré après 3 échecs consécutifs.
           failureThreshold: 3
 
-        # Sonde de PRÉPARATION (Readiness):
-        # S'active après le succès de la startupProbe.
-        # Détermine si le pod est prêt à recevoir du trafic.
+        # Sonde de PRÉPARATION (Readiness): Vérifie si le conteneur est prêt à recevoir du trafic.
+        # Si cette sonde échoue, le Pod est retiré du Service et ne reçoit plus de requêtes.
         readinessProbe:
           httpGet:
             path: /healthz
             port: 8001
-          # Commence à vérifier 5s après le démarrage réussi.
+          # Délai avant le lancement de la première sonde de préparation.
           initialDelaySeconds: 5
           periodSeconds: 10
           timeoutSeconds: 15
-          # Retire le pod du service après 3 échecs consécutifs (30s de panne).
+          # Le Pod sera marqué comme "NotReady" après 3 échecs consécutifs.
           failureThreshold: 3
           
+        # Injecte toutes les clés/valeurs d'un Secret en tant que variables d'environnement dans le conteneur.
         envFrom:
         - secretRef:
+            # Nom du Secret Kubernetes contenant les variables d'environnement.
             name: api-secrets
+      # Spécifie le Secret à utiliser pour s'authentifier auprès d'un registre d'images privé (ici, Azure Container Registry).
       imagePullSecrets:
       - name: acr-secret
 ---
+# Définit la version de l'API Kubernetes. "v1" est la version stable pour les Services.
 apiVersion: v1
+# Spécifie le type d'objet, ici un "Service".
 kind: Service
 metadata:
+  # Nom unique du Service.
   name: ia-api-service
+# La spécification du Service.
 spec:
-  type: LoadBalancer 
+  # "LoadBalancer" : Type de service qui provisionne un équilibreur de charge externe dans un environnement cloud (comme Azure).
+  # Cela crée une adresse IP publique pour accéder à l'application.
+  type: LoadBalancer
+  # Le selector définit à quels Pods ce Service doit envoyer le trafic.
   selector:
+    # Il enverra le trafic à tous les Pods ayant le label "app: ia-api".
     app: ia-api
+  # Définit le mappage des ports.
   ports:
   - protocol: TCP
+    # "port" : Le port sur lequel le Service écoute (le port exposé sur le Load Balancer).
     port: 8001
+    # "targetPort" : Le port sur les Pods cibles vers lequel le trafic doit être redirigé (doit correspondre au containerPort).
     targetPort: 8001

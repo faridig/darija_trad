@@ -1,73 +1,125 @@
-# Fichier : k8s/data-api.yaml (Version finale et robuste)
+# Fichier : k8s/data-api.yaml 
+# Ce manifeste Kubernetes décrit deux objets principaux :
+# 1. Un "Deployment" : Qui gère la création et la mise à jour des Pods de l'application Data API.
+# 2. Un "Service" : Qui expose les Pods de la Data API sur le réseau et sur internet.
 
+# ===================================================================
+# OBJET 1 : LE DEPLOIEMENT (Deployment)
+# Responsabilité : S'assurer qu'un nombre défini de copies (replicas) de notre application
+# tournent en permanence et gérer leurs mises à jour.
+# ===================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  # Le nom unique de notre déploiement dans le cluster.
   name: data-api-deployment
 spec:
+  # On demande à Kubernetes de s'assurer qu'il y a toujours 1 copie (Pod) de notre application en cours d'exécution.
   replicas: 1
+  # Le sélecteur permet au Deployment de savoir quels Pods il doit gérer.
+  # Il cherche tous les Pods qui ont le label "app: data-api".
   selector:
     matchLabels:
       app: data-api
+  # Le "template" est le plan de construction (blueprint) pour chaque Pod.
   template:
     metadata:
+      # On applique ce label à chaque Pod créé, pour que le sélecteur ci-dessus puisse le trouver.
       labels:
         app: data-api
     spec:
+      # Ce secret contient les informations d'authentification pour se connecter
+      # à notre registre d'images privé (Azure Container Registry).
       imagePullSecrets:
       - name: acr-secret
       
+      # Description du (ou des) conteneur(s) à exécuter dans chaque Pod.
       containers:
       - name: data-api-container
-        # Cette image sera mise à jour dynamiquement par votre pipeline CI/CD
+        # L'image Docker à utiliser. Cette ligne est mise à jour dynamiquement
+        # par le pipeline CI/CD avec le tag de la nouvelle version.
         image: iaapi.azurecr.io/darija-data-api:1ebbfb5
+        # "Always" force Kubernetes à toujours retélécharger l'image, même si une version
+        # avec le même tag existe localement. C'est crucial pour les déploiements continus.
         imagePullPolicy: Always 
         ports:
+        # Le port sur lequel l'application FastAPI écoute à l'intérieur du conteneur.
         - containerPort: 8000
 
-        # ================================================================
-        # ===> CONFIGURATION DES SONDES AMÉLIORÉE <=======================
-        # ================================================================
+        # ========================================================================
+        # ===> CONFIGURATION DES SONDES DE SANTÉ (Health Probes) <================
+        # Rôle : Permettre à Kubernetes de comprendre l'état de santé de l'application.
+        # ========================================================================
 
-        # Sonde de VIVACITÉ (Liveness): 
-        # Détermine si le conteneur doit être redémarré.
-        # On la garde très tolérante pour éviter les redémarrages inutiles.
+        # Sonde de VIVACITÉ (Liveness Probe):
+        # Répond à la question : "L'application est-elle 'vivante' ou est-elle bloquée/plantée ?"
+        # Si cette sonde échoue, Kubernetes tuera et redémarrera le conteneur.
         livenessProbe:
           httpGet:
-            path: /docs  # Un endpoint léger qui ne dépend pas de la DB est idéal.
+            # On vérifie un endpoint HTTP simple et rapide.
+            path: /docs
             port: 8000
-          initialDelaySeconds: 80 # Laisse beaucoup de temps pour le premier démarrage.
-          periodSeconds: 20       # Vérifie toutes les 20 secondes.
-          timeoutSeconds: 15       # La requête doit répondre en moins de 5s.
-          failureThreshold: 10    # Redémarre seulement après 10 échecs consécutifs (plus de 3 minutes de panne).
+          # Attend 80 secondes après le démarrage du conteneur avant de faire la première vérification.
+          # Ce délai long donne amplement le temps à l'API de démarrer, même sur un nœud lent.
+          initialDelaySeconds: 80
+          # Vérifie toutes les 20 secondes.
+          periodSeconds: 20
+          # La sonde échoue si elle n'obtient pas de réponse en 15 secondes.
+          timeoutSeconds: 15
+          # Le conteneur ne sera redémarré qu'après 10 échecs consécutifs (10 * 20s = ~3.3 min).
+          # C'est une configuration très tolérante pour éviter les redémarrages en boucle ("CrashLoopBackOff")
+          # si une dépendance (comme la base de données) est temporairement lente.
+          failureThreshold: 10
 
-        # Sonde de PRÉPARATION (Readiness): 
-        # Détermine si le pod est prêt à recevoir du trafic du Service.
-        # Elle peut être un peu plus rapide pour intégrer le pod au service dès que possible.
+        # Sonde de PRÉPARATION (Readiness Probe): 
+        # Répond à la question : "L'application est-elle prête à accepter du trafic ?"
+        # Si cette sonde échoue, Kubernetes retire le Pod du Service, mais ne le redémarre pas.
+        # Le trafic ne lui sera plus envoyé jusqu'à ce que la sonde réussisse à nouveau.
         readinessProbe:
           httpGet:
             path: /docs
             port: 8000
-          initialDelaySeconds: 15 # On commence à vérifier plus tôt.
-          periodSeconds: 10       # On vérifie plus souvent.
+          # On commence à vérifier plus tôt (15s) car on veut que le Pod rejoigne le Service dès que possible.
+          initialDelaySeconds: 15
+          # On vérifie plus souvent (toutes les 10s) pour réagir rapidement.
+          periodSeconds: 10
           timeoutSeconds: 15
-          failureThreshold: 3     # Après 3 échecs, le pod est considéré "NotReady" et retiré du service.
+          # Après 3 échecs consécutifs (30s), le Pod est marqué comme "NotReady" et est isolé du trafic.
+          # C'est plus agressif que la liveness probe pour protéger les utilisateurs d'un pod défaillant.
+          failureThreshold: 3
 
-        # ================================================================
+        # ========================================================================
         
+        # Injecte toutes les clés/valeurs du Secret Kubernetes nommé "api-secrets"
+        # en tant que variables d'environnement dans le conteneur.
+        # C'est ainsi que l'application récupère l'URL de la base de données, la clé JWT, etc.
         envFrom:
         - secretRef:
             name: api-secrets 
 ---
+# ===================================================================
+# OBJET 2 : LE SERVICE (Service)
+# Responsabilité : Fournir un point d'accès réseau stable pour les Pods du Deployment.
+# ===================================================================
 apiVersion: v1
 kind: Service
 metadata:
+  # Le nom unique de notre service dans le cluster.
   name: data-api-service
 spec:
+  # "LoadBalancer" est un type de service qui demande au fournisseur de cloud (Azure)
+  # de créer un véritable load balancer externe avec une adresse IP publique.
+  # C'est ce qui rend notre API accessible depuis l'extérieur du cluster.
   type: LoadBalancer 
+  # Le sélecteur permet au Service de savoir vers quels Pods envoyer le trafic.
+  # Il doit correspondre exactement aux labels des Pods gérés par notre Deployment.
   selector:
     app: data-api
   ports:
+  # Définit le mapping des ports.
   - protocol: TCP
+    # Le port 80 est le port exposé publiquement par le Load Balancer.
     port: 80
+    # Le trafic arrivant sur le port 80 du Load Balancer sera redirigé
+    # vers le port 8000 des Pods cibles.
     targetPort: 8000
