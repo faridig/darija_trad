@@ -34,8 +34,6 @@ SECRET_KEY = os.getenv("JWT_SECRET", "secret-for-dev-only")
 # Algorithme de signature utilisé pour les JWT. HS256 est un standard commun.
 ALGORITHM = "HS256"
 
-# Durée de validité par défaut d'un token d'accès.
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 # Contexte pour le hachage des mots de passe.
 # Utilise l'algorithme bcrypt, qui est le standard actuel pour sa robustesse.

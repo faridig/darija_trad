@@ -60,3 +60,42 @@ groups:
     annotations:
       summary: "Signal de Data Drift détecté (longueur des textes)"
       description: "La longueur des textes en entrée (P75) est supérieure à 14 mots depuis 1 heure. Le modèle reçoit des données qui pourraient différer de son corpus d'entraînement. Un réentraînement est à considérer."
+
+  - alert: HighCpuUsage
+    # Cette expression calcule l'utilisation CPU moyenne sur 5min pour les pods ia-api
+    # et alerte si elle dépasse 80%.
+    expr: |
+      sum(
+        rate(container_cpu_usage_seconds_total{namespace="default", pod=~"ia-api-deployment.*"}[5m])
+      ) by (pod)
+      /
+      sum(
+        container_spec_cpu_quota{namespace="default", pod=~"ia-api-deployment.*"} / 100000
+      ) by (pod)
+      * 100 > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Utilisation CPU élevée sur le pod {{ $labels.pod }}"
+      description: "L'utilisation CPU du pod {{ $labels.pod }} a dépassé 80% pendant 5 minutes."
+
+  - alert: HighMemoryUsage
+    # Cette expression calcule l'utilisation RAM moyenne et alerte si elle dépasse 80%
+    # de la limite fixée pour le conteneur.
+    expr: |
+      sum(
+        container_memory_usage_bytes{namespace="default", pod=~"ia-api-deployment.*"}
+      ) by (pod)
+      /
+      sum(
+        container_spec_memory_limit_bytes{namespace="default", pod=~"ia-api-deployment.*"}
+      ) by (pod)
+      * 100 > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Utilisation Mémoire élevée sur le pod {{ $labels.pod }}"
+      description: "L'utilisation de la RAM du pod {{ $labels.pod }} a dépassé 80% pendant 5 minutes."
+  

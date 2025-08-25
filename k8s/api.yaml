@@ -13,6 +13,11 @@ spec:
     metadata:
       labels:
         app: ia-api
+
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8001" # Le port où votre app expose ses propres métriques
+        prometheus.io/path: "/metrics"
     spec:
       containers:
       - name: ia-api-container

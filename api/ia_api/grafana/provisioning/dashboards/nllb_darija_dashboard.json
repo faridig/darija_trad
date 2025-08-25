@@ -38,7 +38,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "sum(rate(api_requests_total{endpoint=~\"/generer|/health|/metrics\"}[2m])) by (endpoint)",
+          "expr": "sum(rate(api_requests_total{job=\"darija_api\", endpoint=~\"/generer|/health|/metrics\"}[2m])) by (endpoint)",
           "legendFormat": "{{endpoint}}",
           "refId": "A"
         }
@@ -59,13 +59,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "sum(rate(api_request_latency_seconds_sum{endpoint=~\"/generer|/health\"}[5m])) by (endpoint) / sum(rate(api_request_latency_seconds_count{endpoint=~\"/generer|/health\"}[5m])) by (endpoint)",
+          "expr": "sum(rate(api_request_latency_seconds_sum{job=\"darija_api\", endpoint=~\"/generer|/health\"}[5m])) by (endpoint) / sum(rate(api_request_latency_seconds_count{job=\"darija_api\", endpoint=~\"/generer|/health\"}[5m])) by (endpoint)",
           "legendFormat": "{{endpoint}} (moyenne)",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "histogram_quantile(0.95, sum(rate(api_request_latency_seconds_bucket{endpoint=~\"/generer|/health\"}[5m])) by (le, endpoint))",
+          "expr": "histogram_quantile(0.95, sum(rate(api_request_latency_seconds_bucket{job=\"darija_api\", endpoint=~\"/generer|/health\"}[5m])) by (le, endpoint))",
           "legendFormat": "{{endpoint}} (P95)",
           "refId": "B"
         }
@@ -128,7 +128,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "( (sum(rate(api_http_errors_5xx_total{endpoint=\"/generer\"}[5m])) by (endpoint) or on(endpoint) vector(0)) / sum(rate(api_requests_total{endpoint=\"/generer\"}[5m])) by (endpoint) ) * 100",
+          "expr": "( (sum(rate(api_http_errors_5xx_total{job=\"darija_api\", endpoint=\"/generer\"}[5m])) by (endpoint) or on(endpoint) vector(0)) / sum(rate(api_requests_total{job=\"darija_api\", endpoint=\"/generer\"}[5m])) by (endpoint) ) * 100",
           "legendFormat": "Taux d'erreurs sur {{endpoint}}",
           "refId": "A"
         }
@@ -156,7 +156,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "histogram_quantile(0.75, sum(rate(data_drift_text_length_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.75, sum(rate(data_drift_text_length_bucket{job=\"darija_api\"}[5m])) by (le))",
           "legendFormat": "P75 Longueur (Production)",
           "refId": "A"
         }
@@ -183,6 +183,70 @@
           }
         }
       }
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "id": 16,
+      "panels": [],
+      "title": "4. Santé de l'Infrastructure (CPU & RAM)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Ce graphique suit le pourcentage de CPU utilisé par les pods de l'API IA par rapport à la limite qui leur est allouée. C'est un indicateur clé de la charge de l'infrastructure.\n\n**Comment l'interpréter ?**\n- **Charge normale :** Une utilisation basse au repos, avec des pics lors des requêtes.\n- **Risque de saturation :** Une utilisation constamment élevée (>80%) peut indiquer que le pod est sous-dimensionné et risque de ralentir.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "continuous-GrYlRd" },
+          "custom": { "fillOpacity": 20, "gradientMode": "opacity" },
+          "max": 100,
+          "min": 0,
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "id": 17,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "(sum(rate(container_cpu_usage_seconds_total{pod=~\"ia-api-deployment-.*\", container=\"ia-api-container\"}[5m])) by (pod)) / (sum(kube_pod_container_resource_limits{resource=\"cpu\", pod=~\"ia-api-deployment-.*\", container=\"ia-api-container\"}) by (pod)) * 100",
+          "legendFormat": "{{pod}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Utilisation CPU des Pods IA (% de la limite)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "description": "Ce graphique suit la quantité de mémoire vive (RAM) utilisée par les pods de l'API IA.\n\n**Comment l'interpréter ?**\n- **Usage normal :** La mémoire devrait augmenter au démarrage (chargement du modèle) puis se stabiliser.\n- **Fuite de mémoire :** Une augmentation lente mais continue de la mémoire au fil du temps peut indiquer une fuite de mémoire dans l'application, nécessitant une investigation.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 20, "gradientMode": "opacity" },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "id": 18,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "expr": "sum(container_memory_usage_bytes{pod=~\"ia-api-deployment-.*\", container=\"ia-api-container\"}) by (pod)",
+          "legendFormat": "{{pod}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Utilisation Mémoire (RAM) des Pods IA",
+      "type": "timeseries"
     }
   ],
   "refresh": "10s",
@@ -193,6 +257,6 @@
   "timezone": "browser",
   "title": "NLLB-Darija API - Tableau de Bord Opérationnel",
   "uid": "nllb-darija-api-final-compatible",
-  "version": 15,
+  "version": 16,
   "weekStart": ""
 }
