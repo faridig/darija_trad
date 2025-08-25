@@ -1,311 +1,117 @@
-# # k8s/prometheus.yaml (Version complète et corrigée)
+# k8s/prometheus.yaml (Version complète et corrigée)
 
-# # ===================================================================
-# # 1. Configuration de Prometheus via un ConfigMap
-# #    Contient la configuration principale ET les règles d'alerte complètes.
-# # ===================================================================
-# apiVersion: v1
-# kind: ConfigMap
-# metadata:
-#   name: prometheus-config
-# data:
-#   # Clé 1 : le contenu du fichier de configuration principal de Prometheus
-#   prometheus.yml: |
-#     global:
-#       scrape_interval: 15s
-
-#     # On indique à Prometheus de charger les règles depuis le chemin où nous allons les monter
-#     rule_files:
-#       - "/etc/prometheus-config/alert.rules.yml"
-
-#     alerting:
-#       alertmanagers:
-#       - static_configs:
-#         - targets:
-#           - "alertmanager-service:9093" # Utilise le service Kubernetes d'Alertmanager
-
-#     scrape_configs:
-#       - job_name: "darija_api"
-#         metrics_path: /metrics
-#         static_configs:
-#           - targets: ["ia-api-service:8001"] # Utilise le service Kubernetes de l'API IA
-#         basic_auth:
-#           # On indique les chemins où les secrets seront montés
-#           username_file: /etc/prometheus/prometheus_username.secret
-#           password_file: /etc/prometheus/prometheus_password.secret
-
-#       - job_name: 'kubernetes-pods'
-#         kubernetes_sd_configs:
-#           - role: pod
-#         # Relabeling pour ne garder que les pods que l'on veut surveiller
-#         # et formater les labels correctement. C'est une configuration standard.
-#         relabel_configs:
-#           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-#             action: keep
-#             regex: true
-#           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-#             action: replace
-#             target_label: __metrics_path__
-#             regex: (.+)
-#           - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
-#             action: replace
-#             regex: ([^:]+)(?::\d+)?;(\d+)
-#             replacement: $1:$2
-#             target_label: __address__
-#           - action: labelmap
-#             regex: __meta_kubernetes_pod_label_(.+)
-#           - source_labels: [__meta_kubernetes_namespace]
-#             action: replace
-#             target_label: kubernetes_namespace
-#           - source_labels: [__meta_kubernetes_pod_name]
-#             action: replace
-#             target_label: kubernetes_pod_name
-      
-
-#   # Clé 2 : le contenu COMPLET de votre fichier de règles d'alerte
-#   alert.rules.yml: |
-#     groups:
-#     - name: API-IA-Alerts
-#       rules:
-
-#       # Règle n°1 : L'API est-elle en panne ? (Fiabilité la plus critique)
-#       - alert: ApiDown
-#         expr: up{job="darija_api"} == 0
-#         for: 1m
-#         labels:
-#           severity: critical
-#         annotations:
-#           summary: "L'API IA est inaccessible (instance down)"
-#           description: "Prometheus n'arrive pas à scraper l'endpoint /metrics de l'API IA depuis plus d'une minute. Le service est probablement en panne ou le réseau est inaccessible."
-
-#       # Règle n°2 : L'API génère-t-elle trop d'erreurs ? (Fiabilité)
-#       - alert: HighErrorRate5xx
-#         expr: (sum(rate(api_http_errors_5xx_total{endpoint="/generer"}[5m])) by (endpoint) / sum(rate(api_requests_total{endpoint="/generer"}[5m])) by (endpoint)) * 100 > 2
-#         for: 2m
-#         labels:
-#           severity: critical
-#         annotations:
-#           summary: "Taux d'erreurs 5xx élevé (> 2%)"
-#           description: "L'API génère un nombre anormalement élevé d'erreurs serveur sur l'endpoint /generer. Un incident est probablement en cours."
-
-#       # Règle n°3 : L'API est-elle trop lente ? (Performance)
-#       - alert: HighApiLatency
-#         expr: histogram_quantile(0.95, sum(rate(api_request_latency_seconds_bucket{endpoint="/generer"}[5m])) by (le, endpoint)) > 1
-#         for: 5m
-#         labels:
-#           severity: warning
-#         annotations:
-#           summary: "Latence API élevée (P95 > 1s)"
-#           description: "La latence du endpoint /generer est supérieure à 1s depuis plus de 5 minutes. Le service risque de paraître lent pour les utilisateurs."
-
-#       # Règle n°4 : Le modèle est-il toujours pertinent ? (MLOps)
-#       - alert: DataDriftDetected
-#         expr: histogram_quantile(0.75, sum(rate(data_drift_text_length_bucket[5m])) by (le)) > 14
-#         for: 1h
-#         labels:
-#           severity: warning
-#         annotations:
-#           summary: "Signal de Data Drift détecté (longueur des textes)"
-#           description: "La longueur des textes en entrée (P75) est supérieure à 14 mots depuis 1 heure. Le modèle reçoit des données qui pourraient différer de son corpus d'entraînement. Un réentraînement est à considérer."
-# ---
-# # ===================================================================
-# # 2. Déploiement de Prometheus
-# #    Utilise les configurations et secrets définis ci-dessus.
-# # ===================================================================
-# apiVersion: apps/v1
-# kind: Deployment
-# metadata:
-#   name: prometheus-deployment
-# spec:
-#   replicas: 1
-#   selector:
-#     matchLabels:
-#       app: prometheus
-#   template:
-#     metadata:
-#       labels:
-#         app: prometheus
-#     spec:
-#       containers:
-#       - name: prometheus-container
-#         image: iaapi.azurecr.io/darija-api-prometheus:latest # Assurez-vous que le tag est correct ou géré par votre CI/CD
-#         args:
-#           - "--config.file=/etc/prometheus-config/prometheus.yml"
-#         ports:
-#         - containerPort: 9090
-#         volumeMounts:
-#         # 1. Montage des fichiers de configuration depuis le ConfigMap
-#         - name: prometheus-config-volume
-#           mountPath: /etc/prometheus-config
-#         # 2. Montage du secret pour le mot de passe
-#         - name: prometheus-password-volume
-#           mountPath: "/etc/prometheus/prometheus_password.secret"
-#           subPath: "password.txt"
-#           readOnly: true
-#         # 3. Montage du secret pour le nom d'utilisateur
-#         - name: prometheus-username-volume
-#           mountPath: "/etc/prometheus/prometheus_username.secret"
-#           subPath: "username.txt"
-#           readOnly: true
-#       imagePullSecrets:
-#       - name: acr-secret
-#       volumes:
-#       # Définition de la source pour chaque montage
-#       # 1. Le volume pour la config vient du ConfigMap
-#       - name: prometheus-config-volume
-#         configMap:
-#           name: prometheus-config
-#       # 2. Le volume pour le mot de passe vient du Secret
-#       - name: prometheus-password-volume
-#         secret:
-#           secretName: api-secrets
-#           items:
-#           - key: ADMIN_PASSWORD
-#             path: "password.txt"
-#       # 3. Le volume pour le nom d'utilisateur vient aussi du Secret
-#       - name: prometheus-username-volume
-#         secret:
-#           secretName: api-secrets
-#           items:
-#           - key: ADMIN_USERNAME
-#             path: "username.txt"
-# ---
-# # ===================================================================
-# # 3. Service pour Prometheus
-# #    Permet aux autres services du cluster de communiquer avec Prometheus.
-# # ===================================================================
-# apiVersion: v1
-# kind: Service
-# metadata:
-#   name: prometheus-service
-# spec:
-#   type: ClusterIP 
-#   selector:
-#     app: prometheus
-#   ports:
-#   - protocol: TCP
-#     port: 9090
-#     targetPort: 9090
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# k8s/prometheus.yaml (Version Finale Corrigée pour le Service Discovery)
-
-# 1. Compte de service pour Prometheus (inchangé)
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: prometheus
----
-# 2. Rôle Cluster qui donne les permissions de lecture (inchangé)
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: prometheus
-rules:
-- apiGroups: [""]
-  resources:
-  - nodes
-  - services
-  - endpoints
-  - pods
-  verbs: ["get", "list", "watch"]
-- nonResourceURLs: ["/metrics"]
-  verbs: ["get"]
----
-# 3. Liaison entre le compte de service et le rôle (inchangé)
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: prometheus
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: prometheus
-subjects:
-- kind: ServiceAccount
-  name: prometheus
-  namespace: default
----
-# 4. ConfigMap avec la configuration de scraping MISE À JOUR
+# ===================================================================
+# 1. Configuration de Prometheus via un ConfigMap
+#    Contient la configuration principale ET les règles d'alerte complètes.
+# ===================================================================
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: prometheus-config
 data:
+  # Clé 1 : le contenu du fichier de configuration principal de Prometheus
   prometheus.yml: |
     global:
       scrape_interval: 15s
+
+    # On indique à Prometheus de charger les règles depuis le chemin où nous allons les monter
     rule_files:
       - "/etc/prometheus-config/alert.rules.yml"
+
     alerting:
       alertmanagers:
       - static_configs:
         - targets:
-          - "alertmanager-service:9093"
+          - "alertmanager-service:9093" # Utilise le service Kubernetes d'Alertmanager
+
     scrape_configs:
-      - job_name: 'prometheus'
-        static_configs:
-          - targets: ['localhost:9090']
-      
-      - job_name: 'darija_api'
+      - job_name: "darija_api"
         metrics_path: /metrics
         static_configs:
-          - targets: ["ia-api-service:8001"]
+          - targets: ["ia-api-service:8001"] # Utilise le service Kubernetes de l'API IA
         basic_auth:
+          # On indique les chemins où les secrets seront montés
           username_file: /etc/prometheus/prometheus_username.secret
           password_file: /etc/prometheus/prometheus_password.secret
 
-      # =============================================================
-      # ===> CONFIGURATION DE SCRAPING CORRIGÉE ET DÉTAILLÉE <=======
-      # =============================================================
-      - job_name: 'kube-state-metrics'
+      - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
-          - role: endpoints
+          - role: pod
+        # Relabeling pour ne garder que les pods que l'on veut surveiller
+        # et formater les labels correctement. C'est une configuration standard.
         relabel_configs:
-          - source_labels: [__meta_kubernetes_service_label_app]
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
             action: keep
-            regex: kube-state-metrics
-          - source_labels: [__meta_kubernetes_endpoint_port_name]
-            action: keep
-            regex: http-metrics
-      # =============================================================
-      # ===> FIN DE LA CORRECTION <==================================
-      # =============================================================
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+      
 
+  # Clé 2 : le contenu COMPLET de votre fichier de règles d'alerte
   alert.rules.yml: |
-    # ... (Copiez ici vos règles d'alerte existantes, y compris CPU/RAM) ...
-    # Assurez-vous que cette section est bien remplie avec toutes vos règles
+    groups:
+    - name: API-IA-Alerts
+      rules:
+
+      # Règle n°1 : L'API est-elle en panne ? (Fiabilité la plus critique)
+      - alert: ApiDown
+        expr: up{job="darija_api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "L'API IA est inaccessible (instance down)"
+          description: "Prometheus n'arrive pas à scraper l'endpoint /metrics de l'API IA depuis plus d'une minute. Le service est probablement en panne ou le réseau est inaccessible."
+
+      # Règle n°2 : L'API génère-t-elle trop d'erreurs ? (Fiabilité)
+      - alert: HighErrorRate5xx
+        expr: (sum(rate(api_http_errors_5xx_total{endpoint="/generer"}[5m])) by (endpoint) / sum(rate(api_requests_total{endpoint="/generer"}[5m])) by (endpoint)) * 100 > 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Taux d'erreurs 5xx élevé (> 2%)"
+          description: "L'API génère un nombre anormalement élevé d'erreurs serveur sur l'endpoint /generer. Un incident est probablement en cours."
+
+      # Règle n°3 : L'API est-elle trop lente ? (Performance)
+      - alert: HighApiLatency
+        expr: histogram_quantile(0.95, sum(rate(api_request_latency_seconds_bucket{endpoint="/generer"}[5m])) by (le, endpoint)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latence API élevée (P95 > 1s)"
+          description: "La latence du endpoint /generer est supérieure à 1s depuis plus de 5 minutes. Le service risque de paraître lent pour les utilisateurs."
+
+      # Règle n°4 : Le modèle est-il toujours pertinent ? (MLOps)
+      - alert: DataDriftDetected
+        expr: histogram_quantile(0.75, sum(rate(data_drift_text_length_bucket[5m])) by (le)) > 14
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Signal de Data Drift détecté (longueur des textes)"
+          description: "La longueur des textes en entrée (P75) est supérieure à 14 mots depuis 1 heure. Le modèle reçoit des données qui pourraient différer de son corpus d'entraînement. Un réentraînement est à considérer."
 ---
-# 5. Déploiement de Prometheus (inchangé)
+# ===================================================================
+# 2. Déploiement de Prometheus
+#    Utilise les configurations et secrets définis ci-dessus.
+# ===================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -320,41 +126,94 @@ spec:
       labels:
         app: prometheus
     spec:
-      serviceAccountName: prometheus
       containers:
       - name: prometheus-container
-        image: iaapi.azurecr.io/darija-api-prometheus:latest
-        args: ["--config.file=/etc/prometheus-config/prometheus.yml"]
+        image: iaapi.azurecr.io/darija-api-prometheus:latest # Assurez-vous que le tag est correct ou géré par votre CI/CD
+        args:
+          - "--config.file=/etc/prometheus-config/prometheus.yml"
         ports:
         - containerPort: 9090
         volumeMounts:
+        # 1. Montage des fichiers de configuration depuis le ConfigMap
         - name: prometheus-config-volume
           mountPath: /etc/prometheus-config
+        # 2. Montage du secret pour le mot de passe
         - name: prometheus-password-volume
           mountPath: "/etc/prometheus/prometheus_password.secret"
           subPath: "password.txt"
+          readOnly: true
+        # 3. Montage du secret pour le nom d'utilisateur
         - name: prometheus-username-volume
           mountPath: "/etc/prometheus/prometheus_username.secret"
           subPath: "username.txt"
+          readOnly: true
       imagePullSecrets:
       - name: acr-secret
       volumes:
+      # Définition de la source pour chaque montage
+      # 1. Le volume pour la config vient du ConfigMap
       - name: prometheus-config-volume
-        configMap: { name: prometheus-config }
+        configMap:
+          name: prometheus-config
+      # 2. Le volume pour le mot de passe vient du Secret
       - name: prometheus-password-volume
-        secret: { secretName: api-secrets, items: [{ key: ADMIN_PASSWORD, path: "password.txt" }] }
+        secret:
+          secretName: api-secrets
+          items:
+          - key: ADMIN_PASSWORD
+            path: "password.txt"
+      # 3. Le volume pour le nom d'utilisateur vient aussi du Secret
       - name: prometheus-username-volume
-        secret: { secretName: api-secrets, items: [{ key: ADMIN_USERNAME, path: "username.txt" }] }
+        secret:
+          secretName: api-secrets
+          items:
+          - key: ADMIN_USERNAME
+            path: "username.txt"
 ---
-# 6. Service Prometheus (inchangé)
+# ===================================================================
+# 3. Service pour Prometheus
+#    Permet aux autres services du cluster de communiquer avec Prometheus.
+# ===================================================================
 apiVersion: v1
 kind: Service
 metadata:
   name: prometheus-service
 spec:
   type: ClusterIP 
-  selector: { app: prometheus }
+  selector:
+    app: prometheus
   ports:
   - protocol: TCP
     port: 9090
     targetPort: 9090
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
