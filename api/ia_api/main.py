@@ -73,7 +73,6 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",      # Pour le développement local du frontend
-        "http://1.2.3.4", # Mettez ici l'adresse IP publique de votre frontend une fois déployé
         "http://4.178.216.44"       # L'IP de votre frontend déployé
     ],
     allow_credentials=True, # Autorise l'envoi de cookies ou de headers d'authentification.
