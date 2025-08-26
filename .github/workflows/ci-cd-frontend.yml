@@ -30,30 +30,22 @@ on:
     paths:
       - 'frontend/**'
       - 'k8s/frontend.yaml'
-      - '.github/workflows/ci-cd-frontend.yml' # Ajout pour tester sur les PR
+      - '.github/workflows/ci-cd-frontend.yml'
 
   workflow_dispatch:
 
 jobs:
   # =====================================================================
   # JOB 1 : TESTER L'APPLICATION FRONTEND (INTÉGRATION CONTINUE - CI)
-  # ---------------------------------------------------------------------
-  # Objectif : Valider la qualité et la non-régression du code à chaque
-  # modification. C'est la première barrière de qualité. S'il échoue,
-  # le reste du pipeline est bloqué.
   # ====================================================================
   test-frontend:
     name: 1 - Test de l'application Frontend
     runs-on: ubuntu-latest
     
     steps:
-      # Étape 1.1 : Récupérer le code source du dépôt.
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      # Étape 1.2 : Configurer l'environnement Node.js (version 18).
-      # Le cache est utilisé pour accélérer les installations futures en sauvegardant
-      # les dépendances déjà téléchargées.
       - name: Setup Node.js v18
         uses: actions/setup-node@v4
         with:
@@ -61,68 +53,47 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      # Étape 1.3 : Installer les dépendances du projet.
       - name: Installer les dépendances
         run: |
-          echo " Lancement de 'npm ci' pour une installation propre et rapide des dépendances..."
-          npm ci # 'ci' est plus rapide et plus sûr pour la CI que 'install' car il utilise le package-lock.json.
-          echo " Dépendances installées avec succès."
+          echo " Lancement de 'npm ci' pour une installation propre et rapide..."
+          npm ci
         working-directory: ./frontend
 
-      # Étape 1.4 : Lancer la suite de tests unitaires et d'intégration.
       - name: Lancer les tests (unitaires et intégration)
         run: |
           echo " Exécution des tests avec Vitest..."
-          # '--run' est crucial pour que Vitest quitte après l'exécution des tests,
-          # sinon le job resterait bloqué.
           npm test -- --run
-          echo " Tests terminés."
         working-directory: ./frontend
 
-      # Étape 1.5 : Générer le rapport de couverture de code.
       - name: Générer le rapport de couverture de code
-        # 'if: always()' garantit que cette étape s'exécute même si l'étape de test échoue.
-        # Cela permet d'analyser pourquoi les tests ont échoué en consultant le rapport.
         if: always() 
         run: |
           echo " Génération du rapport de couverture de code..."
           npm run coverage
-          echo " Rapport généré."
         working-directory: ./frontend
         
-      # Étape 1.6 : Sauvegarder le rapport de couverture comme un "artefact".
-      # Un artefact est un fichier ou un dossier qui est sauvegardé et peut être
-      # téléchargé depuis l'interface GitHub Actions.
       - name: Uploader le rapport de couverture comme artefact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: rapport-couverture-frontend
           path: frontend/coverage/
-          retention-days: 7 # Le rapport sera conservé pendant 7 jours.
+          retention-days: 7
 
   # ====================================================================
   # JOB 2 : CONSTRUIRE L'IMAGE DOCKER ET LA POUSSER SUR ACR (CD)
-  # --------------------------------------------------------------------
-  # Objectif : Créer l'artefact de déploiement (l'image Docker) et le stocker
-  # dans un registre d'images sécurisé (Azure Container Registry - ACR).
   # ====================================================================
   build-and-push-image:
     name: 2 - Build et Push de l'image Frontend
     runs-on: ubuntu-latest
-    # Dépendance : Ce job ne se lancera QUE si le job 'test-frontend' a réussi.
     needs: test-frontend
 
-    # Condition : Ce job ne s'exécute que pour les événements 'push' sur les branches
-    # 'master' ou 'main'. Cela évite de construire et de stocker des images
-    # pour chaque commit d'une Pull Request, économisant ainsi des ressources et des coûts.
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
 
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      # Étape 2.1 : S'authentifier auprès du registre d'images Azure.
       - name: Connexion à Azure Container Registry (ACR)
         uses: docker/login-action@v3
         with:
@@ -130,53 +101,58 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      # Étape 2.2 : Construire l'image Docker et la pousser (push) vers ACR.
+      # Étape améliorée pour générer les tags de manière dynamique et propre.
+      - name: Définir les métadonnées de l'image (tags et labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.ACR_NAME }}.azurecr.io/darija-frontend
+          tags: |
+            type=sha,prefix=
+            latest
+
+      # ================================================================
+      # ===> VERSION CORRIGÉE ET AMÉLIORÉE <============================
+      # ================================================================
       - name: Build and Push Frontend Image
-        id: build_and_push # On donne un ID à l'étape pour pouvoir référencer sa sortie
+        id: build_and_push # ID ajouté pour pouvoir référencer les 'outputs'
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          # On tague l'image avec deux identifiants :
-          # - 'latest' : pointe toujours vers la version la plus récente.
-          # - le SHA du commit : permet d'avoir une version immuable et traçable de l'image.
-          tags: |
-            ${{ secrets.ACR_NAME }}.azurecr.io/darija-frontend:latest
-            ${{ secrets.ACR_NAME }}.azurecr.io/darija-frontend:${{ github.sha }}
-      
-      - name: Afficher le digest de l'image poussée
-        run: echo "Image poussée avec le digest : ${{ steps.build_and_push.outputs.digest }}"
+          tags: ${{ steps.meta.outputs.tags }} # Utilise les tags générés par l'étape 'meta'
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Afficher le digest et les tags de l'image poussée
+        # Cette étape est maintenant fiable car 'build_and_push' a un ID.
+        run: |
+          echo "✅ Image poussée avec succès !"
+          echo "   Digest de l'image : ${{ steps.build_and_push.outputs.digest }}"
+          echo "   Tags de l'image   : ${{ steps.meta.outputs.tags }}"
+      # ================================================================
+      # ===> FIN DE LA CORRECTION <=====================================
+      # ================================================================
 
   # ======================================================================
   # JOB 3 : DÉPLOYER L'APPLICATION SUR AKS (DÉPLOIEMENT CONTINU - CD)
-  # ----------------------------------------------------------------------
-  # Objectif : Mettre à jour l'application en production sur le cluster
-  # Kubernetes en utilisant la nouvelle image Docker.
   # =====================================================================
   deploy-to-aks:
     name: 3 - Déploiement du Frontend sur AKS
     runs-on: self-hosted # ou ubuntu-latest
-    # Dépendance : Ne se lance que si la construction de l'image a réussi.
     needs: build-and-push-image
-    # La condition du job précédent garantit que celui-ci ne s'exécute aussi
-    # que sur un push vers master/main.
 
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      # Étape 3.1 : Configurer kubectl pour communiquer avec le cluster AKS.
-      # Le KUBE_CONFIG est un secret contenant les informations d'authentification.
       - name: Installation et configuration de kubectl
         run: |
           echo "Configuration de l'accès à Kubernetes..."
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
-          chmod 600 ~/.kube/config # Restreindre les permissions du fichier de config par sécurité.
-          echo "Configuration de kubectl terminée."
+          chmod 600 ~/.kube/config
 
-      # Étape 3.2 : Vérifier que la connexion au cluster est fonctionnelle.
       - name: Vérifier la connexion kubectl
         run: |
           echo "Vérification de la connexion au cluster AKS..."
@@ -184,18 +160,9 @@ jobs:
           echo "Liste des nœuds du cluster :"
           kubectl get nodes
 
-      # Étape 3.3 : Supprimer le secret existant pour garantir une configuration propre.
-      - name: Supprimer le secret existant (ignore si non trouvé)
-        run: |
-          echo "Tentative de suppression de l'ancien secret 'api-secrets' pour garantir une recréation propre..."
-          kubectl delete secret api-secrets --ignore-not-found=true
-
-      # Étape 3.4 : Créer ou mettre à jour le secret Kubernetes.
-      # Ce secret contient les URLs des API backend et d'autres configurations
-      # que le pod frontend utilisera comme variables d'environnement.
       - name: Créer/Mettre à jour le secret unifié pour les APIs
         run: |
-          echo "Création/Mise à jour du secret 'api-secrets' avec les dernières valeurs..."
+          echo "Création/Mise à jour du secret 'api-secrets'..."
           kubectl create secret generic api-secrets \
             --from-literal=ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
             --from-literal=ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
@@ -206,40 +173,29 @@ jobs:
             --from-literal=VITE_IA_API_BASE_URL='${{ secrets.VITE_IA_API_BASE_URL }}' \
             --from-literal=HF_TOKEN_AI='${{ secrets.HF_TOKEN_AI }}' \
             --from-literal=HF_INFERENCE_ENDPOINT_URL='${{ secrets.HF_INFERENCE_ENDPOINT_URL }}' \
-            --dry-run=client -o yaml | kubectl apply -f -
-          echo "Secret 'api-secrets' appliqué avec succès."
+            --dry-run=client -o yaml | kubectl apply -f - --overwrite=true
+          echo "Secret 'api-secrets' appliqué."
 
-      # Étape 3.5 : Mettre à jour le fichier de manifeste Kubernetes avec le tag de la nouvelle image.
       - name: Mettre à jour le tag de l'image dans le manifeste Frontend
         run: |
-          # On utilise le SHA du commit comme tag pour une version immuable.
-          IMAGE_TAG=${{ github.sha }}
+          IMAGE_TAG=$(echo "${{ github.sha }}" | cut -c1-7) # Utilise un SHA court pour plus de lisibilité
           ACR_NAME=${{ secrets.ACR_NAME }}
           
           echo "Mise à jour de k8s/frontend.yaml avec l'image : $ACR_NAME.azurecr.io/darija-frontend:$IMAGE_TAG"
           
-          # La commande 'sed' (Stream Editor) cherche et remplace la ligne de l'image
-          # dans le fichier de déploiement. C'est le cœur de la mise à jour.
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-frontend:.*|image: $ACR_NAME.azurecr.io/darija-frontend:$IMAGE_TAG|g" k8s/frontend.yaml
           
           echo "--- Contenu de k8s/frontend.yaml après modification ---"
           cat k8s/frontend.yaml
           echo "-----------------------------------------------------"
 
-      # Étape 3.6 : Appliquer les modifications au cluster.
       - name: Déployer les manifestes Kubernetes
         run: |
           echo "Application du manifeste frontend.yaml au cluster AKS..."
-          # 'kubectl apply' est idempotent : il crée les ressources si elles n'existent pas,
-          # ou les met à jour si elles existent déjà.
           kubectl apply -f k8s/frontend.yaml
-          echo "Manifeste appliqué."
       
-      # Étape 3.7 : Attendre que le déploiement soit terminé et stable.
       - name: Vérifier l'état du déploiement
         run: |
           echo "Attente de la stabilisation du déploiement (rollout)..."
-          # 'rollout status' bloque le workflow jusqu'à ce que les nouveaux pods
-          # soient créés, en cours d'exécution et prêts, garantissant un déploiement réussi.
           kubectl rollout status deployment/frontend-deployment
-          echo "✅ Déploiement du frontend terminé avec succès !"```
+          echo "✅ Déploiement du frontend terminé avec succès !"
