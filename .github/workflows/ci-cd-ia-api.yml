@@ -1,5 +1,22 @@
 # .github/workflows/ci-cd-ia-api.yml
 
+# ==============================================================================
+# WORKFLOW CI/CD - STACK API D'IA (APPLICATION + MONITORING)
+# ------------------------------------------------------------------------------
+# Rôle :
+# Ce workflow gère le cycle de vie complet de l'API d'IA (FastAPI) et de ses
+# composants de monitoring (Prometheus, Grafana, Alertmanager). Il assure
+# que toute modification du code est testée, que des images Docker sont
+# construites, et que l'ensemble de la stack est déployé de manière
+# séquentielle et robuste sur Kubernetes (AKS).
+#
+# Déclencheurs :
+# - Push ou Pull Request sur la branche 'master'.
+# - Uniquement si les fichiers modifiés concernent l'API, la base de données,
+#   Kubernetes, ou le workflow lui-même.
+# - Peut aussi être lancé manuellement (`workflow_dispatch`).
+# ==============================================================================
+
 name: CI/CD - Stack API IA (App + Monitoring)
 
 on:
@@ -24,55 +41,82 @@ on:
 
 jobs:
   # ====================================================================
-  # JOB 1 : TESTER L'API (Intégration Continue) - INCHANGÉ
+  # JOB 1 : TESTER L'API (INTÉGRATION CONTINUE - CI)
+  # --------------------------------------------------------------------
+  # Objectif : Valider la qualité et la robustesse du code de l'API.
+  # Une couverture de code minimale est exigée (85%) pour garantir
+  # que la majorité du code est testée. L'échec de ce job bloque
+  # tout déploiement.
   # ====================================================================
   test-api:
     name: 1 - Test de l'API IA
     runs-on: ubuntu-latest
     steps:
+      # Étape 1.1 : Récupérer le code source.
       - name: Checkout du code
         uses: actions/checkout@v4
 
+      # Étape 1.2 : Configurer l'environnement Python.
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip' # Activer le cache pour les dépendances pip.
 
+      # Étape 1.3 : Installer les dépendances Python.
       - name: Installer les dépendances depuis le fichier racine
         run: |
+          echo " Installation des dépendances Python depuis requirements.txt..."
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          echo " Dépendances installées."
 
+      # Étape 1.4 : Lancer les tests et la vérification de couverture.
       - name: Lancer les tests et vérifier la couverture de l'API IA
         env:
+          # Les secrets sont passés en tant que variables d'environnement
+          # pour permettre aux tests d'accéder aux services nécessaires (simulés ou réels).
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          HF_INFERENCE_ENDPOINT_URL: "https://dummy.api.huggingface.co"
-          HF_TOKEN_AI: "hf_dummy_token_for_testing"
+          HF_INFERENCE_ENDPOINT_URL: "https://dummy.api.huggingface.co" # URL factice pour les tests
+          HF_TOKEN_AI: "hf_dummy_token_for_testing" # Token factice
         run: |
+          echo " Exécution des tests avec Pytest et vérification de la couverture de code (>= 85%)..."
+          # On nettoie le cache de Hugging Face pour garantir des tests propres.
           rm -rf ~/.cache/huggingface/hub
+          # On s'assure que les imports locaux fonctionnent.
           export PYTHONPATH=$(pwd)
+          # Lance Pytest :
+          # --cov=api/ia_api      : Cible le dossier à analyser pour la couverture.
+          # --cov-report=...      : Génère des rapports en HTML et dans le terminal.
+          # --cov-fail-under=85   : Fait échouer le test si la couverture est inférieure à 85%.
           pytest --cov=api/ia_api --cov-report=html --cov-report=term-missing --cov-fail-under=85 tests/api_ia/
+          echo " Tests terminés."
 
+      # Étape 1.5 : Sauvegarder le rapport de couverture en cas d'échec.
       - name: Sauvegarder le rapport de couverture en cas d'échec
-        if: failure()
+        if: failure() # Ne s'exécute que si une étape précédente a échoué.
         uses: actions/upload-artifact@v4
         with:
           name: rapport-couverture-api
           path: htmlcov/
 
   # ===================================================================
-  # JOB 2 : CONSTRUIRE ET DÉPLOYER LES IMAGES DOCKER - INCHANGÉ
+  # JOB 2 : CONSTRUIRE ET POUSSER LES IMAGES DOCKER (CD)
+  # -------------------------------------------------------------------
+  # Objectif : Créer les images Docker pour l'API, Prometheus et Grafana,
+  # et les stocker sur Azure Container Registry (ACR).
   # ===================================================================
   build-and-deploy-images:
     name: 2 - Déploiement des images vers ACR
     runs-on: ubuntu-latest
-    needs: test-api
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    needs: test-api # Dépendance : ne s'exécute que si les tests ont réussi.
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push' # Condition : uniquement sur un push vers la branche principale.
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
 
+      # Étape 2.1 : S'authentifier auprès d'ACR.
       - name: Connexion à Azure Container Registry (ACR)
         uses: docker/login-action@v3
         with:
@@ -80,7 +124,9 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
           
+      # Étape 2.2 : Construire et pousser l'image de l'API IA.
       - name: Build and Push IA API Image
+        id: build_api
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -90,7 +136,9 @@ jobs:
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api:latest
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api:${{ github.sha }}
 
+      # Étape 2.3 : Construire et pousser l'image de Prometheus.
       - name: Build and Push Prometheus Image
+        id: build_prometheus
         uses: docker/build-push-action@v5
         with:
           context: api/ia_api/prometheus
@@ -99,10 +147,14 @@ jobs:
           tags: |
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-prometheus:latest
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-prometheus:${{ github.sha }}
+          # 'secrets' injecte de manière sécurisée le mot de passe admin
+          # pendant la construction de l'image (build time).
           secrets: | 
             prometheus_password=${{ secrets.ADMIN_PASSWORD }}
 
+      # Étape 2.4 : Construire et pousser l'image de Grafana.
       - name: Build and Push Grafana Image
+        id: build_grafana
         uses: docker/build-push-action@v5
         with:
           context: api/ia_api/grafana
@@ -111,26 +163,39 @@ jobs:
           tags: |
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-grafana:latest
             ${{ secrets.ACR_NAME }}.azurecr.io/darija-api-grafana:${{ github.sha }}
+      
+      - name: Afficher les digests des images
+        run: |
+          echo " Digest de l'image API IA     : ${{ steps.build_api.outputs.digest }}"
+          echo " Digest de l'image Prometheus : ${{ steps.build_prometheus.outputs.digest }}"
+          echo " Digest de l'image Grafana    : ${{ steps.build_grafana.outputs.digest }}"
 
   # ====================================================================
   # JOB 3 : DÉPLOYER SUR AKS (LOGIQUE SÉQUENTIELLE AMÉLIORÉE)
+  # --------------------------------------------------------------------
+  # Objectif : Mettre à jour la stack applicative sur Kubernetes de manière
+  # contrôlée et séquentielle pour garantir la stabilité.
   # ===================================================================
   deploy-to-aks:
     name: 3 - Déploiement Séquentiel sur AKS
     runs-on: self-hosted # ou ubuntu-latest
-    needs: build-and-deploy-images
+    needs: build-and-deploy-images # Dépendance : ne s'exécute que si la construction des images a réussi.
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
 
+      # Étape 3.1 : Configurer kubectl.
       - name: Configuration de kubectl
         run: |
+          echo " Configuration de l'accès à Kubernetes..."
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
           chmod 600 ~/.kube/config
 
+      # Étape 3.2 : Créer ou mettre à jour le secret partagé.
       - name: Créer/Mettre à jour le secret unifié pour les APIs
         run: |
+          echo " Création/Mise à jour du secret 'api-secrets'..."
           kubectl create secret generic api-secrets \
             --from-literal=ADMIN_USERNAME='${{ secrets.ADMIN_USERNAME }}' \
             --from-literal=ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}' \
@@ -141,52 +206,61 @@ jobs:
             --from-literal=VITE_IA_API_BASE_URL='${{ secrets.VITE_IA_API_BASE_URL }}' \
             --from-literal=HF_TOKEN_AI='${{ secrets.HF_TOKEN_AI }}' \
             --from-literal=HF_INFERENCE_ENDPOINT_URL='${{ secrets.HF_INFERENCE_ENDPOINT_URL }}' \
-            --dry-run=client -o yaml | kubectl apply -f -
+            --dry-run=client -o yaml | kubectl apply -f - --overwrite=true
+          echo " Secret appliqué."
       
+      # Étape 3.3 : Mettre à jour les fichiers de manifeste avec les nouveaux tags d'image.
       - name: Mettre à jour les tags des images dans les manifestes
         run: |
           IMAGE_TAG=${{ github.sha }}
           ACR_NAME=${{ secrets.ACR_NAME }}
+          echo " Mise à jour des manifestes Kubernetes avec le tag d'image : ${IMAGE_TAG}"
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api:.*|image: $ACR_NAME.azurecr.io/darija-api:$IMAGE_TAG|g" k8s/api.yaml
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api-prometheus:.*|image: $ACR_NAME.azurecr.io/darija-api-prometheus:$IMAGE_TAG|g" k8s/prometheus.yaml
           sed -i "s|image: $ACR_NAME.azurecr.io/darija-api-grafana:.*|image: $ACR_NAME.azurecr.io/darija-api-grafana:$IMAGE_TAG|g" k8s/grafana.yaml
+          echo " Manifestes mis à jour."
           # Note: Pas besoin de sed pour Alertmanager car on utilise une image publique.
 
       # ==================================================================
-      # ===> DÉBUT DES MODIFICATIONS : DÉPLOIEMENT SÉQUENTIEL <===========
+      # === DÉPLOIEMENT SÉQUENTIEL POUR LA STABILITÉ <====================
       # ==================================================================
 
+      # Étape 3.4 : Déployer l'API IA seule et attendre sa stabilisation.
       - name: Étape 1 - Déployer l'API IA uniquement
         run: |
-          echo "Déploiement du composant le plus critique : l'API IA..."
+          echo " [1/5] Déploiement du composant le plus critique : l'API IA..."
           kubectl apply -f k8s/api.yaml
       
       - name: Étape 2 - Attendre la stabilisation de l'API IA
         run: |
-          echo "Attente de la stabilisation de l'API IA (peut prendre jusqu'à 15 minutes)..."
-          # Le timeout est crucial car le chargement du modèle est long.
+          echo " [2/5] Attente de la stabilisation de l'API IA (peut prendre jusqu'à 15 minutes)..."
+          # Le timeout est crucial car le chargement du modèle distant et le démarrage peuvent être longs.
           kubectl rollout status deployment/ia-api-deployment --timeout=15m
+          echo " API IA stable et prête."
 
+      # Étape 3.5 : Une fois l'API stable, déployer le reste de la stack.
       - name: Étape 3 - Déployer les composants de monitoring
         run: |
-          echo "L'API IA est stable. Déploiement des composants de monitoring..."
+          echo " [3/5] L'API IA est stable. Déploiement des composants de monitoring..."
           kubectl apply -f k8s/prometheus.yaml
           kubectl apply -f k8s/grafana.yaml
           kubectl apply -f k8s/alertmanager.yaml
 
       - name: Étape 4 - Attendre la stabilisation du monitoring
         run: |
-          echo "Attente de la stabilisation de Prometheus..."
+          echo " [4/5] Attente de la stabilisation des composants de monitoring..."
+          echo " --> Attente de Prometheus..."
           kubectl rollout status deployment/prometheus-deployment --timeout=2m
-
-          echo "Attente de la stabilisation de Grafana..."
+          echo " --> Attente de Grafana..."
           kubectl rollout status deployment/grafana-deployment --timeout=2m
-          
-          echo "Attente de la stabilisation d'Alertmanager..."
+          echo " --> Attente d'Alertmanager..."
           kubectl rollout status deployment/alertmanager-deployment --timeout=1m
+          echo " Stack de monitoring stable."
 
+      # Étape 3.6 : N'activer l'autoscaling que lorsque toute la stack est stable.
       - name: Étape 5 - Activer l'Autoscaler (HPA) sur un service stable
-        if: success() # Ne s'exécute que si TOUS les déploiements précédents sont stables
+        if: success() # Ne s'exécute que si TOUTES les étapes précédentes ont réussi.
         run: |
-          echo "Tous les déploiements sont stables. Activation de l'HPA pour l'API IA."
+          echo " [5/5] Tous les déploiements sont stables. Activation de l'HPA pour l'API IA."
           kubectl apply -f k8s/ia-api-hpa.yaml
+          echo "✅ Déploiement complet de la stack API IA terminé avec succès !"
