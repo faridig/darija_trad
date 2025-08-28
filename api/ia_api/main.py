@@ -59,7 +59,7 @@ Cette API utilise un modèle d'IA pour traduire du texte. Elle est sécurisée p
 )
 
 # ==============================================================================
-# --- ÉTAPE 2 : CONFIGURATION DES MIDDLEWARES ---
+# --- ÉTAPE 2 : CONFIGURATION DES MIDDLEWARES ----
 # Les middlewares sont des fonctions qui traitent chaque requête avant qu'elle
 # n'atteigne l'endpoint, et chaque réponse avant son envoi.
 # L'ordre d'enregistrement est important.
