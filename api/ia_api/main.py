@@ -140,6 +140,7 @@ async def all_exception_handler(request: Request, exc: Exception):
     # Pour toutes les autres exceptions, on laisse FastAPI gérer et retourner une erreur 500.
     raise exc
 
+
 # ==============================================================================
 # --- ÉTAPE 4 : INCLUSION DES ROUTEURS ---
 # ==============================================================================
