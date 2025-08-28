@@ -29,7 +29,7 @@ from api.ia_api.middlewares import (
 )
 
 # ==============================================================================
-# --- ÉTAPE 1 : INITIALISATION DE L'APPLICATION FASTAPI -------
+# --- ÉTAPE 1 : INITIALISATION DE L'APPLICATION FASTAPI --------
 # ==============================================================================
 # C'est ici que l'objet principal de l'application est créé.
 # Le titre, la version et la description apparaîtront dans la documentation
