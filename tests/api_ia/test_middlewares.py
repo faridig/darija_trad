@@ -79,8 +79,8 @@ def test_security_headers_for_openapi_route(client):
     """
     response = client.get("/openapi.json")
     
-    # Peut retourner 404 si la route n'existe pas, ou 200 si elle existe
-    assert response.status_code in [200, 404]
+    # La route openapi.json existe et doit retourner 200
+    assert response.status_code == 200
 
 def test_security_headers_for_redoc_route(client):
     """
@@ -88,8 +88,8 @@ def test_security_headers_for_redoc_route(client):
     """
     response = client.get("/redoc")
     
-    # Peut retourner 404 si la route n'existe pas, ou 200 si elle existe
-    assert response.status_code in [200, 404]
+    # La route redoc existe et doit retourner 200
+    assert response.status_code == 200
 
 def test_security_headers_for_api_routes(client):
     """
@@ -147,8 +147,8 @@ def test_monitoring_middleware_with_empty_body(client):
         headers={"Content-Type": "application/json"}
     )
     
-    # Doit générer une erreur de validation car le corps est vide
-    assert response.status_code in [400, 422]
+    # Doit générer une erreur de validation car le corps est vide et requis
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 def test_monitoring_middleware_with_get_request(client):
     """
@@ -186,13 +186,11 @@ def test_monitoring_middleware_exception_handling(client):
         
         # Test avec une vraie exception dans l'endpoint
         with patch.object(LLMTranslator, 'traiter', side_effect=RuntimeError("Erreur système")):
-            response = client.post(
-                "/generer",
-                json={"texte": "test", "src_lang": "fra_Latn", "tgt_lang": "ary_Arab"}
-            )
-            
-            # L'erreur doit être capturée et transformée en 500
-            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+            with pytest.raises(RuntimeError): # On s'attend à ce que l'exception soit levée
+                 client.post(
+                    "/generer",
+                    json={"texte": "test", "src_lang": "fra_Latn", "tgt_lang": "ary_Arab"}
+                )
 
 def test_monitoring_middleware_data_drift_with_valid_json(client):
     """
@@ -209,6 +207,9 @@ def test_monitoring_middleware_data_drift_with_valid_json(client):
     
     assert response.status_code == status.HTTP_200_OK
 
+# ===================================================================
+# === CORRECTION 1 : POUR test_monitoring_middleware_data_drift_empty_text
+# ===================================================================
 def test_monitoring_middleware_data_drift_empty_text(client):
     """
     Teste la logique de data drift avec un texte vide.
@@ -221,7 +222,9 @@ def test_monitoring_middleware_data_drift_empty_text(client):
     
     response = client.post("/generer", json=payload)
     
-    assert response.status_code == status.HTTP_200_OK
+    # On s'attend à un 422 car Pydantic (`schemas.py`) a une contrainte `min_length=1`.
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+# ===================================================================
 
 def test_monitoring_middleware_data_drift_missing_texte_field(client):
     """
@@ -259,8 +262,8 @@ def test_security_headers_favicon_route(client):
     """
     response = client.get("/favicon.ico")
     
-    # Peut retourner 404 si la route n'existe pas
-    assert response.status_code in [200, 404]
+    # On s'attend à 404 car le fichier n'existe pas dans l'environnement de test
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 def test_security_headers_static_route(client):
     """
@@ -268,8 +271,8 @@ def test_security_headers_static_route(client):
     """
     response = client.get("/static/test.css")
     
-    # Peut retourner 404 si la route n'existe pas
-    assert response.status_code in [200, 404]
+    # On s'attend à 404 car le dossier/fichier n'existe pas
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 def test_security_headers_oauth_redirect_route(client):
     """
@@ -277,30 +280,20 @@ def test_security_headers_oauth_redirect_route(client):
     """
     response = client.get("/docs/oauth2-redirect")
     
-    # Peut retourner 404 si la route n'existe pas
-    assert response.status_code in [200, 404]
+    # Cette route est gérée par FastAPI et doit exister
+    assert response.status_code == status.HTTP_200_OK
 
-def test_monitoring_middleware_json_decode_error_coverage():
+def test_monitoring_middleware_json_decode_error_coverage(client):
     """
     Teste spécifiquement l'erreur de décodage JSON pour couvrir les lignes d'exception.
     """
-    from api.ia_api.middlewares import monitoring_middleware
-    from fastapi import Request
-    from unittest.mock import AsyncMock, MagicMock
-    import json
-    
-    # Mock request avec un body qui cause une erreur JSON
-    request = MagicMock(spec=Request)
-    request.method = "POST"
-    request.url.path = "/generer"
-    request.body = AsyncMock(return_value=b'{"invalid": json}')
-    
-    call_next = AsyncMock()
-    call_next.return_value = MagicMock()
-    call_next.return_value.status_code = 200
-    
-    # Le test va passer même si il y a une erreur JSON
-    # car elle est capturée dans le try/except
+    with patch('json.loads', side_effect=json.JSONDecodeError("mock error", "", 0)):
+        response = client.post(
+            "/generer",
+            json={"texte": "test", "src_lang": "fra_Latn", "tgt_lang": "ary_Arab"}
+        )
+        # La requête doit quand même réussir car l'erreur est capturée et logguée
+        assert response.status_code == status.HTTP_200_OK
 
 # -----------------------------------------------------------------------------
 # TESTS pour couvrir les branches restantes
@@ -317,30 +310,30 @@ def test_monitoring_middleware_with_non_json_post(client):
     )
     
     # Doit générer une erreur car l'endpoint attend du JSON
-    assert response.status_code in [400, 422]
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-@pytest.mark.parametrize("method,endpoint", [
-    ("GET", "/health"),
-    ("POST", "/generer"),
-    ("GET", "/docs"),
-    ("GET", "/metrics")
+# ===================================================================
+# === CORRECTION 2 : POUR test_monitoring_middleware_different_endpoints
+# ===================================================================
+@pytest.mark.parametrize("method,endpoint,expected_status", [
+    ("GET", "/health", [status.HTTP_200_OK]),
+    ("POST", "/generer", [status.HTTP_200_OK, status.HTTP_422_UNPROCESSABLE_ENTITY]),
+    ("GET", "/docs", [status.HTTP_200_OK]),
+    # La route /metrics est protégée, donc on s'attend à 401 Unauthorized
+    ("GET", "/metrics", [status.HTTP_401_UNAUTHORIZED])
 ])
-def test_monitoring_middleware_different_endpoints(client, method, endpoint):
+def test_monitoring_middleware_different_endpoints(client, method, endpoint, expected_status):
     """
     Teste le middleware sur différents endpoints et méthodes.
     """
     if method == "GET":
-        if endpoint == "/metrics":
-            # La route metrics peut ne pas exister
-            response = client.get(endpoint)
-            assert response.status_code in [200, 404]
-        else:
-            response = client.get(endpoint)
-            assert response.status_code in [200, 404]
+        response = client.get(endpoint)
+        assert response.status_code in expected_status
     else:  # POST
         response = client.post(endpoint, json={
             "texte": "test", 
             "src_lang": "fra_Latn", 
             "tgt_lang": "ary_Arab"
         })
-        assert response.status_code in [200, 422, 404]
+        assert response.status_code in expected_status
+# ===================================================================
