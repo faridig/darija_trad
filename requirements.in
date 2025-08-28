@@ -61,6 +61,8 @@ alembic
 pytest
 pytest-cov
 locust
+pytest-asyncio
+
 
 # --- Outils de Développement ---
 # Inchangé.
