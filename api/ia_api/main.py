@@ -139,12 +139,6 @@ async def all_exception_handler(request: Request, exc: Exception):
         )
     # Pour toutes les autres exceptions, on laisse FastAPI gérer et retourner une erreur 500.
     raise exc
-    # Note : Le code après 'raise exc' ne sera jamais atteint.
-    # return JSONResponse(
-    #     status_code=500,
-    #     content={"detail": "Internal Server Error"}
-    # )
-
 
 # ==============================================================================
 # --- ÉTAPE 4 : INCLUSION DES ROUTEURS ---
