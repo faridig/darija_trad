@@ -41,18 +41,17 @@ def test_limit_body_size_with_no_content_length(client):
 
 def test_limit_body_size_with_invalid_content_length(client):
     """
-    Teste le cas où l'en-tête Content-Length est présent mais contient une valeur non numérique.
-    Le middleware devrait laisser passer la requête sans erreur.
+    Teste que le middleware ne plante pas avec un content-length invalide.
+    La requête doit maintenant passer le middleware et être traitée par FastAPI.
     """
-    # Ce test vérifie que le middleware ne plante pas avec un content-length invalide
-    # La requête devrait être traitée normalement (soit réussir, soit échouer sur la validation)
     response = client.post(
         "/generer", 
         json={"texte": "test", "src_lang": "fra_Latn", "tgt_lang": "ary_Arab"},
         headers={"Content-Length": "invalid"}
     )
-    # Doit passer car le middleware ignore les content-length invalides
-    assert response.status_code in [status.HTTP_200_OK, status.HTTP_422_UNPROCESSABLE_ENTITY]
+    # Après la correction du middleware, l'erreur ValueError n'est plus levée.
+    # La requête atteint l'endpoint et doit retourner 200 OK.
+    assert response.status_code == status.HTTP_200_OK
 
 def test_limit_body_size_with_empty_content_length(client):
     """

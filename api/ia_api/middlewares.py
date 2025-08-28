@@ -98,26 +98,22 @@ async def limit_body_size(request: Request, call_next):
         Response: Une réponse d'erreur 413 si le payload est trop grand, sinon
                   la réponse de l'endpoint.
     """
-    max_bytes = 10 * 1024  # 10KB
-    
+    max_bytes = 10 * 1024
     content_length = request.headers.get("content-length")
-    
+
     if content_length:
         try:
-            # Convertir en entier et vérifier la taille
-            if int(content_length) > max_bytes:
-                return Response(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    content="Payload trop volumineux. Maximum 10KB autorisé."
-                )
-        except ValueError:
-            # Si content-length n'est pas un nombre valide, on laisse passer
-            # La validation se fera ailleurs (par exemple dans les modèles Pydantic)
+            # ===> CORRECTION : On s'assure que la valeur est bien un nombre <===
+            size = int(content_length)
+            if size > max_bytes:
+                return FastAPIResponse("Payload trop volumineux", status_code=413)
+        except (ValueError, TypeError):
+            # Si content_length n'est pas un nombre valide, on l'ignore
+            # et on laisse la requête continuer. C'est plus robuste.
             pass
-    
-    # Si pas de content-length ou content-length invalide, on laisse passer
-    response = await call_next(request)
-    return response
+
+    # Si la taille est acceptable, on passe la requête à la suite du pipeline.
+    return await call_next(request)
 
 
 # ────────────────────────────────────────────────────────────────────────────────
