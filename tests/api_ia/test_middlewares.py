@@ -1,11 +1,15 @@
-# Fichier : tests/api_ia/test_middlewares.py 
-# Ce fichier teste le comportement des middlewares de l'application.
+# Fichier : tests/api_ia/test_middlewares.py (code complet avec la correction)
 
-from fastapi import status
-from unittest.mock import patch, MagicMock
+from fastapi import status, Request
+from fastapi.responses import Response
+from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
 import json
 from api.ia_api.model import LLMTranslator
+# Importez le middleware que vous voulez tester directement
+from api.ia_api.middlewares import monitoring_middleware
+
+# ... (tous vos autres tests qui passent restent INCHANGÉS) ...
 
 # -----------------------------------------------------------------------------
 # Test du middleware `limit_body_size`
@@ -125,26 +129,16 @@ def test_monitoring_middleware_increments_5xx_on_handled_error(client):
         )
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
-# ===================================================================
-# === CORRECTION 1 : POUR test_monitoring_middleware_exception_handling
-# ===================================================================
 def test_monitoring_middleware_exception_handling(client):
     """
     Teste le cas où une exception non gérée est levée.
-    Couvre le bloc 'except Exception' dans monitoring_middleware.
     """
-    # On simule une erreur grave dans la logique métier.
     with patch.object(LLMTranslator, 'traiter', side_effect=RuntimeError("Erreur système")):
-        # L'exception est attrapée par le middleware, puis par FastAPI,
-        # qui la transforment en une réponse HTTP 500.
-        # L'exception n'est donc PAS propagée jusqu'au testeur.
         response = client.post(
             "/generer",
             json={"texte": "test", "src_lang": "fra_Latn", "tgt_lang": "ary_Arab"}
         )
-        # On vérifie donc que la réponse finale est bien un 500.
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-# ===================================================================
 
 def test_monitoring_middleware_data_drift_with_valid_json(client):
     """
@@ -203,23 +197,33 @@ def test_security_headers_oauth_redirect_route(client):
     assert response.status_code == status.HTTP_200_OK
 
 # ===================================================================
-# === CORRECTION 2 : POUR test_monitoring_middleware_json_decode_error_coverage
+# === CORRECTION FINALE : Test unitaire isolé pour le middleware
 # ===================================================================
-def test_monitoring_middleware_json_decode_error_coverage(client):
+@pytest.mark.asyncio
+async def test_monitoring_middleware_json_decode_error_coverage():
     """
-    Teste spécifiquement l'erreur de décodage JSON pour couvrir les lignes d'exception.
+    Teste spécifiquement l'erreur de décodage JSON de manière isolée
+    pour s'assurer que le middleware attrape l'erreur sans planter.
     """
-    # Le 'patch' simule le fait que `json.loads` va lever une erreur quand le middleware l'appellera.
+    # 1. On simule un objet `request` de FastAPI
+    mock_request = MagicMock(spec=Request)
+    mock_request.method = "POST"
+    mock_request.url.path = "/generer"
+    # On simule la méthode `body()` pour qu'elle retourne un JSON invalide
+    mock_request.body = AsyncMock(return_value=b'{"invalid json":,}')
+
+    # 2. On simule la fonction `call_next` qui sera appelée par le middleware
+    # Elle doit retourner une réponse valide pour que le test continue.
+    mock_call_next = AsyncMock(return_value=Response(status_code=200))
+
+    # 3. On patche `json.loads` pour qu'il lève l'erreur attendue
     with patch('json.loads', side_effect=json.JSONDecodeError("mock error", "", 0)):
-        response = client.post(
-            "/generer",
-            # On envoie un JSON valide, mais le mock forcera l'erreur de parsing.
-            json={"texte": "test", "src_lang": "fra_Latn", "tgt_lang": "ary_Arab"}
-        )
-        # La requête doit quand même réussir (200 OK) car le middleware est conçu pour
-        # logguer l'erreur de parsing sans bloquer la requête. L'endpoint sera appelé
-        # et retournera une réponse de succès (basée sur le mock de conftest.py).
-        assert response.status_code == status.HTTP_200_OK
+        # 4. On appelle le middleware directement avec nos objets simulés
+        response = await monitoring_middleware(mock_request, mock_call_next)
+
+    # 5. On vérifie que la réponse finale est bien celle de `call_next`,
+    # ce qui prouve que le middleware a bien attrapé l'exception et a continué.
+    assert response.status_code == 200
 # ===================================================================
 
 # -----------------------------------------------------------------------------
