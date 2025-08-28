@@ -1,4 +1,4 @@
-```python
+
 # tests/api_ia/test_model.py
 """
 Ce module contient les tests unitaires pour la classe LLMTranslator.
@@ -154,4 +154,3 @@ def test_traiter_unexpected_response_format(mock_post, mock_env):
     # Vérifie que l'exception est levée avec le message attendu sur le format de réponse
     with pytest.raises(ConnectionError, match="Format de réponse inattendu"):
         translator.traiter("test", "fra_Latn", "ary_Arab")
-```

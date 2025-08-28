@@ -1,4 +1,4 @@
-```python
+
 # Fichier : tests/api_ia/test_monitoring.py (Version Corrigée et Complète)
 """
 Ce module contient les tests pour les endpoints de monitoring de l'API:
@@ -103,4 +103,3 @@ def test_metrics_no_auth(client):
     """
     response = client.get("/metrics")  # Pas d'en-tête d'authentification fourni
     assert response.status_code == status.HTTP_401_UNAUTHORIZED  # Vérifie que l'accès est refusé
-```
