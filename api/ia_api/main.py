@@ -143,7 +143,7 @@ async def all_exception_handler(request: Request, exc: Exception):
 
 # ==============================================================================
 # --- ÉTAPE 4 : INCLUSION DES ROUTEURS ---
-# ==============================================================================-
+# ==============================================================================--
 # On "branche" les fichiers contenant nos endpoints à l'application principale.
 # Cela permet de découper le code en modules logiques (ex: tout ce qui est
 # lié à la génération est dans `generation.py`).
