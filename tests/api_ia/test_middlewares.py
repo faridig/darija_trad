@@ -489,3 +489,29 @@ def test_monitoring_middleware_different_endpoints(client, method, endpoint, exp
             "tgt_lang": "ary_Arab"
         })
         assert response.status_code in expected_status
+        
+@pytest.mark.asyncio
+async def test_monitoring_middleware_unhandled_exception():
+    """
+    Teste spécifiquement le cas où call_next lève une exception non gérée.
+    Ce test couvre le bloc except Exception du middleware.
+    """
+    mock_request = MagicMock(spec=Request)
+    mock_request.method = "POST"
+    mock_request.url.path = "/generer"
+    mock_request.body = AsyncMock(return_value=b'{"texte": "test"}')
+    
+    # Simuler une exception non gérée lors de l'appel à call_next
+    mock_call_next = AsyncMock(side_effect=RuntimeError("Erreur système non gérée"))
+    
+    # Mock des métriques Prometheus
+    with patch('api.ia_api.middlewares.HTTP_ERRORS_5XX_TOTAL') as mock_errors:
+        with patch('api.ia_api.middlewares.logger') as mock_logger:
+            # Vérifier que l'exception est bien propagée
+            with pytest.raises(RuntimeError, match="Erreur système non gérée"):
+                await monitoring_middleware(mock_request, mock_call_next)
+    
+    # Vérifier que le compteur d'erreurs a été incrémenté
+    mock_errors.labels.return_value.inc.assert_called_once()
+    # Vérifier que l'erreur a été logguée
+    mock_logger.error.assert_called_once()

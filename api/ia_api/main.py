@@ -100,7 +100,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ==============================================================================
 # --- ÉTAPE 3 : GESTION DES ERREURS PERSONNALISÉES ---
-# ==============================================================================
+# ===============================================================================
 
 # Gestionnaire pour les erreurs de validation Pydantic (HTTP 422).
 @app.exception_handler(RequestValidationError)
