@@ -28,7 +28,7 @@ from api.ia_api.middlewares import (
     monitoring_middleware
 )
 
-# ==============================================================================
+# ===============================================================================
 # --- ÉTAPE 1 : INITIALISATION DE L'APPLICATION FASTAPI ---------
 # ==============================================================================
 # C'est ici que l'objet principal de l'application est créé.
