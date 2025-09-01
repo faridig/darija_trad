@@ -96,8 +96,8 @@ from slowapi.util import get_remote_address
 # Le tag "IA" sera utilisé pour le regroupement dans la documentation Swagger.
 router = APIRouter(tags=["IA"])
 
-# Récupérer le limiter de l'application principale
-from main import limiter
+# Crée une instance locale du limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Instanciation globale du traducteur.
 # Le traducteur est créé une seule fois au démarrage de l'application pour des raisons d'efficacité.

@@ -93,13 +93,10 @@ app.middleware("http")(limit_body_size)
 # (nombre de requêtes, latence, etc.) qui seront ensuite exposées sur l'endpoint /metrics.
 app.middleware("http")(monitoring_middleware)
 
-# Middleware n°5 : Rate Limiting (Limitation de débit).
-# Protège l'API contre les abus et les attaques par force brute en limitant
-# le nombre de requêtes qu'une même adresse IP peut effectuer sur une période donnée.
-limiter = Limiter(key_func=lambda request: request.headers.get("X-Forwarded-For", request.client.host))
-app.state.limiter = limiter
+# La configuration du middleware SlowAPI pour gérer les exceptions
 app.add_middleware(SlowAPIMiddleware)
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 # ==============================================================================
 # --- ÉTAPE 3 : GESTION DES ERREURS PERSONNALISÉES ---

@@ -19,9 +19,6 @@ from .generation import translator
 # directement sur ces routes (qui utilisent l'authentification Basic ou aucune).
 from database.core.auth import verify_jwt_token
 
-# Récupérer le limiter de l'application principale
-from main import limiter
-
 # ==============================================================================
 # 1. INITIALISATION ET CONFIGURATION
 # ==============================================================================
@@ -29,6 +26,9 @@ from main import limiter
 # Crée un routeur FastAPI dédié aux endpoints de monitoring.
 # Le tag "Monitoring" regroupera ces routes dans la documentation Swagger UI.
 router = APIRouter(tags=["Monitoring"])
+
+# Crée une instance locale du limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Charge les variables d'environnement depuis un fichier .env.
 # C'est ici que sont récupérés les identifiants pour sécuriser l'endpoint /metrics.
