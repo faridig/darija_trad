@@ -12,6 +12,8 @@ from datetime import datetime
 import os
 import secrets
 from dotenv import load_dotenv
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 # Importe l'instance partagée du traducteur pour les tests de santé.
 from .generation import translator
