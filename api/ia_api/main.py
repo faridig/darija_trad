@@ -80,17 +80,20 @@ app.add_middleware(
     allow_headers=["*"]   # Autorise tous les en-têtes (comme Authorization).
 )
 
-# Middleware n°2 (personnalisé) : Limitation de la taille du corps de la requête.
+# Middleware n°2 : Headers de sécurité
+app.middleware("http")(add_security_headers)
+
+# Middleware n°3 (personnalisé) : Limitation de la taille du corps de la requête.
 # Une mesure de sécurité simple pour prévenir les attaques par déni de service
 # où un attaquant enverrait un payload très volumineux pour saturer le serveur.
 app.middleware("http")(limit_body_size)
 
-# Middleware n°3 (personnalisé) : Monitoring pour Prometheus.
+# Middleware n°4 (personnalisé) : Monitoring pour Prometheus.
 # Ce middleware intercepte chaque requête pour mettre à jour les métriques
 # (nombre de requêtes, latence, etc.) qui seront ensuite exposées sur l'endpoint /metrics.
 app.middleware("http")(monitoring_middleware)
 
-# Middleware n°4 : Rate Limiting (Limitation de débit).
+# Middleware n°5 : Rate Limiting (Limitation de débit).
 # Protège l'API contre les abus et les attaques par force brute en limitant
 # le nombre de requêtes qu'une même adresse IP peut effectuer sur une période donnée.
 limiter = Limiter(key_func=lambda request: request.headers.get("X-Forwarded-For", request.client.host))

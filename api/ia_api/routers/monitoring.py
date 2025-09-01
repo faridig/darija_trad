@@ -19,6 +19,9 @@ from .generation import translator
 # directement sur ces routes (qui utilisent l'authentification Basic ou aucune).
 from database.core.auth import verify_jwt_token
 
+# Récupérer le limiter de l'application principale
+from main import limiter
+
 # ==============================================================================
 # 1. INITIALISATION ET CONFIGURATION
 # ==============================================================================
@@ -92,7 +95,8 @@ HTTP_ERRORS_5XX_TOTAL = Counter(
 # ==============================================================================
 
 @router.get("/healthz", status_code=200)
-async def liveness_check():
+@limiter.limit("30/minute")  # 30 requêtes par minute par IP
+async def liveness_check(request: Request):
     """
     Sonde de vivacité ("Liveness Probe") pour Kubernetes.
 
@@ -106,7 +110,8 @@ async def liveness_check():
     return {"status": "ok"}
 
 @router.get("/health")
-async def health_check():
+@limiter.limit("10/minute")  # 10 requêtes par minute par IP
+async def health_check(request: Request):
     """
     Sonde de préparation ("Readiness Probe") pour Kubernetes et vérification de santé.
 
@@ -135,7 +140,8 @@ async def health_check():
 
 
 @router.get("/metrics", include_in_schema=False)
-async def metrics(credentials: HTTPBasicCredentials = Depends(security)):
+@limiter.limit("5/minute")  # 5 requêtes par minute par IP
+async def metrics(request: Request, credentials: HTTPBasicCredentials = Depends(security)):
     """
     Endpoint sécurisé qui expose les métriques au format textuel de Prometheus.
 
@@ -145,6 +151,7 @@ async def metrics(credentials: HTTPBasicCredentials = Depends(security)):
       authentification HTTP Basic.
 
     Args:
+        request (Request): La requête HTTP (requis pour le rate limiting)
         credentials (HTTPBasicCredentials): Injecté par FastAPI, contient le
                                             nom d'utilisateur et le mot de passe
                                             fournis par le client (Prometheus).

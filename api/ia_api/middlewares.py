@@ -37,8 +37,34 @@ async def add_security_headers(request: Request, call_next):
     Ajoute des en-têtes de sécurité HTTP aux réponses sortantes.
 
     Cette fonction renforce la sécurité de l'API en appliquant des politiques
-    recommandées pour se prémunir contre des attaques courantes comme le
-    clickjacking (X-Frame-Options) ou le Cross-Site Scripting (Content-Security-Policy).
+    recommandées pour se prémunir contre des attaques courantes :
+
+    🛡️ PROTECTION CONTRE :
+    
+    1. Clickjacking (X-Frame-Options: DENY)
+       → Attaque où un site malveillant intègre votre API dans une iframe invisible
+       → L'utilisateur clique sans le savoir sur des éléments de votre API
+       → EXEMPLE : Un bouton "Supprimer mon compte" caché sous un jeu en ligne
+
+    2. Cross-Site Scripting - XSS (Content-Security-Policy)
+       → Injection de code JavaScript malveillant dans votre API
+       → Le code s'exécute dans le navigateur des victimes
+       → EXEMPLE : Vol de cookies de session, redirection vers des sites frauduleux
+
+    3. Man-in-the-Middle - MITM (Strict-Transport-Security)
+       → Interception des communications entre le client et le serveur
+       → Vol de données sensibles ou modification des requêtes
+       → EXEMPLE : Pirate sur le même WiFi qui écoute le trafic HTTP
+
+    4. MIME-type sniffing (X-Content-Type-Options: nosniff)
+       → Le navigateur "devine" le type de fichier au lieu de respecter le Content-Type
+       → Peut permettre l'exécution de scripts masqués en tant qu'images
+       → EXEMPLE : Téléchargement d'un fichier malveillant interprété comme du JavaScript
+
+    🎯 STRATÉGIE DE DÉFENSE :
+    - Politique stricte pour les endpoints API (default-src 'self')
+    - Politique assouplie pour la documentation Swagger (autorise CDN externes)
+    - Headers appliqués systématiquement à toutes les réponses
 
     Args:
         request (Request): L'objet de la requête entrante.
@@ -46,7 +72,7 @@ async def add_security_headers(request: Request, call_next):
                               middleware ou à l'endpoint.
 
     Returns:
-        Response: La réponse HTTP, modifiée avec les nouveaux en-têtes.
+        Response: La réponse HTTP, modifiée avec les nouveaux en-têtes de sécurité.
     """
     # Exécute d'abord l'endpoint pour obtenir la réponse de base.
     response: Response = await call_next(request)
