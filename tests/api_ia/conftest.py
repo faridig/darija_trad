@@ -13,20 +13,27 @@ import os
 from api.ia_api.main import app
 import database.core.auth as core_auth
 
-# Dans conftest.py, désactiver le rate limiting
+# ==============================================================================
+# === CONFIGURATION GLOBALE AVANT LES TESTS ====================================
+# ==============================================================================
+
+# Désactiver le rate limiting pour tous les tests afin d'éviter que les
+# tests rapides ne soient bloqués inutilement.
 app.state.limiter = None
 
-# Dans conftest.py ou setUp des tests
+# Définir des variables d'environnement de test pour s'assurer que les
+# tests ne dépendent pas d'un fichier .env local.
 os.environ["ADMIN_USERNAME"] = "test_admin"
 os.environ["ADMIN_PASSWORD"] = "test_password"
 
-# Appliquer tous les middlewares à l'application de test
-app.middleware("http")(add_security_headers)
-app.middleware("http")(limit_body_size)
-app.middleware("http")(monitoring_middleware)
+# REMARQUE : Il n'est pas nécessaire de réappliquer les middlewares ici.
+# L'objet `app` importé depuis `main.py` est déjà entièrement configuré
+# avec tous ses middlewares. Ajouter `app.middleware(...)` ici est redondant
+# et peut causer des problèmes d'importation.
 
-
-
+# ==============================================================================
+# === FIXTURES PYTEST ==========================================================
+# ==============================================================================
 
 @pytest.fixture(autouse=True)
 def prevent_network_calls(monkeypatch):
@@ -38,69 +45,29 @@ def prevent_network_calls(monkeypatch):
     pour isoler les tests de l'API sans dépendre de services externes.
     
     Args:
-        monkeypatch: Fixture pytest pour modifier le comportement des objets
-        
-    Returns:
-        None: La fixture modifie le comportement de requests.post globalement
+        monkeypatch: Fixture pytest pour modifier le comportement des objets.
     """
-    # Classe simulant une réponse HTTP
     class MockResponse:
-        """
-        Classe de simulation d'une réponse HTTP pour les tests.
-        Imite le comportement d'un objet Response de la bibliothèque requests.
-        """
+        """Classe de simulation d'une réponse HTTP pour les tests."""
         
         def __init__(self, json_data, status_code):
-            """
-            Initialise la réponse simulée.
-            
-            Args:
-                json_data: Données JSON à retourner par la méthode json()
-                status_code: Code HTTP de statut de la réponse
-            """
             self.json_data = json_data
             self.status_code = status_code
 
         def json(self):
-            """
-            Simule la méthode json() d'une réponse requests.
-            
-            Returns:
-                dict: Les données JSON simulées
-            """
             return self.json_data
             
         def raise_for_status(self):
-            """
-            Simule la levée d'une exception pour les codes d'erreur HTTP.
-            
-            Raises:
-                requests.exceptions.HTTPError: Si le status_code >= 400
-            """
             if self.status_code >= 400:
                 raise requests.exceptions.HTTPError(f"Error {self.status_code}")
 
     def mock_post(*args, **kwargs):
-        """
-        Fonction simulée pour remplacer `requests.post`.
-        
-        Cette fonction analyse le contenu de la requête et retourne une réponse
-        appropriée selon le scénario simulé.
-        
-        Args:
-            *args: Arguments positionnels de l'appel
-            **kwargs: Arguments nommés de l'appel
-            
-        Returns:
-            MockResponse: Une réponse HTTP simulée adaptée au contexte
-        """
-        # Si la requête contient un champ "inputs", simuler une traduction réussie
+        """Fonction simulée pour remplacer `requests.post`."""
         if "inputs" in kwargs.get("json", {}):
             return MockResponse([{"translation_text": "traduction simulée réussie"}], 200)
-        # Sinon, renvoyer une réponse générique de succès
         return MockResponse(None, 200)
 
-    # Remplacer `requests.post` par notre fonction simulée
+    # Remplacer `requests.post` par notre fonction simulée.
     monkeypatch.setattr(requests, "post", mock_post)
 
 
@@ -111,29 +78,20 @@ def client():
     
     Cette fixture initialise un client de test pour l'application FastAPI
     et remplace la dépendance de vérification JWT par une version simulée
-    pour éviter de dépendre d'un système d'authentification réel pendant les tests.
+    pour éviter de dépendre d'un système d'authentification réel.
     
     Yields:
-        TestClient: Client de test FastAPI configuré pour les tests
-        
-    Notes:
-        La fixture nettoie automatiquement les overrides après utilisation
+        TestClient: Un client de test FastAPI prêt à l'emploi.
     """
     def fake_verify_jwt_token():
-        """
-        Simule la vérification d'un token JWT.
-        
-        Returns:
-            dict: Un dictionnaire contenant des informations d'utilisateur de test
-        """
+        """Simule une vérification de token JWT toujours réussie."""
         return {"username": "testuser", "sub": "testuser"}
     
-    # Remplacer la dépendance FastAPI pour les tests
+    # Remplacer la dépendance de sécurité le temps du test.
     app.dependency_overrides[core_auth.verify_jwt_token] = fake_verify_jwt_token
     
-    # Créer un client de test et le fournir aux tests
     with TestClient(app) as test_client:
         yield test_client
         
-    # Nettoyer les overrides après les tests pour éviter les effets de bord
+    # Nettoyer les "overrides" après la fin du test pour ne pas affecter d'autres tests.
     app.dependency_overrides.clear()
