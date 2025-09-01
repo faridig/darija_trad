@@ -111,7 +111,7 @@ translator = LLMTranslator()
     response_model=TexteOutput,
     status_code=status.HTTP_200_OK
 )
-@limiter.limit("29/minute")  # 9 requêtes par minute par IP
+@limiter.limit("29/minute")  # 29 requêtes par minute par IP
 def generer_texte(
     request: Request,  # Ajout de request pour le rate limiting
     input: TexteInput,

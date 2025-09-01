@@ -95,7 +95,7 @@ HTTP_ERRORS_5XX_TOTAL = Counter(
 # ==============================================================================
 
 @router.get("/healthz", status_code=200)
-@limiter.limit("30/minute")  # 30 requêtes par minute par IP
+@limiter.limit("31/minute")  # 31 requêtes par minute par IP
 async def liveness_check(request: Request):
     """
     Sonde de vivacité ("Liveness Probe") pour Kubernetes.
@@ -110,7 +110,7 @@ async def liveness_check(request: Request):
     return {"status": "ok"}
 
 @router.get("/health")
-@limiter.limit("10/minute")  # 10 requêtes par minute par IP
+@limiter.limit("31/minute")  # 31 requêtes par minute par IP
 async def health_check(request: Request):
     """
     Sonde de préparation ("Readiness Probe") pour Kubernetes et vérification de santé.
@@ -140,7 +140,7 @@ async def health_check(request: Request):
 
 
 @router.get("/metrics", include_in_schema=False)
-@limiter.limit("5/minute")  # 5 requêtes par minute par IP
+@limiter.limit("51/minute")  # 51 requêtes par minute par IP
 async def metrics(request: Request, credentials: HTTPBasicCredentials = Depends(security)):
     """
     Endpoint sécurisé qui expose les métriques au format textuel de Prometheus.
