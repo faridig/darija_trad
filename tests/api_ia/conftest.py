@@ -1,7 +1,6 @@
-# Fichier : tests/api_ia/conftest.py
+# Fichier : tests/api_ia/conftest.py (Version Finale Corrigée)
 """
 Configuration et fixtures pour les tests de l'API IA.
-Ce module contient les fixtures partagées pour les tests de l'API FastAPI.
 """
 
 import pytest
@@ -29,28 +28,38 @@ os.environ["ADMIN_PASSWORD"] = "test_password"
 def disable_rate_limiter_and_network(monkeypatch):
     """
     Fixture auto-exécutée qui s'applique à TOUS les tests pour :
-    1. Désactiver le rate limiting en remplaçant le limiteur par un mock.
+    1. Désactiver le rate limiting en remplaçant le limiteur par un mock complet.
     2. Empêcher les appels réseau sortants en simulant `requests.post`.
     """
-    # --- 1. Désactivation propre du Rate Limiting ---
+    # --- 1. Désactivation robuste du Rate Limiting ---
     class MockLimiter:
-        """Un faux limiteur qui ne fait rien mais évite les crashs."""
+        """
+        Un faux limiteur qui ne fait rien mais qui est suffisamment complet
+        pour ne pas planter le gestionnaire d'erreurs de slowapi.
+        """
         def __init__(self, key_func):
-            # L'attribut 'enabled' est la clé. Le middleware le vérifiera.
+            # L'attribut 'enabled' est vérifié par le middleware.
             self.enabled = False
         
-        # Le décorateur @limiter.limit doit exister mais ne rien faire.
+        # Le décorateur @limiter.limit est remplacé par une fonction qui ne fait rien.
         def limit(self, limit_string):
             def decorator(func):
                 return func
             return decorator
 
-    # On remplace l'instance du limiteur DANS LE MODULE OÙ IL EST DÉFINI
-    # C'est la manière la plus robuste de s'assurer que tous les imports
-    # utiliseront notre mock.
+        # ================================================================
+        # ===> CORRECTION APPLIQUÉE ICI <=================================
+        # ================================================================
+        # On ajoute la méthode que le gestionnaire d'erreurs de slowapi
+        # s'attend à trouver. Elle prend la réponse et la retourne sans la modifier.
+        def _inject_headers(self, response, current_limit):
+            return response
+        # ================================================================
+
+    # On remplace l'instance du limiteur DANS LE MODULE OÙ IL EST DÉFINI (`limiter.py`).
     monkeypatch.setattr('api.ia_api.limiter.limiter', MockLimiter(key_func=None))
     
-    # On met aussi à jour l'état de l'application par sécurité.
+    # On met aussi à jour l'état de l'application avec le même mock.
     app.state.limiter = MockLimiter(key_func=None)
 
     # --- 2. Simulation des appels réseau (inchangé) ---
