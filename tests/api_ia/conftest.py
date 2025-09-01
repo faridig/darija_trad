@@ -12,6 +12,20 @@ import requests
 from api.ia_api.main import app
 import database.core.auth as core_auth
 
+# Dans conftest.py, désactiver le rate limiting
+app.state.limiter = None
+
+# Dans conftest.py ou setUp des tests
+os.environ["ADMIN_USERNAME"] = "test_admin"
+os.environ["ADMIN_PASSWORD"] = "test_password"
+
+# Appliquer tous les middlewares à l'application de test
+app.middleware("http")(add_security_headers)
+app.middleware("http")(limit_body_size)
+app.middleware("http")(monitoring_middleware)
+
+
+
 
 @pytest.fixture(autouse=True)
 def prevent_network_calls(monkeypatch):
