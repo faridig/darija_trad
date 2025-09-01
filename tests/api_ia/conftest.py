@@ -17,81 +17,72 @@ import database.core.auth as core_auth
 # === CONFIGURATION GLOBALE AVANT LES TESTS ====================================
 # ==============================================================================
 
-# Désactiver le rate limiting pour tous les tests afin d'éviter que les
-# tests rapides ne soient bloqués inutilement.
-app.state.limiter = None
-
-# Définir des variables d'environnement de test pour s'assurer que les
-# tests ne dépendent pas d'un fichier .env local.
+# Définir des variables d'environnement de test.
 os.environ["ADMIN_USERNAME"] = "test_admin"
 os.environ["ADMIN_PASSWORD"] = "test_password"
-
-# REMARQUE : Il n'est pas nécessaire de réappliquer les middlewares ici.
-# L'objet `app` importé depuis `main.py` est déjà entièrement configuré
-# avec tous ses middlewares. Ajouter `app.middleware(...)` ici est redondant
-# et peut causer des problèmes d'importation.
 
 # ==============================================================================
 # === FIXTURES PYTEST ==========================================================
 # ==============================================================================
 
 @pytest.fixture(autouse=True)
-def prevent_network_calls(monkeypatch):
+def disable_rate_limiter_and_network(monkeypatch):
     """
-    Fixture auto-exécutée qui empêche tous les appels réseau sortants
-    en simulant la méthode `requests.post`. 
-    
-    Cette fixture est automatiquement utilisée par tous les tests du module
-    pour isoler les tests de l'API sans dépendre de services externes.
-    
-    Args:
-        monkeypatch: Fixture pytest pour modifier le comportement des objets.
+    Fixture auto-exécutée qui s'applique à TOUS les tests pour :
+    1. Désactiver le rate limiting en remplaçant le limiteur par un mock.
+    2. Empêcher les appels réseau sortants en simulant `requests.post`.
     """
-    class MockResponse:
-        """Classe de simulation d'une réponse HTTP pour les tests."""
+    # --- 1. Désactivation propre du Rate Limiting ---
+    class MockLimiter:
+        """Un faux limiteur qui ne fait rien mais évite les crashs."""
+        def __init__(self, key_func):
+            # L'attribut 'enabled' est la clé. Le middleware le vérifiera.
+            self.enabled = False
         
+        # Le décorateur @limiter.limit doit exister mais ne rien faire.
+        def limit(self, limit_string):
+            def decorator(func):
+                return func
+            return decorator
+
+    # On remplace l'instance du limiteur DANS LE MODULE OÙ IL EST DÉFINI
+    # C'est la manière la plus robuste de s'assurer que tous les imports
+    # utiliseront notre mock.
+    monkeypatch.setattr('api.ia_api.limiter.limiter', MockLimiter(key_func=None))
+    
+    # On met aussi à jour l'état de l'application par sécurité.
+    app.state.limiter = MockLimiter(key_func=None)
+
+    # --- 2. Simulation des appels réseau (inchangé) ---
+    class MockResponse:
         def __init__(self, json_data, status_code):
             self.json_data = json_data
             self.status_code = status_code
-
         def json(self):
             return self.json_data
-            
         def raise_for_status(self):
             if self.status_code >= 400:
                 raise requests.exceptions.HTTPError(f"Error {self.status_code}")
 
     def mock_post(*args, **kwargs):
-        """Fonction simulée pour remplacer `requests.post`."""
         if "inputs" in kwargs.get("json", {}):
             return MockResponse([{"translation_text": "traduction simulée réussie"}], 200)
         return MockResponse(None, 200)
 
-    # Remplacer `requests.post` par notre fonction simulée.
     monkeypatch.setattr(requests, "post", mock_post)
 
 
 @pytest.fixture
 def client():
     """
-    Fixture qui crée un client de test FastAPI.
-    
-    Cette fixture initialise un client de test pour l'application FastAPI
-    et remplace la dépendance de vérification JWT par une version simulée
-    pour éviter de dépendre d'un système d'authentification réel.
-    
-    Yields:
-        TestClient: Un client de test FastAPI prêt à l'emploi.
+    Fixture qui crée un client de test FastAPI avec l'authentification simulée.
     """
     def fake_verify_jwt_token():
-        """Simule une vérification de token JWT toujours réussie."""
         return {"username": "testuser", "sub": "testuser"}
     
-    # Remplacer la dépendance de sécurité le temps du test.
     app.dependency_overrides[core_auth.verify_jwt_token] = fake_verify_jwt_token
     
     with TestClient(app) as test_client:
         yield test_client
         
-    # Nettoyer les "overrides" après la fin du test pour ne pas affecter d'autres tests.
     app.dependency_overrides.clear()
