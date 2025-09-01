@@ -88,16 +88,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from ..schemas import TexteInput, TexteOutput
 from ..model import LLMTranslator
 from database.core.auth import verify_jwt_token
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from ..limiter import limiter
 
 # Crée un routeur FastAPI. Cela permet de regrouper les routes liées à l'IA
 # et de les inclure dans l'application principale (main.py).
 # Le tag "IA" sera utilisé pour le regroupement dans la documentation Swagger.
 router = APIRouter(tags=["IA"])
 
-# Crée une instance locale du limiter
-limiter = Limiter(key_func=get_remote_address)
 
 # Instanciation globale du traducteur.
 # Le traducteur est créé une seule fois au démarrage de l'application pour des raisons d'efficacité.

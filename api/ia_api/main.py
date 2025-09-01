@@ -11,7 +11,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
@@ -20,6 +20,8 @@ from slowapi.middleware import SlowAPIMiddleware
 # Importation des modules contenant les groupes de routes (endpoints).
 # Cette approche modulaire permet de garder le code organisé et maintenable.
 from api.ia_api.routers import generation, monitoring
+from api.ia_api.limiter import limiter
+
 
 # Importation des fonctions middleware personnalisées définies dans un fichier séparé.
 from api.ia_api.middlewares import (
@@ -94,6 +96,7 @@ app.middleware("http")(limit_body_size)
 app.middleware("http")(monitoring_middleware)
 
 # La configuration du middleware SlowAPI pour gérer les exceptions
+app.state.limiter = limiter # On attache l'instance partagée à l'état de l'app
 app.add_middleware(SlowAPIMiddleware)
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

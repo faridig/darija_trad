@@ -12,8 +12,8 @@ from datetime import datetime
 import os
 import secrets
 from dotenv import load_dotenv
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from ..limiter import limiter
+
 
 # Importe l'instance partagée du traducteur pour les tests de santé.
 from .generation import translator
@@ -29,8 +29,6 @@ from database.core.auth import verify_jwt_token
 # Le tag "Monitoring" regroupera ces routes dans la documentation Swagger UI.
 router = APIRouter(tags=["Monitoring"])
 
-# Crée une instance locale du limiter
-limiter = Limiter(key_func=get_remote_address)
 
 # Charge les variables d'environnement depuis un fichier .env.
 # C'est ici que sont récupérés les identifiants pour sécuriser l'endpoint /metrics.
