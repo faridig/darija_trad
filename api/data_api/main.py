@@ -6,9 +6,13 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.middleware import SlowAPIMiddleware
+
 
 # Import des modules contenant les endpoints spécifiques
 from .routers import auth, translations
+
+from api.data_api.limiter import limiter
 
 # --- Étape 1: Initialisation de l'application FastAPI ---
 # C'est le point d'entrée principal de notre API.
@@ -46,11 +50,12 @@ app.add_middleware(
     allow_headers=["*"], # Autorise tous les en-têtes (comme Authorization)
 )
 
-# Middleware n°2 : Rate Limiting (Limitation de débit)
-# Protège l'API contre les attaques par force brute ou les abus en limitant
-# le nombre de requêtes qu'une même IP peut faire en un temps donné.
-limiter = Limiter(key_func=lambda request: request.headers.get("X-Forwarded-For", request.client.host))
+
+# On attache le limiteur à l'état de l'application pour le rendre accessible partout.
 app.state.limiter = limiter
+# On active le middleware qui vérifiera chaque requête.
+app.add_middleware(SlowAPIMiddleware)
+# On définit le gestionnaire qui renverra une erreur 429 en cas de dépassement.
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 

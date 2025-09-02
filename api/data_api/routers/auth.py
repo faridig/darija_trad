@@ -1,6 +1,6 @@
 # Fichier : api/data_api/routers/auth.py 
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request 
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
@@ -12,6 +12,9 @@ from ..schemas import UserCreate, User
 from database.core import get_db
 from database.core.models import User as UserModel
 
+from ..limiter import limiter
+
+
 # --- Création d'un "Routeur" ---
 # Un routeur est un mini-groupe d'endpoints. Cela permet d'organiser le code.
 # Le tag "Auth" regroupera ces endpoints dans la documentation Swagger.
@@ -19,7 +22,9 @@ router = APIRouter(tags=["Auth"])
 
 
 @router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/hour") # Limite stricte : 10 inscriptions par heure par IP
 def register(
+    request: Request,
     user_data: UserCreate, 
     db: Session = Depends(get_db)
 ):
@@ -45,9 +50,12 @@ def register(
 
 
 @router.post("/login")
+@limiter.limit("20/minute") # Limite plus permissive, mais protège contre le brute-force rapide
+
 def login(
     # FastAPI utilise ce `Depends` pour extraire `username` et `password`
     # d'une requête de type "form-data", le standard pour OAuth2.
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):

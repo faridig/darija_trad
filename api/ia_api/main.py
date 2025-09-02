@@ -95,9 +95,20 @@ app.middleware("http")(limit_body_size)
 # (nombre de requêtes, latence, etc.) qui seront ensuite exposées sur l'endpoint /metrics.
 app.middleware("http")(monitoring_middleware)
 
-# La configuration du middleware SlowAPI pour gérer les exceptions
-app.state.limiter = limiter # On attache l'instance partagée à l'état de l'app
+# --- Configuration du Rate Limiting (limitation de débit) ---
+# Ce système en 3 étapes protège l'API contre les requêtes excessives :
+# 1. Le limiteur est rendu disponible pour toute l'application.
+# 2. Un middleware est activé pour vérifier chaque requête entrante.
+# 3. Un gestionnaire d'erreurs est défini pour renvoyer une réponse HTTP 429
+#    propre en cas de dépassement de la limite.
+
+# 1. Rend l'instance du limiteur accessible globalement via l'état de l'application.
+app.state.limiter = limiter
+
+# 2. Active le middleware qui intercepte et vérifie chaque requête contre les limites définies.
 app.add_middleware(SlowAPIMiddleware)
+
+# 3. Définit la fonction qui génère la réponse HTTP 429 lorsque la limite est dépassée.
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
