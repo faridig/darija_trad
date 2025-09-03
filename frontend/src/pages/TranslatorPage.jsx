@@ -1,4 +1,4 @@
-// Fichier : frontend/src/pages/TranslatorPage.jsx (Avec la correction minimale pour la testabilité)
+// Fichier : frontend/src/pages/TranslatorPage.jsx 
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';

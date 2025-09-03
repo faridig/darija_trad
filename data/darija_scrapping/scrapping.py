@@ -13,8 +13,6 @@
 #   choisie pour sa capacité à gérer le contenu web dynamique et les interactions complexes.
 # - Pandas : Utilisé pour lire efficacement les fichiers Excel sources.
 #
-# COMPÉTENCE RNCP VALIDÉE :
-# - C1 : Automatiser l’extraction de données depuis une page web (scraping).
 #
 # ==============================================================================
 
@@ -23,6 +21,9 @@ import json
 import time
 import os
 import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ------------------------------------------------------------------------------
 # SECTION 1 : FONCTIONS DE BAS NIVEAU (INTERACTIONS UNITAIRES)
@@ -41,6 +42,9 @@ def se_connecter(page):
         bool: True si la connexion semble avoir réussi, False en cas d'erreur.
     """
     try:
+        
+        email = os.getenv("SCRAPER_EMAIL")
+        password = os.getenv("SCRAPER_PASSWORD")
         # L'utilisation de sélecteurs XPath est parfois nécessaire
         # lorsque les éléments n'ont pas d'ID ou de classes uniques et stables.
         print("Clic sur le bouton 'Se connecter'...")
@@ -48,11 +52,11 @@ def se_connecter(page):
         page.wait_for_timeout(2000) # Attente explicite pour laisser le temps à la page de se charger
 
         print("Saisie de l'identifiant...")
-        page.locator("xpath=/html/body/section[1]/div/form/div[1]/input").fill("faridigouti@gmail.com")
+        page.locator("xpath=/html/body/section[1]/div/form/div[1]/input").fill(email)
         page.wait_for_timeout(1000)
 
         print("Saisie du mot de passe...")
-        page.locator("xpath=/html/body/section[1]/div/form/div[2]/input").fill("34635263")
+        page.locator("xpath=/html/body/section[1]/div/form/div[2]/input").fill(password)
         page.wait_for_timeout(1000)
 
         print("Clic sur le bouton de validation...")

@@ -1,14 +1,33 @@
-# api/ia_api/alertmanager/alertmanager.yml
+# ==============================================================================
+# FICHIER DE CONFIGURATION D'ALERTMANAGER
+# ------------------------------------------------------------------------------
+# Rôle : Définit comment les alertes de Prometheus sont regroupées et routées.
+# ==============================================================================
 
 global:
+  # Une alerte est considérée comme résolue si elle n'est plus envoyée par Prometheus pendant 5 minutes.
   resolve_timeout: 5m
 
+# 'route' est la règle principale d'aiguillage des alertes.
 route:
+  # Regroupe les alertes par nom et sévérité pour éviter le spam.
+  # (ex: un seul email pour 10 pods en panne, au lieu de 10 emails).
   group_by: ['alertname', 'severity']
-  group_wait: 30s
-  group_interval: 5m
-  repeat_interval: 1h
-  receiver: 'null' # Pour la démo, on n'envoie les alertes nulle part
 
+  # Attendre 30s après la première alerte pour voir si d'autres alertes du même groupe arrivent.
+  group_wait: 30s
+  
+  # Si le groupe est déjà actif, attendre 5m avant d'envoyer une notification pour de nouvelles alertes dans ce groupe.
+  group_interval: 5m
+
+  # Renvoyer une notification pour une alerte non résolue toutes les heures.
+  repeat_interval: 1h
+
+  # Envoyer toutes les alertes au récepteur nommé 'null'.
+  receiver: 'null'
+
+# 'receivers' définit les destinations (email, Slack, etc.).
 receivers:
+# Le récepteur 'null' est une destination "poubelle" qui ne fait rien.
+# Utile pour les tests ou pour ignorer certaines alertes.
 - name: 'null'

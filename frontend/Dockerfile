@@ -35,8 +35,6 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 
 # ===================================================================
-# ===> MODIFICATION AJOUTÉE <===
-# ===================================================================
 # On copie notre script "messager" (entrypoint.sh) dans l'image.
 COPY entrypoint.sh /entrypoint.sh
 
@@ -47,8 +45,7 @@ RUN chmod +x /entrypoint.sh
 # du conteneur. C'est le changement le plus important.
 ENTRYPOINT ["/entrypoint.sh"]
 # ===================================================================
-# ===> FIN DE LA MODIFICATION <===
-# ===================================================================
+
 
 # On expose le port 80, sur lequel Nginx écoute.
 EXPOSE 80

@@ -124,7 +124,7 @@ async def limit_body_size(request: Request, call_next):
         Response: Une réponse d'erreur 413 si le payload est trop grand, sinon
                   la réponse de l'endpoint.
     """
-    max_bytes = 10 * 1024
+    max_bytes = 10 * 1024 # Définit la limite à 10 Ko
     content_length = request.headers.get("content-length")
 
     if content_length:
